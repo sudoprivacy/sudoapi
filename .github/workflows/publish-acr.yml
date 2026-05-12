@@ -12,6 +12,9 @@ permissions:
 env:
   REGISTRY: sudorouter.azurecr.io
   IMAGE_NAME: sub2api
+  DEPLOY_HOST: 104.208.90.4
+  DEPLOY_USER: azureuser
+  DEPLOY_PATH: /data/sub2api
 
 jobs:
   build-and-push:
@@ -45,7 +48,25 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.date.outputs.DATE }}
           build-args: |
             COMMIT=${{ github.sha }}
-            GOPROXY=https://goproxy.cn,direct
-            GOSUMDB=sum.golang.google.cn
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Deploy to Azure VM
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: REGISTRY,ACR_USERNAME,ACR_PASSWORD,DEPLOY_PATH
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+
+            echo "$ACR_PASSWORD" | docker login "$REGISTRY" --username "$ACR_USERNAME" --password-stdin
+
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker compose ps
