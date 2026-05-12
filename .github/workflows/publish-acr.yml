@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '.dockerignore'
+      - '.github/workflows/publish-acr.yml'
+      - 'Dockerfile'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'assets/**'
+      - 'deploy/docker-entrypoint.sh'
+      
   workflow_dispatch:
 
 permissions:
@@ -70,3 +79,16 @@ jobs:
             docker compose pull
             docker compose up -d --remove-orphans
             docker compose ps
+
+            for i in $(seq 1 30); do
+              status="$(docker inspect --format='{{.State.Health.Status}}' sub2api 2>/dev/null || true)"
+              if [ "$status" = "healthy" ]; then
+                echo "sub2api health check passed"
+                exit 0
+              fi
+              echo "Waiting for sub2api health check ($i/30): ${status:-unknown}"
+              sleep 5
+            done
+
+            docker compose logs --tail=100 sub2api
+            exit 1
