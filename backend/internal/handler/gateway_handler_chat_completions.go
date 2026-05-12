@@ -219,7 +219,16 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
-		result, err := h.gatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, parsedReq)
+		var result *service.ForwardResult
+		if account.Platform == service.PlatformGemini {
+			if h.geminiOpenAICompatService == nil {
+				h.chatCompletionsErrorResponse(c, http.StatusBadGateway, "server_error", "Gemini OpenAI compatibility service is not configured")
+				return
+			}
+			result, err = h.geminiOpenAICompatService.ForwardChatCompletions(c.Request.Context(), c, account, forwardBody, parsedReq)
+		} else {
+			result, err = h.gatewayService.ForwardAsChatCompletions(c.Request.Context(), c, account, forwardBody, parsedReq)
+		}
 
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()

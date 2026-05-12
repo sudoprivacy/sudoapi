@@ -38,6 +38,7 @@ var gatewayCompatibilityMetricsLogCounter atomic.Uint64
 type GatewayHandler struct {
 	gatewayService            *service.GatewayService
 	geminiCompatService       *service.GeminiMessagesCompatService
+	geminiOpenAICompatService *service.GeminiOpenAICompatService
 	antigravityGatewayService *service.AntigravityGatewayService
 	userService               *service.UserService
 	billingCacheService       *service.BillingCacheService
@@ -58,6 +59,7 @@ type GatewayHandler struct {
 func NewGatewayHandler(
 	gatewayService *service.GatewayService,
 	geminiCompatService *service.GeminiMessagesCompatService,
+	geminiOpenAICompatService *service.GeminiOpenAICompatService,
 	antigravityGatewayService *service.AntigravityGatewayService,
 	userService *service.UserService,
 	concurrencyService *service.ConcurrencyService,
@@ -93,6 +95,7 @@ func NewGatewayHandler(
 	return &GatewayHandler{
 		gatewayService:            gatewayService,
 		geminiCompatService:       geminiCompatService,
+		geminiOpenAICompatService: geminiOpenAICompatService,
 		antigravityGatewayService: antigravityGatewayService,
 		userService:               userService,
 		billingCacheService:       billingCacheService,

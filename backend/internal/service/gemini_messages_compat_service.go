@@ -3046,6 +3046,9 @@ func convertClaudeMessagesToGeminiGenerateContent(body []byte) ([]byte, error) {
 	if tools := convertClaudeToolsToGeminiTools(req["tools"]); tools != nil {
 		out["tools"] = tools
 	}
+	if toolConfig := convertClaudeToolChoiceToGeminiToolConfig(req["tool_choice"]); toolConfig != nil {
+		out["toolConfig"] = toolConfig
+	}
 
 	generationConfig := convertClaudeGenerationConfig(req)
 	if generationConfig != nil {
@@ -3054,6 +3057,57 @@ func convertClaudeMessagesToGeminiGenerateContent(body []byte) ([]byte, error) {
 
 	stripGeminiFunctionIDs(out)
 	return json.Marshal(out)
+}
+
+func convertClaudeToolChoiceToGeminiToolConfig(toolChoice any) map[string]any {
+	if toolChoice == nil {
+		return nil
+	}
+
+	var choice map[string]any
+	switch v := toolChoice.(type) {
+	case map[string]any:
+		choice = v
+	case string:
+		choice = map[string]any{"type": v}
+	default:
+		return nil
+	}
+
+	choiceType, _ := choice["type"].(string)
+	switch strings.ToLower(strings.TrimSpace(choiceType)) {
+	case "auto":
+		return geminiFunctionCallingConfig("AUTO", nil)
+	case "none":
+		return geminiFunctionCallingConfig("NONE", nil)
+	case "any", "required":
+		return geminiFunctionCallingConfig("ANY", nil)
+	case "tool", "function":
+		name, _ := choice["name"].(string)
+		if strings.TrimSpace(name) == "" {
+			if fn, ok := choice["function"].(map[string]any); ok {
+				name, _ = fn["name"].(string)
+			}
+		}
+		if strings.TrimSpace(name) == "" {
+			return geminiFunctionCallingConfig("ANY", nil)
+		}
+		return geminiFunctionCallingConfig("ANY", []string{strings.TrimSpace(name)})
+	default:
+		// Gemini does not expose an equivalent force mode for built-in search
+		// tools, so leave googleSearch/web_search choices to the tool list.
+		return nil
+	}
+}
+
+func geminiFunctionCallingConfig(mode string, allowedNames []string) map[string]any {
+	cfg := map[string]any{"mode": mode}
+	if len(allowedNames) > 0 {
+		cfg["allowedFunctionNames"] = allowedNames
+	}
+	return map[string]any{
+		"functionCallingConfig": cfg,
+	}
 }
 
 func stripGeminiFunctionIDs(req map[string]any) {
