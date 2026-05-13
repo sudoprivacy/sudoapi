@@ -248,6 +248,9 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		// User attribute values
 		users.GET("/:id/attributes", h.Admin.UserAttribute.GetUserAttributes)
 		users.PUT("/:id/attributes", h.Admin.UserAttribute.UpdateUserAttributes)
+
+		// sudoapi: CSV-style admin batch user creation.
+		users.POST("/batch", h.Admin.User.BatchCreate)
 	}
 }
 

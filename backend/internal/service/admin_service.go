@@ -120,6 +120,9 @@ type AdminService interface {
 	BatchDeleteRedeemCodes(ctx context.Context, ids []int64) (int64, error)
 	ExpireRedeemCode(ctx context.Context, id int64) (*RedeemCode, error)
 	ResetAccountQuota(ctx context.Context, id int64) error
+
+	// sudoapi: CSV-style admin batch user creation.
+	BatchCreateUsers(ctx context.Context, input *BatchCreateUsersInput) (*BatchCreateUsersOutput, error)
 }
 
 // CreateUserInput represents input for creating a new user via admin operations.
