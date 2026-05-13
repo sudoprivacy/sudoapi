@@ -102,6 +102,8 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		p := existingProxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
 		proxyByKey[key] = p
+		// sudoapi: Idempotent admin data import.
+		proxyByKey[buildCanonicalProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)] = p
 	}
 
 	latencyProbeIDs := make([]int64, 0, len(req.Data.Proxies))
@@ -111,6 +113,8 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		if key == "" {
 			key = buildProxyKey(item.Protocol, item.Host, item.Port, item.Username, item.Password)
 		}
+		// sudoapi: Idempotent admin data import.
+		canonicalKey := buildCanonicalProxyKey(item.Protocol, item.Host, item.Port, item.Username, item.Password)
 
 		if err := validateDataProxy(item); err != nil {
 			result.ProxyFailed++
@@ -124,7 +128,9 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		}
 
 		normalizedStatus := normalizeProxyStatus(item.Status)
-		if existing, ok := proxyByKey[key]; ok {
+		if existing, ok := proxyByKey[canonicalKey]; ok {
+			proxyByKey[key] = existing
+			proxyByKey[canonicalKey] = existing
 			result.ProxyReused++
 			if normalizedStatus != "" && normalizedStatus != existing.Status {
 				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, &service.UpdateProxyInput{Status: normalizedStatus}); err != nil {
@@ -160,6 +166,7 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		}
 		result.ProxyCreated++
 		proxyByKey[key] = *created
+		proxyByKey[canonicalKey] = *created
 
 		if normalizedStatus != "" && normalizedStatus != created.Status {
 			if _, err := h.adminService.UpdateProxy(ctx, created.ID, &service.UpdateProxyInput{Status: normalizedStatus}); err != nil {

@@ -1135,6 +1135,8 @@ export interface AdminDataImportResult {
   account_created: number
   account_failed: number
   errors?: AdminDataImportError[]
+  // sudoapi: Idempotent admin data import.
+  account_skipped: number
 }
 
 export interface CodexSessionImportRequest {
