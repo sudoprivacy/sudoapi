@@ -105,14 +105,17 @@
                 class="-mx-2 -my-1 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-dark-700"
                 :title="t('keys.clickToChangeGroup')"
               >
-                <GroupBadge
-                  v-if="row.group"
-                  :name="row.group.name"
-                  :platform="row.group.platform"
-                  :subscription-type="row.group.subscription_type"
-                  :rate-multiplier="row.group.rate_multiplier"
-                  :user-rate-multiplier="userGroupRates[row.group.id]"
-                />
+                <div v-if="apiKeyGroups(row).length > 0" class="flex max-w-[360px] flex-wrap gap-1.5">
+                  <GroupBadge
+                    v-for="group in apiKeyGroups(row)"
+                    :key="group.id"
+                    :name="group.name"
+                    :platform="group.platform"
+                    :subscription-type="group.subscription_type"
+                    :rate-multiplier="group.rate_multiplier"
+                    :user-rate-multiplier="userGroupRates[group.id]"
+                  />
+                </div>
                 <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
                 }}</span>
@@ -406,37 +409,37 @@
 
         <div>
           <label class="input-label">{{ t('keys.groupLabel') }}</label>
-          <Select
-            v-model="formData.group_id"
-            :options="groupOptions"
-            :placeholder="t('keys.selectGroup')"
-            :searchable="true"
-            :search-placeholder="t('keys.searchGroup')"
-            data-tour="key-form-group"
-          >
-            <template #selected="{ option }">
-              <GroupBadge
-                v-if="option"
-                :name="(option as unknown as GroupOption).label"
-                :platform="(option as unknown as GroupOption).platform"
-                :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                :rate-multiplier="(option as unknown as GroupOption).rate"
-                :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-              />
-              <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
-            </template>
-            <template #option="{ option, selected }">
-              <GroupOptionItem
-                :name="(option as unknown as GroupOption).label"
-                :platform="(option as unknown as GroupOption).platform"
-                :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                :rate-multiplier="(option as unknown as GroupOption).rate"
-                :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                :description="(option as unknown as GroupOption).description"
-                :selected="selected"
-              />
-            </template>
-          </Select>
+          <div class="space-y-3" data-tour="key-form-group">
+            <div v-for="section in groupOptionsByPlatform" :key="section.platform" class="space-y-1.5">
+              <div class="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                {{ section.platform }}
+              </div>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <button
+                  v-for="option in section.options"
+                  :key="option.value"
+                  type="button"
+                  @click="toggleFormGroup(option)"
+                  :class="[
+                    'rounded-lg border px-3 py-2 text-left transition-colors',
+                    formData.group_ids.includes(option.value)
+                      ? 'border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/20'
+                      : 'border-gray-200 hover:bg-gray-50 dark:border-dark-600 dark:hover:bg-dark-700'
+                  ]"
+                >
+                  <GroupOptionItem
+                    :name="option.label"
+                    :platform="option.platform"
+                    :subscription-type="option.subscriptionType"
+                    :rate-multiplier="option.rate"
+                    :user-rate-multiplier="option.userRate"
+                    :description="option.description"
+                    :selected="formData.group_ids.includes(option.value)"
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Custom Key Section (only for create) -->
@@ -1010,12 +1013,11 @@
           <button
             v-for="option in filteredGroupOptions"
             :key="option.value ?? 'null'"
-            @click="changeGroup(selectedKeyForGroup!, option.value)"
+            @click="toggleKeyGroup(selectedKeyForGroup!, option)"
             :class="[
               'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
               'border-b border-gray-100 last:border-0 dark:border-dark-700',
-              selectedKeyForGroup?.group_id === option.value ||
-              (!selectedKeyForGroup?.group_id && option.value === null)
+              option.value !== null && apiKeyGroupIDs(selectedKeyForGroup).includes(option.value)
                 ? 'bg-primary-50 dark:bg-primary-900/20'
                 : 'hover:bg-gray-100 dark:hover:bg-dark-700'
             ]"
@@ -1029,8 +1031,7 @@
               :user-rate-multiplier="option.userRate"
               :description="option.description"
               :selected="
-                selectedKeyForGroup?.group_id === option.value ||
-                (!selectedKeyForGroup?.group_id && option.value === null)
+                option.value !== null && apiKeyGroupIDs(selectedKeyForGroup).includes(option.value)
               "
             />
           </button>
@@ -1171,6 +1172,7 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 const formData = ref({
   name: '',
   group_id: null as number | null,
+  group_ids: [] as number[],
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
   custom_key: '',
@@ -1253,6 +1255,47 @@ const groupOptions = computed(() =>
     platform: group.platform
   }))
 )
+
+const groupOptionsByPlatform = computed(() => {
+  const order: GroupPlatform[] = ['openai', 'gemini', 'anthropic', 'antigravity']
+  return order
+    .map((platform) => ({
+      platform,
+      options: groupOptions.value.filter((option) => option.platform === platform)
+    }))
+    .filter((section) => section.options.length > 0)
+})
+
+const apiKeyGroups = (key: ApiKey | null): Group[] => {
+  if (!key) return []
+  if (key.groups && key.groups.length > 0) return key.groups
+  return key.group ? [key.group] : []
+}
+
+const apiKeyGroupIDs = (key: ApiKey | null): number[] => {
+  if (!key) return []
+  if (key.group_ids && key.group_ids.length > 0) return key.group_ids
+  return key.group_id ? [key.group_id] : []
+}
+
+const syncPrimaryGroupID = () => {
+  formData.value.group_id = formData.value.group_ids[0] ?? null
+}
+
+const toggleFormGroup = (option: GroupOption) => {
+  const alreadySelected = formData.value.group_ids.includes(option.value)
+  if (alreadySelected) {
+    formData.value.group_ids = formData.value.group_ids.filter((id) => id !== option.value)
+  } else {
+    const samePlatformIDs = groupOptions.value
+      .filter((group) => group.platform === option.platform)
+      .map((group) => group.value)
+    formData.value.group_ids = formData.value.group_ids
+      .filter((id) => !samePlatformIDs.includes(id))
+      .concat(option.value)
+  }
+  syncPrimaryGroupID()
+}
 
 // Group dropdown search
 const groupSearchQuery = ref('')
@@ -1394,6 +1437,7 @@ const editKey = (key: ApiKey) => {
   formData.value = {
     name: key.name,
     group_id: key.group_id,
+    group_ids: apiKeyGroupIDs(key),
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
     use_custom_key: false,
     custom_key: '',
@@ -1457,13 +1501,24 @@ const openGroupSelector = (key: ApiKey) => {
   }
 }
 
-const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
+const toggleKeyGroup = async (key: ApiKey, option: GroupOption) => {
   groupSelectorKeyId.value = null
   dropdownPosition.value = null
-  if (key.group_id === newGroupId) return
+
+  const currentIDs = apiKeyGroupIDs(key)
+  const isSelected = currentIDs.includes(option.value)
+  let nextIDs: number[]
+  if (isSelected) {
+    nextIDs = currentIDs.filter((id) => id !== option.value)
+  } else {
+    const samePlatformIDs = groupOptions.value
+      .filter((group) => group.platform === option.platform)
+      .map((group) => group.value)
+    nextIDs = currentIDs.filter((id) => !samePlatformIDs.includes(id)).concat(option.value)
+  }
 
   try {
-    await keysAPI.update(key.id, { group_id: newGroupId })
+    await keysAPI.update(key.id, { group_id: nextIDs[0] ?? null, group_ids: nextIDs })
     appStore.showSuccess(t('keys.groupChangedSuccess'))
     loadApiKeys()
   } catch (error) {
@@ -1486,12 +1541,6 @@ const confirmDelete = (key: ApiKey) => {
 }
 
 const handleSubmit = async () => {
-  // Validate group_id is required
-  if (formData.value.group_id === null) {
-    appStore.showError(t('keys.groupRequired'))
-    return
-  }
-
   // Validate custom key if enabled
   if (!showEditModal.value && formData.value.use_custom_key) {
     if (!formData.value.custom_key) {
@@ -1545,6 +1594,7 @@ const handleSubmit = async () => {
       await keysAPI.update(selectedKey.value.id, {
         name: formData.value.name,
         group_id: formData.value.group_id,
+        group_ids: formData.value.group_ids,
         status: formData.value.status,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
@@ -1560,6 +1610,7 @@ const handleSubmit = async () => {
       await keysAPI.create(
         formData.value.name,
         formData.value.group_id,
+        formData.value.group_ids,
         customKey,
         ipWhitelist,
         ipBlacklist,
@@ -1611,6 +1662,7 @@ const closeModals = () => {
   formData.value = {
     name: '',
     group_id: null,
+    group_ids: [],
     status: 'active',
     use_custom_key: false,
     custom_key: '',
