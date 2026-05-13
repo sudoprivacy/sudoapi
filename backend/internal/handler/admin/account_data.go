@@ -84,6 +84,8 @@ type DataImportResult struct {
 	AccountCreated int               `json:"account_created"`
 	AccountFailed  int               `json:"account_failed"`
 	Errors         []DataImportError `json:"errors,omitempty"`
+	// sudoapi: Idempotent admin data import.
+	AccountSkipped int `json:"account_skipped"`
 }
 
 type DataImportError struct {
@@ -263,6 +265,8 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		p := existingProxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
 		proxyKeyToID[key] = p.ID
+		// sudoapi: Idempotent admin data import.
+		proxyKeyToID[buildCanonicalProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)] = p.ID
 		if p.Name != "" {
 			proxyNameToID[p.Name] = p.ID
 		}
@@ -285,8 +289,12 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			continue
 		}
 		normalizedStatus := normalizeProxyStatus(item.Status)
-		if existingID, ok := proxyKeyToID[key]; ok {
+		// sudoapi: Idempotent admin data import.
+		canonicalKey := buildCanonicalProxyKey(item.Protocol, item.Host, item.Port, item.Username, item.Password)
+		if existingID, ok := proxyKeyToID[canonicalKey]; ok {
 			proxyKeyToID[key] = existingID
+			// sudoapi: Idempotent admin data import.
+			proxyKeyToID[canonicalKey] = existingID
 			result.ProxyReused++
 			if normalizedStatus != "" {
 				if proxy, getErr := h.adminService.GetProxy(ctx, existingID); getErr == nil && proxy != nil && proxy.Status != normalizedStatus {
@@ -372,6 +380,8 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			continue
 		}
 		proxyKeyToID[key] = created.ID
+		// sudoapi: Idempotent admin data import.
+		proxyKeyToID[canonicalKey] = created.ID
 		// 把新建代理的 name 也加入反查表，供后续批内代理引用
 		if created.Name != "" {
 			proxyNameToID[created.Name] = created.ID
@@ -398,6 +408,11 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 
 	// 收集需要异步设置隐私的 Antigravity OAuth 账号
 	var privacyAccounts []*service.Account
+	// sudoapi: Idempotent admin data import.
+	accountKeys, err := h.buildExistingAccountImportKeys(ctx)
+	if err != nil {
+		return result, err
+	}
 
 	for i := range dataPayload.Accounts {
 		item := dataPayload.Accounts[i]
@@ -428,6 +443,12 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		}
 
 		enrichCredentialsFromIDToken(&item)
+		// sudoapi: Idempotent admin data import.
+		identityKeys := accountDataIdentityKeys(item.Platform, item.Type, item.Credentials, item.Extra)
+		if hasAnyAccountDataIdentity(accountKeys, identityKeys) {
+			result.AccountSkipped++
+			continue
+		}
 
 		accountInput := &service.CreateAccountInput{
 			Name:                 item.Name,
@@ -461,6 +482,8 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			privacyAccounts = append(privacyAccounts, created)
 		}
 		h.scheduleGrokImportProbe(created)
+		// sudoapi: Idempotent admin data import.
+		markAccountDataIdentitySeen(accountKeys, identityKeys)
 		result.AccountCreated++
 	}
 
