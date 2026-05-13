@@ -991,9 +991,6 @@ function openBatchCreateModal() {
   showCreateMenu.value = false
   showBatchCreateModal.value = true
 }
-function closeCreateMenu() {
-  showCreateMenu.value = false
-}
 function handleDocumentClickForCreateMenu(e: MouseEvent) {
   if (!showCreateMenu.value) return
   if (createMenuRef.value && !createMenuRef.value.contains(e.target as Node)) {
