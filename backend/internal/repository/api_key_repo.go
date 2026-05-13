@@ -337,7 +337,7 @@ func (r *apiKeyRepository) ListByUserID(ctx context.Context, userID int64, param
 				s.Where(entsql.Not(entsql.Exists(
 					entsql.Select().
 						From(t).
-						Where(entsql.EQ(t.C("api_key_id"), s.C(apikey.FieldID))),
+						Where(entsql.ColumnsEQ(t.C("api_key_id"), s.C(apikey.FieldID))),
 				)))
 			})
 		} else {
@@ -350,7 +350,7 @@ func (r *apiKeyRepository) ListByUserID(ctx context.Context, userID int64, param
 						entsql.Select().
 							From(t).
 							Where(entsql.And(
-								entsql.EQ(t.C("api_key_id"), s.C(apikey.FieldID)),
+								entsql.ColumnsEQ(t.C("api_key_id"), s.C(apikey.FieldID)),
 								entsql.EQ(t.C("group_id"), groupID),
 							)),
 					))
@@ -425,7 +425,7 @@ func (r *apiKeyRepository) ListByGroupID(ctx context.Context, groupID int64, par
 				entsql.Select().
 					From(t).
 					Where(entsql.And(
-						entsql.EQ(t.C("api_key_id"), s.C(apikey.FieldID)),
+						entsql.ColumnsEQ(t.C("api_key_id"), s.C(apikey.FieldID)),
 						entsql.EQ(t.C("group_id"), groupID),
 					)),
 			))
@@ -583,7 +583,7 @@ func (r *apiKeyRepository) CountByGroupID(ctx context.Context, groupID int64) (i
 				entsql.Select().
 					From(t).
 					Where(entsql.And(
-						entsql.EQ(t.C("api_key_id"), s.C(apikey.FieldID)),
+						entsql.ColumnsEQ(t.C("api_key_id"), s.C(apikey.FieldID)),
 						entsql.EQ(t.C("group_id"), groupID),
 					)),
 			))
@@ -613,7 +613,7 @@ func (r *apiKeyRepository) ListKeysByGroupID(ctx context.Context, groupID int64)
 					entsql.Select().
 						From(t).
 						Where(entsql.And(
-							entsql.EQ(t.C("api_key_id"), s.C(apikey.FieldID)),
+							entsql.ColumnsEQ(t.C("api_key_id"), s.C(apikey.FieldID)),
 							entsql.EQ(t.C("group_id"), groupID),
 						)),
 				))
@@ -681,7 +681,9 @@ func (r *apiKeyRepository) hydrateAPIKeyGroups(ctx context.Context, keys []*serv
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	groupIDSet := make(map[int64]struct{})
 	groupIDsByKeyID := make(map[int64][]int64, len(keys))
