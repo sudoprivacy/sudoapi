@@ -224,11 +224,37 @@
               </button>
             </div>
 
-            <!-- Create User Button (full width on mobile, auto width on desktop) -->
-            <button @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.users.createUser') }}
-            </button>
+            <!-- Create User Split Button (primary action + batch dropdown) -->
+            <div ref="createMenuRef" class="relative flex flex-1 md:flex-initial">
+              <button
+                @click="showCreateModal = true"
+                class="btn btn-primary flex-1 rounded-r-none md:flex-initial"
+              >
+                <Icon name="plus" size="md" class="mr-2" />
+                {{ t('admin.users.createUser') }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary rounded-l-none border-l border-white/20 px-2"
+                :aria-label="t('admin.users.batch.menuLabel')"
+                @click="showCreateMenu = !showCreateMenu"
+              >
+                <Icon name="chevronDown" size="sm" />
+              </button>
+              <div
+                v-if="showCreateMenu"
+                class="absolute right-0 top-full z-20 mt-1 min-w-[180px] rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-700 dark:bg-dark-800"
+              >
+                <button
+                  type="button"
+                  class="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
+                  @click="openBatchCreateModal"
+                >
+                  <Icon name="upload" size="sm" class="mr-2" />
+                  {{ t('admin.users.batch.menuLabel') }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -608,6 +634,7 @@
 
     <ConfirmDialog :show="showDeleteDialog" :title="t('admin.users.deleteUser')" :message="t('admin.users.deleteConfirm', { email: deletingUser?.email })" :danger="true" @confirm="confirmDelete" @cancel="showDeleteDialog = false" />
     <UserCreateModal :show="showCreateModal" @close="showCreateModal = false" @success="loadUsers" />
+    <UserBatchCreateModal :show="showBatchCreateModal" @close="showBatchCreateModal = false" @success="loadUsers" />
     <UserEditModal :show="showEditModal" :user="editingUser" @close="closeEditModal" @success="loadUsers" />
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
@@ -642,6 +669,7 @@ import Select from '@/components/common/Select.vue'
 import UserAttributesConfigModal from '@/components/user/UserAttributesConfigModal.vue'
 import UserConcurrencyCell from '@/components/user/UserConcurrencyCell.vue'
 import UserCreateModal from '@/components/admin/user/UserCreateModal.vue'
+import UserBatchCreateModal from '@/components/admin/user/UserBatchCreateModal.vue'
 import UserEditModal from '@/components/admin/user/UserEditModal.vue'
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
@@ -956,6 +984,22 @@ const pagination = reactive({
 })
 
 const showCreateModal = ref(false)
+const showBatchCreateModal = ref(false)
+const showCreateMenu = ref(false)
+const createMenuRef = ref<HTMLElement | null>(null)
+function openBatchCreateModal() {
+  showCreateMenu.value = false
+  showBatchCreateModal.value = true
+}
+function closeCreateMenu() {
+  showCreateMenu.value = false
+}
+function handleDocumentClickForCreateMenu(e: MouseEvent) {
+  if (!showCreateMenu.value) return
+  if (createMenuRef.value && !createMenuRef.value.contains(e.target as Node)) {
+    showCreateMenu.value = false
+  }
+}
 const showEditModal = ref(false)
 const showDeleteDialog = ref(false)
 const showApiKeysModal = ref(false)
@@ -1418,11 +1462,13 @@ onMounted(async () => {
     loadAllGroups()
   }
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('click', handleDocumentClickForCreateMenu)
   window.addEventListener('scroll', handleScroll, true)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('click', handleDocumentClickForCreateMenu)
   window.removeEventListener('scroll', handleScroll, true)
   clearTimeout(searchTimeout)
   abortController?.abort()
