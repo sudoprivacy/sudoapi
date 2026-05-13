@@ -124,6 +124,8 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		p := existingProxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
 		proxyByKey[key] = p
+		// sudoapi: Idempotent admin data import.
+		proxyByKey[buildCanonicalProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)] = p
 		if p.Name != "" {
 			proxyNameToID[p.Name] = p.ID
 		}
@@ -149,7 +151,11 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		}
 
 		normalizedStatus := normalizeProxyStatus(item.Status)
-		if existing, ok := proxyByKey[key]; ok {
+		// sudoapi: Idempotent admin data import.
+		canonicalKey := buildCanonicalProxyKey(item.Protocol, item.Host, item.Port, item.Username, item.Password)
+		if existing, ok := proxyByKey[canonicalKey]; ok {
+			proxyByKey[key] = existing
+			proxyByKey[canonicalKey] = existing
 			result.ProxyReused++
 			if normalizedStatus != "" && normalizedStatus != existing.Status {
 				// 已存在代理同步 status 时，同时保留/覆盖导入 item 的完整字段，
@@ -245,6 +251,8 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		}
 		result.ProxyCreated++
 		proxyByKey[key] = *created
+		// sudoapi: Idempotent admin data import.
+		proxyByKey[canonicalKey] = *created
 		// 把新建代理的 name 也加入反查表，供后续批内代理引用
 		if created.Name != "" {
 			proxyNameToID[created.Name] = created.ID
