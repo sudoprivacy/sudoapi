@@ -99,6 +99,10 @@ export default {
       antigravity: 'Antigravity',
       more: '更多'
     },
+    modelSquare: {
+      title: '模型广场',
+      subtitle: '浏览所有可用模型、API 端点和分组定价'
+    },
     // CTA 区块
     cta: {
       title: '准备好开始了吗？',
@@ -989,6 +993,73 @@ export default {
       intervals: '阶梯定价',
       unitPerMillion: '/ 1M token',
       unitPerRequest: '/ 次'
+    }
+  },
+
+  // Model Square (模型广场)
+  modelSquare: {
+    title: '模型广场',
+    subtitle: '浏览所有可用模型、API 端点和分组定价',
+    searchPlaceholder: '搜索模型名称、描述或平台...',
+    empty: '没有符合条件的模型',
+    fromPrice: '起步价',
+    featured: '推荐',
+    viewAll: '查看全部',
+    clearFilters: '清空筛选',
+    resultCount: '显示 {count} / {total} 个模型',
+    filter: {
+      category: '厂商',
+      capability: '能力',
+      priceRange: '价格区间'
+    },
+    categories: {
+      claude: 'Claude',
+      gpt: 'GPT / o-series',
+      gemini: 'Gemini',
+      image: '图像生成',
+      embedding: '向量嵌入',
+      audio: '语音',
+      other: '其它'
+    },
+    capabilities: {
+      vision: '多模态',
+      function_calling: '函数调用',
+      reasoning: '推理',
+      audio_input: '音频输入',
+      audio_output: '音频输出',
+      pdf_input: 'PDF',
+      prompt_caching: '提示缓存',
+      parallel_tools: '并行工具'
+    },
+    priceTier: {
+      free: '免费',
+      low: '低价 (≤$1/MTok)',
+      mid: '中等 ($1-$5)',
+      high: '高端 (>$5)'
+    },
+    detail: {
+      basicInfo: '基本信息',
+      noDescription: '暂无模型描述',
+      contextWindow: '上下文窗口',
+      maxOutput: '最大输出',
+      category: '类别',
+      endpoints: 'API 端点',
+      endpointsHint: '该模型支持的入站接口与方法。',
+      groupPrices: '分组价格',
+      groupPricesHint: '价格已按所在分组的有效倍率（base × user）换算后展示。',
+      noPricing: '该平台暂未配置价格',
+      exclusive: '专属',
+      subscription: '订阅',
+      rateMultiplier: '有效倍率',
+      priceItem: '项目',
+      priceValue: '价格',
+      inputPrice: '输入价格',
+      outputPrice: '补全价格',
+      cacheReadPrice: '缓存读取',
+      cacheWritePrice: '缓存创建',
+      imageOutputPrice: '图片输出',
+      perRequestPrice: '每次请求',
+      callChain: '{group} 分组调用链路'
     }
   },
 

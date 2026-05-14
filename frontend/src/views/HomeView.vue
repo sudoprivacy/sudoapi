@@ -292,7 +292,7 @@
           </p>
         </div>
 
-        <div class="mb-16 flex flex-wrap items-center justify-center gap-4">
+        <div class="mb-12 flex flex-wrap items-center justify-center gap-4">
           <!-- Claude - Supported -->
           <div
             class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
@@ -369,6 +369,23 @@
             >
           </div>
         </div>
+
+        <!-- Model Square preview -->
+        <section class="mb-16">
+          <div class="mb-6 text-center">
+            <h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+              {{ t('home.modelSquare.title') }}
+            </h2>
+            <p class="text-sm text-gray-600 dark:text-dark-400">
+              {{ t('home.modelSquare.subtitle') }}
+            </p>
+          </div>
+          <ModelSquareGrid
+            :scope="isAuthenticated ? 'me' : 'public'"
+            compact
+            :max-items="8"
+          />
+        </section>
       </div>
     </main>
 
@@ -410,6 +427,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
+import ModelSquareGrid from '@/components/models/ModelSquareGrid.vue'
 
 const { t } = useI18n()
 
