@@ -34,7 +34,7 @@ func stubChannelServiceProvider(t *testing.T, channels []Channel, groups []Group
 	return NewChannelService(repo, groupRepo, nil, nil)
 }
 
-func ptrFloat(v float64) *float64 { return &v }
+func msPtrFloat(v float64) *float64 { return &v }
 
 func TestModelSquareService_PublicScopeExcludesExclusiveAndSubscriptionGroups(t *testing.T) {
 	// 三个分组：一个标准公开、一个专属、一个订阅。public scope 只应保留标准公开。
@@ -70,8 +70,8 @@ func TestModelSquareService_PublicScopeExcludesExclusiveAndSubscriptionGroups(t 
 	channels[0].ModelPricing = []ChannelModelPricing{{
 		ID: 1, ChannelID: 10, Platform: PlatformAnthropic, Models: []string{"claude-opus-4-7"},
 		BillingMode: BillingModeToken,
-		InputPrice:  ptrFloat(1.75e-5),
-		OutputPrice: ptrFloat(8.75e-5),
+		InputPrice:  msPtrFloat(1.75e-5),
+		OutputPrice: msPtrFloat(8.75e-5),
 	}}
 
 	svc := NewModelSquareService(
@@ -104,7 +104,7 @@ func TestModelSquareService_AuthenticatedScopeIncludesAllowedExclusive(t *testin
 		GroupIDs: []int64{gStdPublic.ID, gExclusive.ID},
 		ModelPricing: []ChannelModelPricing{{
 			Platform: PlatformAnthropic, Models: []string{"claude-opus-4-7"},
-			BillingMode: BillingModeToken, InputPrice: ptrFloat(1.75e-5),
+			BillingMode: BillingModeToken, InputPrice: msPtrFloat(1.75e-5),
 		}},
 	}}
 	svc := NewModelSquareService(
@@ -127,10 +127,10 @@ func TestModelSquareService_PricePerMillionConversion(t *testing.T) {
 		ModelPricing: []ChannelModelPricing{{
 			Platform: PlatformAnthropic, Models: []string{"claude-opus-4-7"},
 			BillingMode:     BillingModeToken,
-			InputPrice:      ptrFloat(1.75e-5),  // → 17.5 / MTok
-			OutputPrice:     ptrFloat(8.75e-5),  // → 87.5 / MTok
-			CacheReadPrice:  ptrFloat(1.75e-6),  // → 1.75 / MTok
-			CacheWritePrice: ptrFloat(2.1875e-5), // → 21.875 / MTok
+			InputPrice:      msPtrFloat(1.75e-5),  // → 17.5 / MTok
+			OutputPrice:     msPtrFloat(8.75e-5),  // → 87.5 / MTok
+			CacheReadPrice:  msPtrFloat(1.75e-6),  // → 1.75 / MTok
+			CacheWritePrice: msPtrFloat(2.1875e-5), // → 21.875 / MTok
 		}},
 	}}
 	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), nil)
@@ -153,8 +153,8 @@ func TestModelSquareService_ZeroPriceTreatedAsUnconfigured(t *testing.T) {
 		ModelPricing: []ChannelModelPricing{{
 			Platform: PlatformOpenAI, Models: []string{"gpt-4o"},
 			BillingMode: BillingModeToken,
-			InputPrice:  ptrFloat(0), // 显式 0 视为未配置
-			OutputPrice: ptrFloat(2.5e-5),
+			InputPrice:  msPtrFloat(0), // 显式 0 视为未配置
+			OutputPrice: msPtrFloat(2.5e-5),
 		}},
 	}}
 	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), nil)
@@ -177,15 +177,15 @@ func TestModelSquareService_PivotAggregatesAcrossPlatformsAndChannels(t *testing
 			ID: 10, Name: "primary-pool", Status: StatusActive,
 			GroupIDs: []int64{1, 2},
 			ModelPricing: []ChannelModelPricing{
-				{Platform: PlatformAnthropic, Models: []string{"claude-opus-4-7"}, BillingMode: BillingModeToken, InputPrice: ptrFloat(1.75e-5)},
-				{Platform: PlatformAntigravity, Models: []string{"claude-opus-4-7"}, BillingMode: BillingModeToken, InputPrice: ptrFloat(1.5e-5)},
+				{Platform: PlatformAnthropic, Models: []string{"claude-opus-4-7"}, BillingMode: BillingModeToken, InputPrice: msPtrFloat(1.75e-5)},
+				{Platform: PlatformAntigravity, Models: []string{"claude-opus-4-7"}, BillingMode: BillingModeToken, InputPrice: msPtrFloat(1.5e-5)},
 			},
 		},
 		{
 			ID: 11, Name: "fallback-pool", Status: StatusActive,
 			GroupIDs: []int64{2},
 			ModelPricing: []ChannelModelPricing{
-				{Platform: PlatformAntigravity, Models: []string{"claude-opus-4-7"}, BillingMode: BillingModeToken, InputPrice: ptrFloat(1.7e-5)},
+				{Platform: PlatformAntigravity, Models: []string{"claude-opus-4-7"}, BillingMode: BillingModeToken, InputPrice: msPtrFloat(1.7e-5)},
 			},
 		},
 	}
@@ -275,7 +275,7 @@ func TestModelSquareService_CacheHit(t *testing.T) {
 		GroupIDs: []int64{1},
 		ModelPricing: []ChannelModelPricing{{
 			Platform: PlatformAnthropic, Models: []string{"m"},
-			BillingMode: BillingModeToken, InputPrice: ptrFloat(1e-5),
+			BillingMode: BillingModeToken, InputPrice: msPtrFloat(1e-5),
 		}},
 	}}
 	groups := []Group{{ID: 1, Name: "auto", Platform: PlatformAnthropic, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}}
