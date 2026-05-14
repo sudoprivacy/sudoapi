@@ -120,5 +120,10 @@ func RegisterUserRoutes(
 			monitors.GET("", h.ChannelMonitor.List)
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
 		}
+
+		// sudoapi: Model Square model catalog.
+		// 模型广场（已登录入口）：返回 public scope 叠加用户可访问的专属/订阅分组定价。
+		// 公开入口走 /public/models（不需 JWT）。
+		authenticated.GET("/models", h.ModelSquare.ListAuthenticated)
 	}
 }

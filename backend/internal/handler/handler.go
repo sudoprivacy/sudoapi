@@ -56,6 +56,8 @@ type Handlers struct {
 	Payment          *PaymentHandler
 	PaymentWebhook   *PaymentWebhookHandler
 	AvailableChannel *AvailableChannelHandler
+	// sudoapi: Model Square model catalog.
+	ModelSquare *ModelSquareHandler
 }
 
 // BuildInfo contains build-time information

@@ -99,6 +99,13 @@ export default {
       antigravity: 'Antigravity',
       more: 'More'
     },
+    // sudoapi: Model Square model catalog.
+    modelSquare: {
+      title: 'Model Square',
+      subtitle: 'Browse every available model, API endpoint, and group pricing',
+      menuEntry: 'Models',
+      cta: 'Browse all models & pricing'
+    },
     // CTA section
     cta: {
       title: 'Ready to Get Started?',
@@ -1046,6 +1053,87 @@ export default {
       intervals: 'Tiered Pricing',
       unitPerMillion: '/ 1M tokens',
       unitPerRequest: '/ request'
+    }
+  },
+
+  // sudoapi: Model Square model catalog.
+  // Model Square
+  modelSquare: {
+    title: 'Model Square',
+    subtitle: 'Browse every available model, API endpoint, and group pricing',
+    searchPlaceholder: 'Search by model name, description, or platform...',
+    empty: 'No models match your filters',
+    fromPrice: 'From',
+    featured: 'Featured',
+    viewAll: 'View all',
+    clearFilters: 'Clear filters',
+    resultCount: 'Showing {count} of {total} models',
+    loadFailed: 'Failed to load: {msg}',
+    tabs: {
+      all: 'All'
+    },
+    sort: {
+      label: 'Sort',
+      featured: 'Featured first',
+      nameAsc: 'Name A→Z',
+      nameDesc: 'Name Z→A',
+      priceAsc: 'Price Low→High',
+      priceDesc: 'Price High→Low',
+      contextDesc: 'Context Long→Short'
+    },
+    filter: {
+      category: 'Vendor',
+      capability: 'Capability',
+      priceRange: 'Price'
+    },
+    categories: {
+      claude: 'Claude',
+      gpt: 'GPT / o-series',
+      gemini: 'Gemini',
+      image: 'Image generation',
+      embedding: 'Embedding',
+      audio: 'Audio',
+      other: 'Other'
+    },
+    capabilities: {
+      vision: 'Vision',
+      function_calling: 'Function calling',
+      reasoning: 'Reasoning',
+      audio_input: 'Audio input',
+      audio_output: 'Audio output',
+      pdf_input: 'PDF',
+      prompt_caching: 'Prompt caching',
+      parallel_tools: 'Parallel tools'
+    },
+    priceTier: {
+      free: 'Free',
+      low: 'Low (≤$1/MTok)',
+      mid: 'Mid ($1-$5)',
+      high: 'Premium (>$5)'
+    },
+    detail: {
+      basicInfo: 'Basic info',
+      noDescription: 'No description available',
+      contextWindow: 'Context window',
+      maxOutput: 'Max output',
+      category: 'Category',
+      endpoints: 'API endpoints',
+      endpointsHint: 'Inbound paths and HTTP methods this model accepts.',
+      groupPrices: 'Group pricing',
+      groupPricesHint: 'Prices already include the effective multiplier (base × user).',
+      noPricing: 'No pricing configured on this platform',
+      exclusive: 'Exclusive',
+      subscription: 'Subscription',
+      rateMultiplier: 'Effective multiplier',
+      priceItem: 'Item',
+      priceValue: 'Price',
+      inputPrice: 'Input',
+      outputPrice: 'Output',
+      cacheReadPrice: 'Cache read',
+      cacheWritePrice: 'Cache write',
+      imageOutputPrice: 'Image output',
+      perRequestPrice: 'Per request',
+      callChain: '{group} call chain'
     }
   },
 

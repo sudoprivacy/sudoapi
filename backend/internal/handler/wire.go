@@ -111,6 +111,8 @@ func ProvideHandlers(
 	paymentHandler *PaymentHandler,
 	paymentWebhookHandler *PaymentWebhookHandler,
 	availableChannelHandler *AvailableChannelHandler,
+	// sudoapi: Model Square model catalog.
+	modelSquareHandler *ModelSquareHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -131,6 +133,8 @@ func ProvideHandlers(
 		Payment:          paymentHandler,
 		PaymentWebhook:   paymentWebhookHandler,
 		AvailableChannel: availableChannelHandler,
+		// sudoapi: Model Square model catalog.
+		ModelSquare: modelSquareHandler,
 	}
 }
 
@@ -152,6 +156,8 @@ var ProviderSet = wire.NewSet(
 	NewPaymentHandler,
 	NewPaymentWebhookHandler,
 	NewAvailableChannelHandler,
+	// sudoapi: Model Square model catalog.
+	NewModelSquareHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

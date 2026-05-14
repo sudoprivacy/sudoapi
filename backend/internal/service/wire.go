@@ -531,6 +531,8 @@ var ProviderSet = wire.NewSet(
 	ProvideChannelMonitorService,
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorRequestTemplateService,
+	// sudoapi: Model Square model catalog.
+	NewModelSquareService,
 )
 
 // ProvidePaymentConfigService wraps NewPaymentConfigService to accept the named
