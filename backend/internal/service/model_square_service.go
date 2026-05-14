@@ -59,10 +59,10 @@ type ModelGroupPrice struct {
 	BillingMode      BillingMode
 
 	// USD per 1M tokens
-	InputPricePerMTok      *float64
-	OutputPricePerMTok     *float64
-	CacheReadPricePerMTok  *float64
-	CacheWritePricePerMTok *float64
+	InputPricePerMTok       *float64
+	OutputPricePerMTok      *float64
+	CacheReadPricePerMTok   *float64
+	CacheWritePricePerMTok  *float64
 	ImageOutputPricePerMTok *float64
 
 	// per_request / image：USD per call
