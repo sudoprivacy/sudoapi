@@ -326,6 +326,8 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/exchange-setup-token-code", h.Admin.OAuth.ExchangeSetupTokenCode)
 		accounts.POST("/cookie-auth", h.Admin.OAuth.CookieAuth)
 		accounts.POST("/setup-token-cookie-auth", h.Admin.OAuth.SetupTokenCookieAuth)
+		// sudoapi: Account contributor review workflow.
+		accounts.PUT("/:id/review-status", h.Admin.Account.UpdateReviewStatus)
 	}
 }
 

@@ -2361,3 +2361,30 @@ func sanitizeExtraBaseRPM(extra map[string]any) {
 	}
 	extra["base_rpm"] = v
 }
+
+// sudoapi: Account contributor review workflow.
+type UpdateAccountReviewStatusRequest struct {
+	ReviewStatus string `json:"review_status" binding:"required,oneof=pending approved rejected"`
+}
+
+// sudoapi: Account contributor review workflow.
+// UpdateReviewStatus handles admin review decisions for contributor accounts.
+// PUT /api/v1/admin/accounts/:id/review-status
+func (h *AccountHandler) UpdateReviewStatus(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	var req UpdateAccountReviewStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	account, err := h.adminService.UpdateAccountReviewStatus(c.Request.Context(), accountID, req.ReviewStatus)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+}

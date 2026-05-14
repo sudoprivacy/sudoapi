@@ -89,6 +89,10 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => {
     return user.value?.role === 'admin'
   })
+  // sudoapi: Account contributor review workflow.
+  const isAccountContributor = computed(() => {
+    return user.value?.role === 'account_contributor'
+  })
 
   const isSimpleMode = computed(() => runMode.value === 'simple')
   const hasPendingAuthSession = computed(() => pendingAuthSession.value !== null)
@@ -476,6 +480,8 @@ export const useAuthStore = defineStore('auth', () => {
     // Computed
     isAuthenticated,
     isAdmin,
+    // sudoapi: Account contributor review workflow.
+    isAccountContributor,
     isSimpleMode,
     hasPendingAuthSession,
 

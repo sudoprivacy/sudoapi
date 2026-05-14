@@ -2786,7 +2786,7 @@
 
         <!-- Group Selection - 仅标准模式显示 -->
         <GroupSelector
-          v-if="!authStore.isSimpleMode"
+          v-if="showGroups && !authStore.isSimpleMode"
           v-model="form.group_ids"
           :groups="groups"
           :platform="form.platform"
@@ -2814,7 +2814,7 @@
         :show-mobile-refresh-token-option="form.platform === 'openai'"
         :show-session-token-option="false"
         :show-access-token-option="false"
-        :show-codex-session-import-option="form.platform === 'openai'"
+        :show-codex-session-import-option="enableCodexSessionImport && form.platform === 'openai'"
         :platform="form.platform"
         :show-project-id="geminiOAuthType === 'code_assist'"
         @generate-url="handleGenerateUrl"
@@ -3154,6 +3154,8 @@ import {
 } from '@/composables/useModelWhitelist'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
+// sudoapi: Account contributor review workflow.
+import { contributorAPI } from '@/api/contributor'
 import { useQuotaNotifyState } from '@/composables/useQuotaNotifyState'
 import {
   useAccountOAuth,
@@ -3238,15 +3240,35 @@ interface Props {
   show: boolean
   proxies: Proxy[]
   groups: AdminGroup[]
+  // sudoapi: Account contributor review workflow.
+  apiScope?: 'admin' | 'contributor'
+  showGroups?: boolean
+  enableCodexSessionImport?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  apiScope: 'admin',
+  showGroups: true,
+  enableCodexSessionImport: true
+})
 const emit = defineEmits<{
   close: []
   created: []
 }>()
 
 const appStore = useAppStore()
+// sudoapi: Account contributor review workflow.
+const isContributorScope = computed(() => props.apiScope === 'contributor')
+const showGroups = computed(() => props.showGroups)
+const enableCodexSessionImport = computed(() => props.enableCodexSessionImport)
+
+const createAccountRequest = (payload: CreateAccountRequest) => {
+  if (isContributorScope.value) {
+    const contributorPayload = { ...payload, group_ids: [] }
+    return contributorAPI.accounts.create(contributorPayload)
+  }
+  return adminAPI.accounts.create(payload)
+}
 
 // OAuth composables
 const oauth = useAccountOAuth() // For Anthropic OAuth
@@ -4021,6 +4043,9 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
   if (!needsMixedChannelCheck(form.platform)) {
     return true
   }
+  if (!showGroups.value || form.group_ids.length === 0) {
+    return true
+  }
   if (antigravityMixedChannelConfirmed.value) {
     return true
   }
@@ -4050,7 +4075,7 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
 const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
-    await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
+    await createAccountRequest(withAntigravityConfirmFlag(payload))
     appStore.showSuccess(t('admin.accounts.accountCreated'))
     emit('created')
     handleClose()
@@ -4694,7 +4719,7 @@ const handleOpenAIExchange = async (authCode: string) => {
     }
 
     if (shouldCreateOpenAI) {
-      await adminAPI.accounts.create({
+      await createAccountRequest({
         name: form.name,
         notes: form.notes,
         platform: 'openai',
@@ -4898,7 +4923,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         const accountName = refreshTokens.length > 1 ? `${baseName} #${i + 1}` : baseName
 
         if (shouldCreateOpenAI) {
-          await adminAPI.accounts.create({
+          await createAccountRequest({
             name: accountName,
             notes: form.notes,
             platform: 'openai',
@@ -5012,7 +5037,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
-        await adminAPI.accounts.create(createPayload)
+        await createAccountRequest(createPayload)
         successCount++
       } catch (error: any) {
         failedCount++
@@ -5337,7 +5362,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials.temp_unschedulable_rules = tempUnschedPayload
         }
 
-        await adminAPI.accounts.create({
+        await createAccountRequest({
           name: accountName,
           notes: form.notes,
           platform: form.platform,

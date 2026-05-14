@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
+	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
 // AccountUpdate is the builder for updating Account entities.
@@ -88,6 +89,40 @@ func (_u *AccountUpdate) SetNillableNotes(v *string) *AccountUpdate {
 // ClearNotes clears the value of the "notes" field.
 func (_u *AccountUpdate) ClearNotes() *AccountUpdate {
 	_u.mutation.ClearNotes()
+	return _u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_u *AccountUpdate) SetOwnerUserID(v int64) *AccountUpdate {
+	_u.mutation.SetOwnerUserID(v)
+	return _u
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableOwnerUserID(v *int64) *AccountUpdate {
+	if v != nil {
+		_u.SetOwnerUserID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (_u *AccountUpdate) ClearOwnerUserID() *AccountUpdate {
+	_u.mutation.ClearOwnerUserID()
+	return _u
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (_u *AccountUpdate) SetReviewStatus(v string) *AccountUpdate {
+	_u.mutation.SetReviewStatus(v)
+	return _u
+}
+
+// SetNillableReviewStatus sets the "review_status" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableReviewStatus(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetReviewStatus(*v)
+	}
 	return _u
 }
 
@@ -538,6 +573,25 @@ func (_u *AccountUpdate) AddUsageLogs(v ...*UsageLog) *AccountUpdate {
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_u *AccountUpdate) SetOwnerID(id int64) *AccountUpdate {
+	_u.mutation.SetOwnerID(id)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_u *AccountUpdate) SetNillableOwnerID(id *int64) *AccountUpdate {
+	if id != nil {
+		_u = _u.SetOwnerID(*id)
+	}
+	return _u
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_u *AccountUpdate) SetOwner(v *User) *AccountUpdate {
+	return _u.SetOwnerID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_u *AccountUpdate) Mutation() *AccountMutation {
 	return _u.mutation
@@ -591,6 +645,12 @@ func (_u *AccountUpdate) RemoveUsageLogs(v ...*UsageLog) *AccountUpdate {
 	return _u.RemoveUsageLogIDs(ids...)
 }
 
+// ClearOwner clears the "owner" edge to the User entity.
+func (_u *AccountUpdate) ClearOwner() *AccountUpdate {
+	_u.mutation.ClearOwner()
+	return _u
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *AccountUpdate) Save(ctx context.Context) (int, error) {
 	if err := _u.defaults(); err != nil {
@@ -638,6 +698,11 @@ func (_u *AccountUpdate) check() error {
 	if v, ok := _u.mutation.Name(); ok {
 		if err := account.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Account.name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReviewStatus(); ok {
+		if err := account.ReviewStatusValidator(v); err != nil {
+			return &ValidationError{Name: "review_status", err: fmt.Errorf(`ent: validator failed for field "Account.review_status": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Platform(); ok {
@@ -692,6 +757,9 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(account.FieldNotes, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReviewStatus(); ok {
+		_spec.SetField(account.FieldReviewStatus, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Platform(); ok {
 		_spec.SetField(account.FieldPlatform, field.TypeString, value)
@@ -938,6 +1006,35 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.OwnerCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.OwnerTable,
+			Columns: []string{account.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.OwnerTable,
+			Columns: []string{account.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{account.Label}
@@ -1015,6 +1112,40 @@ func (_u *AccountUpdateOne) SetNillableNotes(v *string) *AccountUpdateOne {
 // ClearNotes clears the value of the "notes" field.
 func (_u *AccountUpdateOne) ClearNotes() *AccountUpdateOne {
 	_u.mutation.ClearNotes()
+	return _u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_u *AccountUpdateOne) SetOwnerUserID(v int64) *AccountUpdateOne {
+	_u.mutation.SetOwnerUserID(v)
+	return _u
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableOwnerUserID(v *int64) *AccountUpdateOne {
+	if v != nil {
+		_u.SetOwnerUserID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (_u *AccountUpdateOne) ClearOwnerUserID() *AccountUpdateOne {
+	_u.mutation.ClearOwnerUserID()
+	return _u
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (_u *AccountUpdateOne) SetReviewStatus(v string) *AccountUpdateOne {
+	_u.mutation.SetReviewStatus(v)
+	return _u
+}
+
+// SetNillableReviewStatus sets the "review_status" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableReviewStatus(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetReviewStatus(*v)
+	}
 	return _u
 }
 
@@ -1465,6 +1596,25 @@ func (_u *AccountUpdateOne) AddUsageLogs(v ...*UsageLog) *AccountUpdateOne {
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_u *AccountUpdateOne) SetOwnerID(id int64) *AccountUpdateOne {
+	_u.mutation.SetOwnerID(id)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableOwnerID(id *int64) *AccountUpdateOne {
+	if id != nil {
+		_u = _u.SetOwnerID(*id)
+	}
+	return _u
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_u *AccountUpdateOne) SetOwner(v *User) *AccountUpdateOne {
+	return _u.SetOwnerID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_u *AccountUpdateOne) Mutation() *AccountMutation {
 	return _u.mutation
@@ -1516,6 +1666,12 @@ func (_u *AccountUpdateOne) RemoveUsageLogs(v ...*UsageLog) *AccountUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearOwner clears the "owner" edge to the User entity.
+func (_u *AccountUpdateOne) ClearOwner() *AccountUpdateOne {
+	_u.mutation.ClearOwner()
+	return _u
 }
 
 // Where appends a list predicates to the AccountUpdate builder.
@@ -1578,6 +1734,11 @@ func (_u *AccountUpdateOne) check() error {
 	if v, ok := _u.mutation.Name(); ok {
 		if err := account.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Account.name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReviewStatus(); ok {
+		if err := account.ReviewStatusValidator(v); err != nil {
+			return &ValidationError{Name: "review_status", err: fmt.Errorf(`ent: validator failed for field "Account.review_status": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.Platform(); ok {
@@ -1649,6 +1810,9 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(account.FieldNotes, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReviewStatus(); ok {
+		_spec.SetField(account.FieldReviewStatus, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Platform(); ok {
 		_spec.SetField(account.FieldPlatform, field.TypeString, value)
@@ -1888,6 +2052,35 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OwnerCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.OwnerTable,
+			Columns: []string{account.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.OwnerTable,
+			Columns: []string{account.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

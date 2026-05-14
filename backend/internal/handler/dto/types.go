@@ -255,6 +255,11 @@ type Account struct {
 
 	GroupIDs []int64  `json:"group_ids,omitempty"`
 	Groups   []*Group `json:"groups,omitempty"`
+
+	// sudoapi: Account contributor review workflow.
+	OwnerUserID  *int64            `json:"owner_user_id,omitempty"`
+	OwnerUser    *AccountOwnerUser `json:"owner_user,omitempty"`
+	ReviewStatus string            `json:"review_status"`
 }
 
 type AccountGroup struct {
@@ -623,4 +628,11 @@ type PromoCodeUsage struct {
 	UsedAt      time.Time `json:"used_at"`
 
 	User *User `json:"user,omitempty"`
+}
+
+// sudoapi: Account contributor review workflow.
+type AccountOwnerUser struct {
+	ID       int64  `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }

@@ -499,6 +499,19 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.accounts.description'
     }
   },
+  // sudoapi: Account contributor review workflow.
+  {
+    path: '/contributor/accounts',
+    name: 'ContributorAccounts',
+    component: () => import('@/views/contributor/AccountsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAccountContributor: true,
+      title: 'My Model Accounts',
+      titleKey: 'contributor.accounts.title',
+      descriptionKey: 'contributor.accounts.description'
+    }
+  },
   {
     path: '/admin/announcements',
     name: 'AdminAnnouncements',
@@ -763,6 +776,8 @@ router.beforeEach(async (to, _from, next) => {
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true
   const requiresAdmin = to.meta.requiresAdmin === true
+  // sudoapi: Account contributor review workflow.
+  const requiresAccountContributor = to.meta.requiresAccountContributor === true
 
   if (to.path === '/setup') {
     try {
@@ -816,6 +831,12 @@ router.beforeEach(async (to, _from, next) => {
   if (requiresAdmin && !authStore.isAdmin) {
     // User is authenticated but not admin, redirect to user dashboard
     next('/dashboard')
+    return
+  }
+
+  // sudoapi: Account contributor review workflow.
+  if (requiresAccountContributor && !authStore.isAccountContributor) {
+    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
     return
   }
 

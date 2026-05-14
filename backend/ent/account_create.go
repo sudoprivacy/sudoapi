@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
+	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
 // AccountCreate is the builder for creating a Account entity.
@@ -83,6 +84,34 @@ func (_c *AccountCreate) SetNotes(v string) *AccountCreate {
 func (_c *AccountCreate) SetNillableNotes(v *string) *AccountCreate {
 	if v != nil {
 		_c.SetNotes(*v)
+	}
+	return _c
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_c *AccountCreate) SetOwnerUserID(v int64) *AccountCreate {
+	_c.mutation.SetOwnerUserID(v)
+	return _c
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableOwnerUserID(v *int64) *AccountCreate {
+	if v != nil {
+		_c.SetOwnerUserID(*v)
+	}
+	return _c
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (_c *AccountCreate) SetReviewStatus(v string) *AccountCreate {
+	_c.mutation.SetReviewStatus(v)
+	return _c
+}
+
+// SetNillableReviewStatus sets the "review_status" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableReviewStatus(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetReviewStatus(*v)
 	}
 	return _c
 }
@@ -412,6 +441,25 @@ func (_c *AccountCreate) AddUsageLogs(v ...*UsageLog) *AccountCreate {
 	return _c.AddUsageLogIDs(ids...)
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_c *AccountCreate) SetOwnerID(id int64) *AccountCreate {
+	_c.mutation.SetOwnerID(id)
+	return _c
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_c *AccountCreate) SetNillableOwnerID(id *int64) *AccountCreate {
+	if id != nil {
+		_c = _c.SetOwnerID(*id)
+	}
+	return _c
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_c *AccountCreate) SetOwner(v *User) *AccountCreate {
+	return _c.SetOwnerID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_c *AccountCreate) Mutation() *AccountMutation {
 	return _c.mutation
@@ -462,6 +510,10 @@ func (_c *AccountCreate) defaults() error {
 		}
 		v := account.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
+	}
+	if _, ok := _c.mutation.ReviewStatus(); !ok {
+		v := account.DefaultReviewStatus
+		_c.mutation.SetReviewStatus(v)
 	}
 	if _, ok := _c.mutation.Credentials(); !ok {
 		if account.DefaultCredentials == nil {
@@ -518,6 +570,14 @@ func (_c *AccountCreate) check() error {
 	if v, ok := _c.mutation.Name(); ok {
 		if err := account.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Account.name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ReviewStatus(); !ok {
+		return &ValidationError{Name: "review_status", err: errors.New(`ent: missing required field "Account.review_status"`)}
+	}
+	if v, ok := _c.mutation.ReviewStatus(); ok {
+		if err := account.ReviewStatusValidator(v); err != nil {
+			return &ValidationError{Name: "review_status", err: fmt.Errorf(`ent: validator failed for field "Account.review_status": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Platform(); !ok {
@@ -616,6 +676,10 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Notes(); ok {
 		_spec.SetField(account.FieldNotes, field.TypeString, value)
 		_node.Notes = &value
+	}
+	if value, ok := _c.mutation.ReviewStatus(); ok {
+		_spec.SetField(account.FieldReviewStatus, field.TypeString, value)
+		_node.ReviewStatus = value
 	}
 	if value, ok := _c.mutation.Platform(); ok {
 		_spec.SetField(account.FieldPlatform, field.TypeString, value)
@@ -758,6 +822,23 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.OwnerTable,
+			Columns: []string{account.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.OwnerUserID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -867,6 +948,36 @@ func (u *AccountUpsert) UpdateNotes() *AccountUpsert {
 // ClearNotes clears the value of the "notes" field.
 func (u *AccountUpsert) ClearNotes() *AccountUpsert {
 	u.SetNull(account.FieldNotes)
+	return u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *AccountUpsert) SetOwnerUserID(v int64) *AccountUpsert {
+	u.Set(account.FieldOwnerUserID, v)
+	return u
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateOwnerUserID() *AccountUpsert {
+	u.SetExcluded(account.FieldOwnerUserID)
+	return u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *AccountUpsert) ClearOwnerUserID() *AccountUpsert {
+	u.SetNull(account.FieldOwnerUserID)
+	return u
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (u *AccountUpsert) SetReviewStatus(v string) *AccountUpsert {
+	u.Set(account.FieldReviewStatus, v)
+	return u
+}
+
+// UpdateReviewStatus sets the "review_status" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateReviewStatus() *AccountUpsert {
+	u.SetExcluded(account.FieldReviewStatus)
 	return u
 }
 
@@ -1360,6 +1471,41 @@ func (u *AccountUpsertOne) UpdateNotes() *AccountUpsertOne {
 func (u *AccountUpsertOne) ClearNotes() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *AccountUpsertOne) SetOwnerUserID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateOwnerUserID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *AccountUpsertOne) ClearOwnerUserID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearOwnerUserID()
+	})
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (u *AccountUpsertOne) SetReviewStatus(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewStatus(v)
+	})
+}
+
+// UpdateReviewStatus sets the "review_status" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateReviewStatus() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewStatus()
 	})
 }
 
@@ -2082,6 +2228,41 @@ func (u *AccountUpsertBulk) UpdateNotes() *AccountUpsertBulk {
 func (u *AccountUpsertBulk) ClearNotes() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *AccountUpsertBulk) SetOwnerUserID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateOwnerUserID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *AccountUpsertBulk) ClearOwnerUserID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearOwnerUserID()
+	})
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (u *AccountUpsertBulk) SetReviewStatus(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewStatus(v)
+	})
+}
+
+// UpdateReviewStatus sets the "review_status" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateReviewStatus() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewStatus()
 	})
 }
 

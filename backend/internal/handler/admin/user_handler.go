@@ -56,6 +56,8 @@ type CreateUserRequest struct {
 	Concurrency   int     `json:"concurrency"`
 	RPMLimit      int     `json:"rpm_limit"`
 	AllowedGroups []int64 `json:"allowed_groups"`
+	// sudoapi: Account contributor review workflow.
+	Role string `json:"role" binding:"omitempty,oneof=user account_contributor"`
 }
 
 // UpdateUserRequest represents admin update user request
@@ -73,6 +75,8 @@ type UpdateUserRequest struct {
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates map[int64]*float64 `json:"group_rates"`
+	// sudoapi: Account contributor review workflow.
+	Role string `json:"role" binding:"omitempty,oneof=user account_contributor"`
 }
 
 // UpdateBalanceRequest represents balance update request
@@ -261,6 +265,8 @@ func (h *UserHandler) Create(c *gin.Context) {
 		Concurrency:   req.Concurrency,
 		RPMLimit:      req.RPMLimit,
 		AllowedGroups: req.AllowedGroups,
+		// sudoapi: Account contributor review workflow.
+		Role: req.Role,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -297,6 +303,8 @@ func (h *UserHandler) Update(c *gin.Context) {
 		Status:        req.Status,
 		AllowedGroups: req.AllowedGroups,
 		GroupRates:    req.GroupRates,
+		// sudoapi: Account contributor review workflow.
+		Role: req.Role,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

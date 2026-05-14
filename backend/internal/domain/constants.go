@@ -16,6 +16,28 @@ const (
 	RoleUser  = "user"
 )
 
+// sudoapi: Account contributor review workflow.
+const (
+	RoleAccountContributor = "account_contributor"
+)
+
+// sudoapi: Account contributor review workflow.
+// Account review status constants
+const (
+	AccountReviewStatusPending  = "pending"
+	AccountReviewStatusApproved = "approved"
+	AccountReviewStatusRejected = "rejected"
+)
+
+// sudoapi: Account contributor review workflow.
+// Account admin list pseudo status filters.
+const (
+	AccountListStatusReviewPending  = "review_pending"
+	AccountListStatusReviewApproved = "review_approved"
+	AccountListStatusReviewRejected = "review_rejected"
+	AccountListStatusExternal       = "external"
+)
+
 // Platform constants
 const (
 	PlatformAnthropic   = "anthropic"

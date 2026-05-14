@@ -64,6 +64,11 @@ type Account struct {
 	modelMappingCacheRawPtr         uintptr
 	modelMappingCacheRawLen         int
 	modelMappingCacheRawSig         uint64
+
+	// sudoapi: Account contributor review workflow.
+	OwnerUserID  *int64
+	OwnerUser    *User
+	ReviewStatus string
 }
 
 type TempUnschedulableRule struct {

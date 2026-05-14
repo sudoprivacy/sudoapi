@@ -22,6 +22,28 @@ const (
 	RoleUser  = domain.RoleUser
 )
 
+// sudoapi: Account contributor review workflow.
+const (
+	RoleAccountContributor = domain.RoleAccountContributor
+)
+
+// sudoapi: Account contributor review workflow.
+// Account review status constants
+const (
+	AccountReviewStatusPending  = domain.AccountReviewStatusPending
+	AccountReviewStatusApproved = domain.AccountReviewStatusApproved
+	AccountReviewStatusRejected = domain.AccountReviewStatusRejected
+)
+
+// sudoapi: Account contributor review workflow.
+// Account admin list pseudo status filters
+const (
+	AccountListStatusReviewPending  = domain.AccountListStatusReviewPending
+	AccountListStatusReviewApproved = domain.AccountListStatusReviewApproved
+	AccountListStatusReviewRejected = domain.AccountListStatusReviewRejected
+	AccountListStatusExternal       = domain.AccountListStatusExternal
+)
+
 // Affiliate rebate settings
 const (
 	AffiliateRebateRateDefault          = 20.0

@@ -117,4 +117,6 @@ func registerRoutes(
 
 	// sudoapi: Model Square model catalog.
 	routes.RegisterPublicRoutes(v1, h)
+	// sudoapi: Account contributor review workflow.
+	routes.RegisterContributorRoutes(v1, h, jwtAuth)
 }

@@ -231,6 +231,9 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		SessionWindowEnd:        a.SessionWindowEnd,
 		SessionWindowStatus:     a.SessionWindowStatus,
 		GroupIDs:                a.GroupIDs,
+		OwnerUserID:             a.OwnerUserID,
+		OwnerUser:               AccountOwnerUserFromService(a.OwnerUser),
+		ReviewStatus:            a.ReviewStatus,
 	}
 
 	// 提取 5h 窗口费用控制和会话数量控制配置（仅 Anthropic OAuth/SetupToken 账号有效）
@@ -799,5 +802,17 @@ func PromoCodeUsageFromService(u *service.PromoCodeUsage) *PromoCodeUsage {
 		BonusAmount: u.BonusAmount,
 		UsedAt:      u.UsedAt,
 		User:        UserFromServiceShallow(u.User),
+	}
+}
+
+// sudoapi: Account contributor review workflow.
+func AccountOwnerUserFromService(u *service.User) *AccountOwnerUser {
+	if u == nil {
+		return nil
+	}
+	return &AccountOwnerUser{
+		ID:       u.ID,
+		Email:    u.Email,
+		Username: u.Username,
 	}
 }

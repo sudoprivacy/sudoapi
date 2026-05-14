@@ -84,7 +84,8 @@ export interface User {
   linuxdo_bound?: boolean
   oidc_bound?: boolean
   wechat_bound?: boolean
-  role: 'admin' | 'user' // User role for authorization
+  // sudoapi: Account contributor review workflow.
+  role: 'admin' | 'user' | 'account_contributor' // User role for authorization
   balance: number // User balance for API usage
   concurrency: number // Allowed concurrent requests
   rpm_limit?: number // User-level RPM cap (0 = unlimited); effective as fallback when group has no rpm_limit
@@ -909,6 +910,11 @@ export interface Account {
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
   current_rpm?: number | null // 当前分钟 RPM 计数
+
+  // sudoapi: Account contributor review workflow.
+  owner_user_id?: number | null
+  owner_user?: Pick<User, 'id' | 'email' | 'username'> | null
+  review_status: 'pending' | 'approved' | 'rejected'
 }
 
 // Account Usage types
@@ -1514,7 +1520,8 @@ export interface UpdateUserRequest {
   password?: string
   username?: string
   notes?: string
-  role?: 'admin' | 'user'
+  // sudoapi: Account contributor review workflow.
+  role?: 'admin' | 'user' | 'account_contributor'
   balance?: number
   concurrency?: number
   status?: 'active' | 'disabled'

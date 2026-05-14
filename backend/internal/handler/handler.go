@@ -58,6 +58,8 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	// sudoapi: Model Square model catalog.
 	ModelSquare *ModelSquareHandler
+	// sudoapi: Account contributor review workflow.
+	ContributorAccount *ContributorAccountHandler
 }
 
 // BuildInfo contains build-time information

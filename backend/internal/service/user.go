@@ -100,3 +100,8 @@ func (u *User) SetPassword(password string) error {
 func (u *User) CheckPassword(password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) == nil
 }
+
+// sudoapi: Account contributor review workflow.
+func (u *User) IsAccountContributor() bool {
+	return u.Role == RoleAccountContributor
+}

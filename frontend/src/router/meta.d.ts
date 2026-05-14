@@ -20,6 +20,13 @@ declare module 'vue-router' {
     requiresAdmin?: boolean
 
     /**
+     * sudoapi: Account contributor review workflow.
+     * Whether this route requires account contributor role
+     * @default false
+     */
+    requiresAccountContributor?: boolean
+
+    /**
      * Page title for this route
      */
     title?: string

@@ -14,7 +14,10 @@ import (
 	"strings"
 	"time"
 
+	entsql "entgo.io/ent/dialect/sql"
+
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	dbaccount "github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
@@ -123,6 +126,12 @@ type AdminService interface {
 
 	// sudoapi: CSV-style admin batch user creation.
 	BatchCreateUsers(ctx context.Context, input *BatchCreateUsersInput) (*BatchCreateUsersOutput, error)
+	// sudoapi: Account contributor review workflow.
+	UpdateAccountReviewStatus(ctx context.Context, id int64, reviewStatus string) (*Account, error)
+	ListContributorAccounts(ctx context.Context, ownerUserID int64, page, pageSize int, platform, accountType, status, search string, sortBy, sortOrder string) ([]Account, int64, error)
+	GetContributorAccount(ctx context.Context, ownerUserID, accountID int64) (*Account, error)
+	CreateContributorAccount(ctx context.Context, ownerUserID int64, input *CreateAccountInput) (*Account, error)
+	UpdateContributorAccount(ctx context.Context, ownerUserID, accountID int64, input *UpdateAccountInput) (*Account, error)
 }
 
 // CreateUserInput represents input for creating a new user via admin operations.
@@ -135,6 +144,8 @@ type CreateUserInput struct {
 	Concurrency   int
 	RPMLimit      int
 	AllowedGroups []int64
+	// sudoapi: Account contributor review workflow.
+	Role string
 }
 
 type UpdateUserInput struct {
@@ -150,6 +161,8 @@ type UpdateUserInput struct {
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates map[int64]*float64
+	// sudoapi: Account contributor review workflow.
+	Role string
 }
 
 type AdminBindAuthIdentityInput struct {
@@ -291,6 +304,9 @@ type CreateAccountInput struct {
 	// SkipMixedChannelCheck skips the mixed channel risk check when binding groups.
 	// This should only be set when the caller has explicitly confirmed the risk.
 	SkipMixedChannelCheck bool
+	// sudoapi: Account contributor review workflow.
+	OwnerUserID  *int64
+	ReviewStatus string
 }
 
 type UpdateAccountInput struct {
@@ -309,6 +325,8 @@ type UpdateAccountInput struct {
 	ExpiresAt             *int64
 	AutoPauseOnExpired    *bool
 	SkipMixedChannelCheck bool // 跳过混合渠道检查（用户已确认风险）
+	// sudoapi: Account contributor review workflow.
+	ReviewStatus string
 }
 
 // BulkUpdateAccountsInput describes the payload for bulk updating accounts.
@@ -678,11 +696,12 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 }
 
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
+	role := normalizeAdminAssignableRole(input.Role)
 	user := &User{
 		Email:         input.Email,
 		Username:      input.Username,
 		Notes:         input.Notes,
-		Role:          RoleUser, // Always create as regular user, never admin
+		Role:          role,
 		Balance:       input.Balance,
 		Concurrency:   input.Concurrency,
 		RPMLimit:      input.RPMLimit,
@@ -755,6 +774,9 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 	if input.Notes != nil {
 		user.Notes = *input.Notes
+	}
+	if input.Role != "" && user.Role != RoleAdmin {
+		user.Role = normalizeAdminAssignableRole(input.Role)
 	}
 
 	if input.Status != "" {
@@ -2482,6 +2504,10 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		Priority:    input.Priority,
 		Status:      StatusActive,
 		Schedulable: true,
+
+		// sudoapi: Account contributor review workflow.
+		OwnerUserID:  input.OwnerUserID,
+		ReviewStatus: normalizeAccountReviewStatus(input.ReviewStatus),
 	}
 	// 预计算固定时间重置的下次重置时间
 	if account.Extra != nil {
@@ -2565,6 +2591,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	}
 	if input.Notes != nil {
 		account.Notes = normalizeAccountNotes(input.Notes)
+	}
+	if input.ReviewStatus != "" {
+		account.ReviewStatus = normalizeAccountReviewStatus(input.ReviewStatus)
 	}
 	if len(input.Credentials) > 0 {
 		// 敏感子键采用"incoming 没提供就保留"的合并语义：前端响应已脱敏，
@@ -3811,4 +3840,207 @@ func (s *adminServiceImpl) ForceAntigravityPrivacy(ctx context.Context, account 
 	}
 	applyAntigravityPrivacyMode(account, mode)
 	return mode
+}
+
+// sudoapi: Account contributor review workflow.
+func normalizeAdminAssignableRole(role string) string {
+	switch strings.TrimSpace(role) {
+	case RoleAccountContributor:
+		return RoleAccountContributor
+	default:
+		return RoleUser
+	}
+}
+
+// sudoapi: Account contributor review workflow.
+func normalizeAccountReviewStatus(value string) string {
+	switch strings.TrimSpace(value) {
+	case AccountReviewStatusPending:
+		return AccountReviewStatusPending
+	case AccountReviewStatusRejected:
+		return AccountReviewStatusRejected
+	default:
+		return AccountReviewStatusApproved
+	}
+}
+
+// sudoapi: Account contributor review workflow.
+func (s *adminServiceImpl) UpdateAccountReviewStatus(ctx context.Context, id int64, reviewStatus string) (*Account, error) {
+	account, err := s.accountRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	switch normalizeAccountReviewStatus(reviewStatus) {
+	case AccountReviewStatusApproved:
+		account.ReviewStatus = AccountReviewStatusApproved
+		account.Status = StatusActive
+		account.Schedulable = true
+	case AccountReviewStatusRejected:
+		account.ReviewStatus = AccountReviewStatusRejected
+		account.Status = StatusDisabled
+		account.Schedulable = false
+	case AccountReviewStatusPending:
+		account.ReviewStatus = AccountReviewStatusPending
+		account.Status = StatusDisabled
+		account.Schedulable = false
+	default:
+		return nil, infraerrors.BadRequest("INVALID_REVIEW_STATUS", "invalid review status")
+	}
+	if err := s.accountRepo.Update(ctx, account); err != nil {
+		return nil, err
+	}
+	return s.accountRepo.GetByID(ctx, id)
+}
+
+// sudoapi: Account contributor review workflow.
+func (s *adminServiceImpl) ListContributorAccounts(ctx context.Context, ownerUserID int64, page, pageSize int, platform, accountType, status, search string, sortBy, sortOrder string) ([]Account, int64, error) {
+	if ownerUserID <= 0 {
+		return nil, 0, infraerrors.BadRequest("INVALID_OWNER", "owner_user_id is required")
+	}
+	if s.entClient == nil {
+		return nil, 0, errors.New("ent client unavailable")
+	}
+	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
+	q := s.entClient.Account.Query().Where(dbaccount.OwnerUserIDEQ(ownerUserID))
+	if platform != "" {
+		q = q.Where(dbaccount.PlatformEQ(platform))
+	}
+	if accountType != "" {
+		q = q.Where(dbaccount.TypeEQ(accountType))
+	}
+	if status != "" {
+		q = q.Where(dbaccount.StatusEQ(status))
+	}
+	if search != "" {
+		q = q.Where(dbaccount.NameContainsFold(search))
+	}
+	total, err := q.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	query := q.Offset(params.Offset()).Limit(params.Limit())
+	for _, order := range accountListOrderForService(params) {
+		query = query.Order(order)
+	}
+	entAccounts, err := query.All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	ids := make([]int64, 0, len(entAccounts))
+	for _, acc := range entAccounts {
+		ids = append(ids, acc.ID)
+	}
+	accounts, err := s.accountRepo.GetByIDs(ctx, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	byID := make(map[int64]*Account, len(accounts))
+	for _, acc := range accounts {
+		if acc != nil {
+			byID[acc.ID] = acc
+		}
+	}
+	out := make([]Account, 0, len(ids))
+	for _, id := range ids {
+		if acc := byID[id]; acc != nil {
+			out = append(out, *acc)
+		}
+	}
+	return out, int64(total), nil
+}
+
+// sudoapi: Account contributor review workflow.
+func (s *adminServiceImpl) GetContributorAccount(ctx context.Context, ownerUserID, accountID int64) (*Account, error) {
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	if account.OwnerUserID == nil || *account.OwnerUserID != ownerUserID {
+		return nil, ErrAccountNotFound
+	}
+	return account, nil
+}
+
+// sudoapi: Account contributor review workflow.
+func (s *adminServiceImpl) CreateContributorAccount(ctx context.Context, ownerUserID int64, input *CreateAccountInput) (*Account, error) {
+	if ownerUserID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_OWNER", "owner_user_id is required")
+	}
+	inputCopy := *input
+	inputCopy.OwnerUserID = &ownerUserID
+	inputCopy.ReviewStatus = AccountReviewStatusPending
+	inputCopy.GroupIDs = nil
+	inputCopy.SkipDefaultGroupBind = true
+	account, err := s.CreateAccount(ctx, &inputCopy)
+	if err != nil {
+		return nil, err
+	}
+	account.Status = StatusDisabled
+	account.Schedulable = false
+	account.ReviewStatus = AccountReviewStatusPending
+	if err := s.accountRepo.Update(ctx, account); err != nil {
+		return nil, err
+	}
+	return s.accountRepo.GetByID(ctx, account.ID)
+}
+
+// sudoapi: Account contributor review workflow.
+func (s *adminServiceImpl) UpdateContributorAccount(ctx context.Context, ownerUserID, accountID int64, input *UpdateAccountInput) (*Account, error) {
+	account, err := s.GetContributorAccount(ctx, ownerUserID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	inputCopy := *input
+	inputCopy.Status = StatusDisabled
+	inputCopy.GroupIDs = nil
+	inputCopy.ReviewStatus = AccountReviewStatusPending
+	if len(inputCopy.Credentials) > 0 {
+		mergedCredentials := make(map[string]any, len(account.Credentials)+len(inputCopy.Credentials))
+		for k, v := range account.Credentials {
+			mergedCredentials[k] = v
+		}
+		for k, v := range inputCopy.Credentials {
+			mergedCredentials[k] = v
+		}
+		inputCopy.Credentials = mergedCredentials
+	}
+	updated, err := s.UpdateAccount(ctx, account.ID, &inputCopy)
+	if err != nil {
+		return nil, err
+	}
+	updated.OwnerUserID = account.OwnerUserID
+	updated.Status = StatusDisabled
+	updated.Schedulable = false
+	updated.ReviewStatus = AccountReviewStatusPending
+	if err := s.accountRepo.Update(ctx, updated); err != nil {
+		return nil, err
+	}
+	return s.accountRepo.GetByID(ctx, updated.ID)
+}
+
+func accountListOrderForService(params pagination.PaginationParams) []func(*entsql.Selector) {
+	sortBy := strings.ToLower(strings.TrimSpace(params.SortBy))
+	sortOrder := params.NormalizedSortOrder(pagination.SortOrderAsc)
+	field := dbaccount.FieldName
+	defaultOrder := true
+	switch sortBy {
+	case "", "name":
+		field = dbaccount.FieldName
+	case "id":
+		field = dbaccount.FieldID
+		defaultOrder = false
+	case "status":
+		field = dbaccount.FieldStatus
+		defaultOrder = false
+	case "created_at":
+		field = dbaccount.FieldCreatedAt
+		defaultOrder = false
+	}
+	if sortOrder == pagination.SortOrderDesc {
+		return []func(*entsql.Selector){dbent.Desc(field), dbent.Desc(dbaccount.FieldID)}
+	}
+	if defaultOrder {
+		return []func(*entsql.Selector){dbent.Asc(dbaccount.FieldName), dbent.Asc(dbaccount.FieldID)}
+	}
+	return []func(*entsql.Selector){dbent.Asc(field), dbent.Asc(dbaccount.FieldID)}
 }

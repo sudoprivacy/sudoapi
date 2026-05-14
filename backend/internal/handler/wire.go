@@ -113,6 +113,8 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	// sudoapi: Model Square model catalog.
 	modelSquareHandler *ModelSquareHandler,
+	// sudoapi: Account contributor review workflow.
+	contributorAccountHandler *ContributorAccountHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -135,6 +137,8 @@ func ProvideHandlers(
 		AvailableChannel: availableChannelHandler,
 		// sudoapi: Model Square model catalog.
 		ModelSquare: modelSquareHandler,
+		// sudoapi: Account contributor review workflow.
+		ContributorAccount: contributorAccountHandler,
 	}
 }
 
@@ -158,6 +162,8 @@ var ProviderSet = wire.NewSet(
 	NewAvailableChannelHandler,
 	// sudoapi: Model Square model catalog.
 	NewModelSquareHandler,
+	// sudoapi: Account contributor review workflow.
+	NewContributorAccountHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

@@ -25,6 +25,7 @@ import (
 	dbgroup "github.com/Wei-Shaw/sub2api/ent/group"
 	dbpredicate "github.com/Wei-Shaw/sub2api/ent/predicate"
 	dbproxy "github.com/Wei-Shaw/sub2api/ent/proxy"
+	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -80,10 +81,13 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	if account == nil {
 		return service.ErrAccountNilInput
 	}
+	account.ReviewStatus = normalizeAccountReviewStatus(account.ReviewStatus)
 
 	builder := r.client.Account.Create().
 		SetName(account.Name).
 		SetNillableNotes(account.Notes).
+		SetNillableOwnerUserID(account.OwnerUserID).
+		SetReviewStatus(account.ReviewStatus).
 		SetPlatform(account.Platform).
 		SetType(account.Type).
 		SetCredentials(normalizeJSONMap(account.Credentials)).
@@ -185,6 +189,7 @@ func (r *accountRepository) GetByIDs(ctx context.Context, ids []int64) ([]*servi
 	entAccounts, err := r.client.Account.
 		Query().
 		Where(dbaccount.IDIn(uniqueIDs...)).
+		WithOwner().
 		WithProxy().
 		All(ctx)
 	if err != nil {
@@ -217,6 +222,7 @@ func (r *accountRepository) GetByIDs(ctx context.Context, ids []int64) ([]*servi
 		if entAcc.Edges.Proxy != nil {
 			out.Proxy = proxyEntityToService(entAcc.Edges.Proxy)
 		}
+		out.OwnerUser = userEntityToService(entAcc.Edges.Owner)
 
 		if groups, ok := groupsByAccount[entAcc.ID]; ok {
 			out.Groups = groups
@@ -321,10 +327,13 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 	if account.Status == service.StatusError {
 		schedulable = false
 	}
+	// sudoapi: Account contributor review workflow.
+	account.ReviewStatus = normalizeAccountReviewStatus(account.ReviewStatus)
 
 	builder := r.client.Account.UpdateOneID(account.ID).
 		SetName(account.Name).
 		SetNillableNotes(account.Notes).
+		SetReviewStatus(account.ReviewStatus).
 		SetPlatform(account.Platform).
 		SetType(account.Type).
 		SetCredentials(normalizeJSONMap(account.Credentials)).
@@ -343,6 +352,11 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		builder.SetLoadFactor(*account.LoadFactor)
 	} else {
 		builder.ClearLoadFactor()
+	}
+	if account.OwnerUserID != nil {
+		builder.SetOwnerUserID(*account.OwnerUserID)
+	} else {
+		builder.ClearOwnerUserID()
 	}
 
 	if account.ProxyID != nil {
@@ -531,6 +545,14 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 					))
 				}),
 			)
+		case service.AccountListStatusReviewPending:
+			q = q.Where(dbaccount.ReviewStatusEQ(service.AccountReviewStatusPending))
+		case service.AccountListStatusReviewApproved:
+			q = q.Where(dbaccount.ReviewStatusEQ(service.AccountReviewStatusApproved))
+		case service.AccountListStatusReviewRejected:
+			q = q.Where(dbaccount.ReviewStatusEQ(service.AccountReviewStatusRejected))
+		case service.AccountListStatusExternal:
+			q = q.Where(dbaccount.OwnerUserIDNotNil())
 		default:
 			q = q.Where(dbaccount.StatusEQ(status))
 		}
@@ -1584,6 +1606,10 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 	if err != nil {
 		return nil, err
 	}
+	ownerMap, err := r.loadOwnerUsers(ctx, accounts)
+	if err != nil {
+		return nil, err
+	}
 	groupsByAccount, groupIDsByAccount, accountGroupsByAccount, err := r.loadAccountGroups(ctx, accountIDs)
 	if err != nil {
 		return nil, err
@@ -1594,6 +1620,11 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 		out := accountEntityToService(acc)
 		if out == nil {
 			continue
+		}
+		if acc.Edges.Owner != nil {
+			out.OwnerUser = userEntityToService(acc.Edges.Owner)
+		} else if acc.OwnerUserID != nil {
+			out.OwnerUser = ownerMap[*acc.OwnerUserID]
 		}
 		if acc.ProxyID != nil {
 			if proxy, ok := proxyMap[*acc.ProxyID]; ok {
@@ -1746,6 +1777,8 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		ID:                      m.ID,
 		Name:                    m.Name,
 		Notes:                   m.Notes,
+		OwnerUserID:             m.OwnerUserID,
+		ReviewStatus:            m.ReviewStatus,
 		Platform:                m.Platform,
 		Type:                    m.Type,
 		Credentials:             copyJSONMap(m.Credentials),
@@ -2042,4 +2075,50 @@ func (r *accountRepository) ResetQuotaUsed(ctx context.Context, id int64) error 
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue quota reset failed: account=%d err=%v", id, err)
 	}
 	return nil
+}
+
+// sudoapi: Account contributor review workflow.
+func (r *accountRepository) loadOwnerUsers(ctx context.Context, accounts []*dbent.Account) (map[int64]*service.User, error) {
+	userMap := make(map[int64]*service.User)
+	ids := make([]int64, 0, len(accounts))
+	seen := make(map[int64]struct{}, len(accounts))
+	for _, acc := range accounts {
+		if acc == nil || acc.OwnerUserID == nil {
+			continue
+		}
+		if acc.Edges.Owner != nil {
+			userMap[acc.Edges.Owner.ID] = userEntityToService(acc.Edges.Owner)
+			continue
+		}
+		id := *acc.OwnerUserID
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return userMap, nil
+	}
+
+	users, err := r.client.User.Query().Where(dbuser.IDIn(ids...)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, u := range users {
+		userMap[u.ID] = userEntityToService(u)
+	}
+	return userMap, nil
+}
+
+// sudoapi: Account contributor review workflow.
+func normalizeAccountReviewStatus(value string) string {
+	switch strings.TrimSpace(value) {
+	case service.AccountReviewStatusPending:
+		return service.AccountReviewStatusPending
+	case service.AccountReviewStatusRejected:
+		return service.AccountReviewStatusRejected
+	default:
+		return service.AccountReviewStatusApproved
+	}
 }
