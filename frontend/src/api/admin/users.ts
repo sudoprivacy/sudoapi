@@ -57,7 +57,7 @@ export async function list(
   pageSize: number = 20,
   filters?: {
     status?: 'active' | 'disabled'
-    role?: 'admin' | 'user'
+    role?: 'admin' | 'user' | 'account_contributor'
     search?: string
     group_name?: string         // fuzzy filter by allowed group name
     attributes?: Record<number, string>  // attributeId -> value
@@ -115,6 +115,7 @@ export async function getById(id: number): Promise<AdminUser> {
 export async function create(userData: {
   email: string
   password: string
+  role?: 'user' | 'account_contributor'
   balance?: number
   concurrency?: number
   allowed_groups?: number[] | null

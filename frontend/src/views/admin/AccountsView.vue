@@ -258,6 +258,14 @@
               <AccountStatusIndicator :account="row" @show-temp-unsched="handleShowTempUnsched" />
             </div>
           </template>
+          <template #cell-review_status="{ row }">
+            <div class="flex flex-col items-start gap-1">
+              <span :class="reviewBadgeClass(row.review_status)">{{ reviewLabel(row.review_status) }}</span>
+              <span v-if="row.owner_user_id" class="text-xs text-gray-500 dark:text-dark-400">
+                {{ t('admin.accounts.externalSubmission') }} #{{ row.owner_user_id }}
+              </span>
+            </div>
+          </template>
           <template #cell-schedulable="{ row }">
             <button @click="handleToggleSchedulable(row)" :disabled="togglingSchedulable === row.id" class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-dark-800" :class="[row.schedulable ? 'bg-primary-500 hover:bg-primary-600' : 'bg-gray-200 hover:bg-gray-300 dark:bg-dark-600 dark:hover:bg-dark-500']" :title="row.schedulable ? t('admin.accounts.schedulableEnabled') : t('admin.accounts.schedulableDisabled')">
               <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" :class="[row.schedulable ? 'translate-x-4' : 'translate-x-0']" />
@@ -329,6 +337,14 @@
               <button @click="handleDelete(row)" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                 <span class="text-xs">{{ t('common.delete') }}</span>
+              </button>
+              <button v-if="row.owner_user_id && row.review_status !== 'approved'" @click="handleReview(row, 'approved')" :disabled="reviewingId === row.id" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400">
+                <Icon name="check" size="sm" />
+                <span class="text-xs">{{ t('admin.accounts.approve') }}</span>
+              </button>
+              <button v-if="row.owner_user_id && row.review_status !== 'rejected'" @click="handleReview(row, 'rejected')" :disabled="reviewingId === row.id" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400">
+                <Icon name="x" size="sm" />
+                <span class="text-xs">{{ t('admin.accounts.reject') }}</span>
               </button>
               <button @click="openMenu(row, $event)" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
@@ -485,6 +501,7 @@ const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
 const togglingSchedulable = ref<number | null>(null)
+const reviewingId = ref<number | null>(null)
 const menu = reactive<{show:boolean, acc:Account|null, pos:{top:number, left:number}|null}>({ show: false, acc: null, pos: null })
 const exportingData = ref(false)
 
@@ -1115,6 +1132,7 @@ const allColumns = computed(() => {
     { key: 'platform_type', label: t('admin.accounts.columns.platformType'), sortable: false },
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
+    { key: 'review_status', label: t('admin.accounts.columns.reviewStatus'), sortable: false },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
     { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
   ]
@@ -1147,6 +1165,31 @@ const cols = computed(() =>
 )
 
 const handleEdit = (a: Account) => { edAcc.value = a; showEdit.value = true }
+
+function reviewLabel(value?: Account['review_status']) {
+  return t(`admin.accounts.review.${value || 'approved'}`)
+}
+
+function reviewBadgeClass(value?: Account['review_status']) {
+  const base = 'inline-flex rounded px-2 py-0.5 text-xs font-medium'
+  if (value === 'pending') return `${base} bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300`
+  if (value === 'rejected') return `${base} bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300`
+  return `${base} bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300`
+}
+
+async function handleReview(account: Account, status: 'approved' | 'rejected' | 'pending') {
+  reviewingId.value = account.id
+  try {
+    await adminAPI.accounts.updateReviewStatus(account.id, status)
+    appStore.showSuccess(t(status === 'approved' ? 'admin.accounts.reviewApproved' : 'admin.accounts.reviewRejected'))
+    await reload()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || error.message || t('admin.accounts.reviewUpdateFailed'))
+  } finally {
+    reviewingId.value = null
+  }
+}
+
 const openMenu = (a: Account, e: MouseEvent) => {
   menu.acc = a
 

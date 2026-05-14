@@ -80,10 +80,13 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	if account == nil {
 		return service.ErrAccountNilInput
 	}
+	account.ReviewStatus = normalizeAccountReviewStatus(account.ReviewStatus)
 
 	builder := r.client.Account.Create().
 		SetName(account.Name).
 		SetNillableNotes(account.Notes).
+		SetNillableOwnerUserID(account.OwnerUserID).
+		SetReviewStatus(account.ReviewStatus).
 		SetPlatform(account.Platform).
 		SetType(account.Type).
 		SetCredentials(normalizeJSONMap(account.Credentials)).
@@ -317,10 +320,12 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 	if account == nil {
 		return nil
 	}
+	account.ReviewStatus = normalizeAccountReviewStatus(account.ReviewStatus)
 
 	builder := r.client.Account.UpdateOneID(account.ID).
 		SetName(account.Name).
 		SetNillableNotes(account.Notes).
+		SetReviewStatus(account.ReviewStatus).
 		SetPlatform(account.Platform).
 		SetType(account.Type).
 		SetCredentials(normalizeJSONMap(account.Credentials)).
@@ -339,6 +344,11 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		builder.SetLoadFactor(*account.LoadFactor)
 	} else {
 		builder.ClearLoadFactor()
+	}
+	if account.OwnerUserID != nil {
+		builder.SetOwnerUserID(*account.OwnerUserID)
+	} else {
+		builder.ClearOwnerUserID()
 	}
 
 	if account.ProxyID != nil {
@@ -526,6 +536,14 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 					))
 				}),
 			)
+		case service.AccountListStatusReviewPending:
+			q = q.Where(dbaccount.ReviewStatusEQ(service.AccountReviewStatusPending))
+		case service.AccountListStatusReviewApproved:
+			q = q.Where(dbaccount.ReviewStatusEQ(service.AccountReviewStatusApproved))
+		case service.AccountListStatusReviewRejected:
+			q = q.Where(dbaccount.ReviewStatusEQ(service.AccountReviewStatusRejected))
+		case service.AccountListStatusExternal:
+			q = q.Where(dbaccount.OwnerUserIDNotNil())
 		default:
 			q = q.Where(dbaccount.StatusEQ(status))
 		}
@@ -1725,6 +1743,8 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		ID:                      m.ID,
 		Name:                    m.Name,
 		Notes:                   m.Notes,
+		OwnerUserID:             m.OwnerUserID,
+		ReviewStatus:            m.ReviewStatus,
 		Platform:                m.Platform,
 		Type:                    m.Type,
 		Credentials:             copyJSONMap(m.Credentials),
@@ -1750,6 +1770,17 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		SessionWindowStart:      m.SessionWindowStart,
 		SessionWindowEnd:        m.SessionWindowEnd,
 		SessionWindowStatus:     derefString(m.SessionWindowStatus),
+	}
+}
+
+func normalizeAccountReviewStatus(value string) string {
+	switch strings.TrimSpace(value) {
+	case service.AccountReviewStatusPending:
+		return service.AccountReviewStatusPending
+	case service.AccountReviewStatusRejected:
+		return service.AccountReviewStatusRejected
+	default:
+		return service.AccountReviewStatusApproved
 	}
 }
 

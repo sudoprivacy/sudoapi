@@ -12,8 +12,24 @@ const (
 
 // Role constants
 const (
-	RoleAdmin = "admin"
-	RoleUser  = "user"
+	RoleAdmin              = "admin"
+	RoleUser               = "user"
+	RoleAccountContributor = "account_contributor"
+)
+
+// Account review status constants
+const (
+	AccountReviewStatusPending  = "pending"
+	AccountReviewStatusApproved = "approved"
+	AccountReviewStatusRejected = "rejected"
+)
+
+// Account admin list pseudo status filters.
+const (
+	AccountListStatusReviewPending  = "review_pending"
+	AccountListStatusReviewApproved = "review_approved"
+	AccountListStatusReviewRejected = "review_rejected"
+	AccountListStatusExternal       = "external"
 )
 
 // Platform constants

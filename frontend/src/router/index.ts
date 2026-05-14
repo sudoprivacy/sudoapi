@@ -478,6 +478,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/contributor/accounts',
+    name: 'ContributorAccounts',
+    component: () => import('@/views/contributor/AccountsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAccountContributor: true,
+      title: 'My Model Accounts',
+      titleKey: 'contributor.accounts.title',
+      descriptionKey: 'contributor.accounts.description'
+    }
+  },
+  {
     path: '/admin/announcements',
     name: 'AdminAnnouncements',
     component: () => import('@/views/admin/AnnouncementsView.vue'),
@@ -738,6 +750,7 @@ router.beforeEach((to, _from, next) => {
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true
   const requiresAdmin = to.meta.requiresAdmin === true
+  const requiresAccountContributor = to.meta.requiresAccountContributor === true
 
   // If route doesn't require auth, allow access
   if (!requiresAuth) {
@@ -779,6 +792,11 @@ router.beforeEach((to, _from, next) => {
   if (requiresAdmin && !authStore.isAdmin) {
     // User is authenticated but not admin, redirect to user dashboard
     next('/dashboard')
+    return
+  }
+
+  if (requiresAccountContributor && !authStore.isAccountContributor) {
+    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
     return
   }
 

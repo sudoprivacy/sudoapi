@@ -828,6 +828,22 @@ func (c *AccountClient) QueryUsageLogs(_m *Account) *UsageLogQuery {
 	return query
 }
 
+// QueryOwner queries the owner edge of a Account.
+func (c *AccountClient) QueryOwner(_m *Account) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(account.Table, account.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, account.OwnerTable, account.OwnerColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryAccountGroups queries the account_groups edge of a Account.
 func (c *AccountClient) QueryAccountGroups(_m *Account) *AccountGroupQuery {
 	query := (&AccountGroupClient{config: c.config}).Query()
@@ -5302,6 +5318,22 @@ func (c *UserClient) QueryPaymentOrders(_m *User) *PaymentOrderQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(paymentorder.Table, paymentorder.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PaymentOrdersTable, user.PaymentOrdersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryOwnedAccounts queries the owned_accounts edge of a User.
+func (c *UserClient) QueryOwnedAccounts(_m *User) *AccountQuery {
+	query := (&AccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(account.Table, account.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.OwnedAccountsTable, user.OwnedAccountsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

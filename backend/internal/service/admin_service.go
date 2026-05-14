@@ -14,7 +14,9 @@ import (
 	"strings"
 	"time"
 
+	entsql "entgo.io/ent/dialect/sql"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	dbaccount "github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -74,6 +76,11 @@ type AdminService interface {
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
 	UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error)
 	DeleteAccount(ctx context.Context, id int64) error
+	UpdateAccountReviewStatus(ctx context.Context, id int64, reviewStatus string) (*Account, error)
+	ListContributorAccounts(ctx context.Context, ownerUserID int64, page, pageSize int, platform, accountType, status, search string, sortBy, sortOrder string) ([]Account, int64, error)
+	GetContributorAccount(ctx context.Context, ownerUserID, accountID int64) (*Account, error)
+	CreateContributorAccount(ctx context.Context, ownerUserID int64, input *CreateAccountInput) (*Account, error)
+	UpdateContributorAccount(ctx context.Context, ownerUserID, accountID int64, input *UpdateAccountInput) (*Account, error)
 	RefreshAccountCredentials(ctx context.Context, id int64) (*Account, error)
 	ClearAccountError(ctx context.Context, id int64) (*Account, error)
 	SetAccountError(ctx context.Context, id int64, errorMsg string) error
@@ -121,6 +128,7 @@ type CreateUserInput struct {
 	Password      string
 	Username      string
 	Notes         string
+	Role          string
 	Balance       float64
 	Concurrency   int
 	RPMLimit      int
@@ -166,6 +174,7 @@ type UpdateUserInput struct {
 	Password      string
 	Username      *string
 	Notes         *string
+	Role          string
 	Balance       *float64 // 使用指针区分"未提供"和"设置为0"
 	Concurrency   *int     // 使用指针区分"未提供"和"设置为0"
 	RPMLimit      *int     // 使用指针区分"未提供"和"设置为0"
@@ -296,6 +305,8 @@ type UpdateGroupInput struct {
 type CreateAccountInput struct {
 	Name               string
 	Notes              *string
+	OwnerUserID        *int64
+	ReviewStatus       string
 	Platform           string
 	Type               string
 	Credentials        map[string]any
@@ -318,6 +329,7 @@ type CreateAccountInput struct {
 type UpdateAccountInput struct {
 	Name                  string
 	Notes                 *string
+	ReviewStatus          string
 	Type                  string // Account type: oauth, setup-token, apikey
 	Credentials           map[string]any
 	Extra                 map[string]any
@@ -696,11 +708,12 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 }
 
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
+	role := normalizeAdminAssignableRole(input.Role)
 	user := &User{
 		Email:         input.Email,
 		Username:      input.Username,
 		Notes:         input.Notes,
-		Role:          RoleUser, // Always create as regular user, never admin
+		Role:          role,
 		Balance:       input.Balance,
 		Concurrency:   input.Concurrency,
 		RPMLimit:      input.RPMLimit,
@@ -715,6 +728,26 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 	}
 	s.assignDefaultSubscriptions(ctx, user.ID)
 	return user, nil
+}
+
+func normalizeAdminAssignableRole(role string) string {
+	switch strings.TrimSpace(role) {
+	case RoleAccountContributor:
+		return RoleAccountContributor
+	default:
+		return RoleUser
+	}
+}
+
+func normalizeAccountReviewStatus(value string) string {
+	switch strings.TrimSpace(value) {
+	case AccountReviewStatusPending:
+		return AccountReviewStatusPending
+	case AccountReviewStatusRejected:
+		return AccountReviewStatusRejected
+	default:
+		return AccountReviewStatusApproved
+	}
 }
 
 // BatchCreateUsers creates multiple users in one call. Each row goes through
@@ -884,6 +917,9 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 	if input.Notes != nil {
 		user.Notes = *input.Notes
+	}
+	if input.Role != "" && user.Role != RoleAdmin {
+		user.Role = normalizeAdminAssignableRole(input.Role)
 	}
 
 	if input.Status != "" {
@@ -2520,17 +2556,19 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	}
 
 	account := &Account{
-		Name:        input.Name,
-		Notes:       normalizeAccountNotes(input.Notes),
-		Platform:    input.Platform,
-		Type:        input.Type,
-		Credentials: input.Credentials,
-		Extra:       input.Extra,
-		ProxyID:     input.ProxyID,
-		Concurrency: input.Concurrency,
-		Priority:    input.Priority,
-		Status:      StatusActive,
-		Schedulable: true,
+		Name:         input.Name,
+		Notes:        normalizeAccountNotes(input.Notes),
+		OwnerUserID:  input.OwnerUserID,
+		ReviewStatus: normalizeAccountReviewStatus(input.ReviewStatus),
+		Platform:     input.Platform,
+		Type:         input.Type,
+		Credentials:  input.Credentials,
+		Extra:        input.Extra,
+		ProxyID:      input.ProxyID,
+		Concurrency:  input.Concurrency,
+		Priority:     input.Priority,
+		Status:       StatusActive,
+		Schedulable:  true,
 	}
 	// 预计算固定时间重置的下次重置时间
 	if account.Extra != nil {
@@ -2614,6 +2652,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	}
 	if input.Notes != nil {
 		account.Notes = normalizeAccountNotes(input.Notes)
+	}
+	if input.ReviewStatus != "" {
+		account.ReviewStatus = normalizeAccountReviewStatus(input.ReviewStatus)
 	}
 	if len(input.Credentials) > 0 {
 		account.Credentials = input.Credentials
@@ -2905,6 +2946,182 @@ func (s *adminServiceImpl) DeleteAccount(ctx context.Context, id int64) error {
 		return err
 	}
 	return nil
+}
+
+func (s *adminServiceImpl) UpdateAccountReviewStatus(ctx context.Context, id int64, reviewStatus string) (*Account, error) {
+	account, err := s.accountRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	switch normalizeAccountReviewStatus(reviewStatus) {
+	case AccountReviewStatusApproved:
+		account.ReviewStatus = AccountReviewStatusApproved
+		account.Status = StatusActive
+		account.Schedulable = true
+	case AccountReviewStatusRejected:
+		account.ReviewStatus = AccountReviewStatusRejected
+		account.Status = StatusDisabled
+		account.Schedulable = false
+	case AccountReviewStatusPending:
+		account.ReviewStatus = AccountReviewStatusPending
+		account.Status = StatusDisabled
+		account.Schedulable = false
+	default:
+		return nil, infraerrors.BadRequest("INVALID_REVIEW_STATUS", "invalid review status")
+	}
+	if err := s.accountRepo.Update(ctx, account); err != nil {
+		return nil, err
+	}
+	return s.accountRepo.GetByID(ctx, id)
+}
+
+func (s *adminServiceImpl) ListContributorAccounts(ctx context.Context, ownerUserID int64, page, pageSize int, platform, accountType, status, search string, sortBy, sortOrder string) ([]Account, int64, error) {
+	if ownerUserID <= 0 {
+		return nil, 0, infraerrors.BadRequest("INVALID_OWNER", "owner_user_id is required")
+	}
+	if s.entClient == nil {
+		return nil, 0, errors.New("ent client unavailable")
+	}
+	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
+	q := s.entClient.Account.Query().Where(dbaccount.OwnerUserIDEQ(ownerUserID))
+	if platform != "" {
+		q = q.Where(dbaccount.PlatformEQ(platform))
+	}
+	if accountType != "" {
+		q = q.Where(dbaccount.TypeEQ(accountType))
+	}
+	if status != "" {
+		q = q.Where(dbaccount.StatusEQ(status))
+	}
+	if search != "" {
+		q = q.Where(dbaccount.NameContainsFold(search))
+	}
+	total, err := q.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	query := q.Offset(params.Offset()).Limit(params.Limit())
+	for _, order := range accountListOrderForService(params) {
+		query = query.Order(order)
+	}
+	entAccounts, err := query.All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	ids := make([]int64, 0, len(entAccounts))
+	for _, acc := range entAccounts {
+		ids = append(ids, acc.ID)
+	}
+	accounts, err := s.accountRepo.GetByIDs(ctx, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	byID := make(map[int64]*Account, len(accounts))
+	for _, acc := range accounts {
+		if acc != nil {
+			byID[acc.ID] = acc
+		}
+	}
+	out := make([]Account, 0, len(ids))
+	for _, id := range ids {
+		if acc := byID[id]; acc != nil {
+			out = append(out, *acc)
+		}
+	}
+	return out, int64(total), nil
+}
+
+func (s *adminServiceImpl) GetContributorAccount(ctx context.Context, ownerUserID, accountID int64) (*Account, error) {
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	if account.OwnerUserID == nil || *account.OwnerUserID != ownerUserID {
+		return nil, ErrAccountNotFound
+	}
+	return account, nil
+}
+
+func (s *adminServiceImpl) CreateContributorAccount(ctx context.Context, ownerUserID int64, input *CreateAccountInput) (*Account, error) {
+	if ownerUserID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_OWNER", "owner_user_id is required")
+	}
+	inputCopy := *input
+	inputCopy.OwnerUserID = &ownerUserID
+	inputCopy.ReviewStatus = AccountReviewStatusPending
+	inputCopy.GroupIDs = nil
+	inputCopy.SkipDefaultGroupBind = true
+	account, err := s.CreateAccount(ctx, &inputCopy)
+	if err != nil {
+		return nil, err
+	}
+	account.Status = StatusDisabled
+	account.Schedulable = false
+	account.ReviewStatus = AccountReviewStatusPending
+	if err := s.accountRepo.Update(ctx, account); err != nil {
+		return nil, err
+	}
+	return s.accountRepo.GetByID(ctx, account.ID)
+}
+
+func (s *adminServiceImpl) UpdateContributorAccount(ctx context.Context, ownerUserID, accountID int64, input *UpdateAccountInput) (*Account, error) {
+	account, err := s.GetContributorAccount(ctx, ownerUserID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	inputCopy := *input
+	inputCopy.Status = StatusDisabled
+	inputCopy.GroupIDs = nil
+	inputCopy.ReviewStatus = AccountReviewStatusPending
+	if len(inputCopy.Credentials) > 0 {
+		mergedCredentials := make(map[string]any, len(account.Credentials)+len(inputCopy.Credentials))
+		for k, v := range account.Credentials {
+			mergedCredentials[k] = v
+		}
+		for k, v := range inputCopy.Credentials {
+			mergedCredentials[k] = v
+		}
+		inputCopy.Credentials = mergedCredentials
+	}
+	updated, err := s.UpdateAccount(ctx, account.ID, &inputCopy)
+	if err != nil {
+		return nil, err
+	}
+	updated.OwnerUserID = account.OwnerUserID
+	updated.Status = StatusDisabled
+	updated.Schedulable = false
+	updated.ReviewStatus = AccountReviewStatusPending
+	if err := s.accountRepo.Update(ctx, updated); err != nil {
+		return nil, err
+	}
+	return s.accountRepo.GetByID(ctx, updated.ID)
+}
+
+func accountListOrderForService(params pagination.PaginationParams) []func(*entsql.Selector) {
+	sortBy := strings.ToLower(strings.TrimSpace(params.SortBy))
+	sortOrder := params.NormalizedSortOrder(pagination.SortOrderAsc)
+	field := dbaccount.FieldName
+	defaultOrder := true
+	switch sortBy {
+	case "", "name":
+		field = dbaccount.FieldName
+	case "id":
+		field = dbaccount.FieldID
+		defaultOrder = false
+	case "status":
+		field = dbaccount.FieldStatus
+		defaultOrder = false
+	case "created_at":
+		field = dbaccount.FieldCreatedAt
+		defaultOrder = false
+	}
+	if sortOrder == pagination.SortOrderDesc {
+		return []func(*entsql.Selector){dbent.Desc(field), dbent.Desc(dbaccount.FieldID)}
+	}
+	if defaultOrder {
+		return []func(*entsql.Selector){dbent.Asc(dbaccount.FieldName), dbent.Asc(dbaccount.FieldID)}
+	}
+	return []func(*entsql.Selector){dbent.Asc(field), dbent.Asc(dbaccount.FieldID)}
 }
 
 func (s *adminServiceImpl) RefreshAccountCredentials(ctx context.Context, id int64) (*Account, error) {

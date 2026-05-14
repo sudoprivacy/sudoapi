@@ -25,6 +25,10 @@ const (
 	FieldName = "name"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// FieldOwnerUserID holds the string denoting the owner_user_id field in the database.
+	FieldOwnerUserID = "owner_user_id"
+	// FieldReviewStatus holds the string denoting the review_status field in the database.
+	FieldReviewStatus = "review_status"
 	// FieldPlatform holds the string denoting the platform field in the database.
 	FieldPlatform = "platform"
 	// FieldType holds the string denoting the type field in the database.
@@ -77,6 +81,8 @@ const (
 	EdgeProxy = "proxy"
 	// EdgeUsageLogs holds the string denoting the usage_logs edge name in mutations.
 	EdgeUsageLogs = "usage_logs"
+	// EdgeOwner holds the string denoting the owner edge name in mutations.
+	EdgeOwner = "owner"
 	// EdgeAccountGroups holds the string denoting the account_groups edge name in mutations.
 	EdgeAccountGroups = "account_groups"
 	// Table holds the table name of the account in the database.
@@ -100,6 +106,13 @@ const (
 	UsageLogsInverseTable = "usage_logs"
 	// UsageLogsColumn is the table column denoting the usage_logs relation/edge.
 	UsageLogsColumn = "account_id"
+	// OwnerTable is the table that holds the owner relation/edge.
+	OwnerTable = "accounts"
+	// OwnerInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	OwnerInverseTable = "users"
+	// OwnerColumn is the table column denoting the owner relation/edge.
+	OwnerColumn = "owner_user_id"
 	// AccountGroupsTable is the table that holds the account_groups relation/edge.
 	AccountGroupsTable = "account_groups"
 	// AccountGroupsInverseTable is the table name for the AccountGroup entity.
@@ -117,6 +130,8 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldName,
 	FieldNotes,
+	FieldOwnerUserID,
+	FieldReviewStatus,
 	FieldPlatform,
 	FieldType,
 	FieldCredentials,
@@ -174,6 +189,10 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultReviewStatus holds the default value on creation for the "review_status" field.
+	DefaultReviewStatus string
+	// ReviewStatusValidator is a validator for the "review_status" field. It is called by the builders before save.
+	ReviewStatusValidator func(string) error
 	// PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
 	PlatformValidator func(string) error
 	// TypeValidator is a validator for the "type" field. It is called by the builders before save.
@@ -231,6 +250,16 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 // ByNotes orders the results by the notes field.
 func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// ByOwnerUserID orders the results by the owner_user_id field.
+func ByOwnerUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerUserID, opts...).ToFunc()
+}
+
+// ByReviewStatus orders the results by the review_status field.
+func ByReviewStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewStatus, opts...).ToFunc()
 }
 
 // ByPlatform orders the results by the platform field.
@@ -373,6 +402,13 @@ func ByUsageLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByOwnerField orders the results by owner field.
+func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOwnerStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByAccountGroupsCount orders the results by account_groups count.
 func ByAccountGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -405,6 +441,13 @@ func newUsageLogsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UsageLogsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, UsageLogsTable, UsageLogsColumn),
+	)
+}
+func newOwnerStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OwnerInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, OwnerTable, OwnerColumn),
 	)
 }
 func newAccountGroupsStep() *sqlgraph.Step {

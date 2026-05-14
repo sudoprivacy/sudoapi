@@ -181,6 +181,9 @@ func mustCreateAccount(t *testing.T, client *dbent.Client, a *service.Account) *
 	if a.Priority == 0 {
 		a.Priority = 50
 	}
+	if a.ReviewStatus == "" {
+		a.ReviewStatus = service.AccountReviewStatusApproved
+	}
 	if !a.Schedulable {
 		a.Schedulable = true
 	}
@@ -195,6 +198,8 @@ func mustCreateAccount(t *testing.T, client *dbent.Client, a *service.Account) *
 		SetName(a.Name).
 		SetPlatform(a.Platform).
 		SetType(a.Type).
+		SetNillableOwnerUserID(a.OwnerUserID).
+		SetReviewStatus(a.ReviewStatus).
 		SetCredentials(a.Credentials).
 		SetExtra(a.Extra).
 		SetConcurrency(a.Concurrency).
