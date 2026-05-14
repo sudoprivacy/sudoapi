@@ -262,7 +262,8 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 		{
 			name: "filter_by_review_pending",
 			setup: func(client *dbent.Client) {
-				ownerID := int64(42)
+				owner := mustCreateUser(s.T(), client, &service.User{Email: "pending-owner@example.com", Role: service.RoleAccountContributor})
+				ownerID := owner.ID
 				mustCreateAccount(s.T(), client, &service.Account{Name: "pending-external", OwnerUserID: &ownerID, ReviewStatus: service.AccountReviewStatusPending})
 				mustCreateAccount(s.T(), client, &service.Account{Name: "approved-internal", ReviewStatus: service.AccountReviewStatusApproved})
 			},
@@ -276,7 +277,8 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 		{
 			name: "filter_external_accounts",
 			setup: func(client *dbent.Client) {
-				ownerID := int64(7)
+				owner := mustCreateUser(s.T(), client, &service.User{Email: "external-owner@example.com", Role: service.RoleAccountContributor})
+				ownerID := owner.ID
 				mustCreateAccount(s.T(), client, &service.Account{Name: "external", OwnerUserID: &ownerID, ReviewStatus: service.AccountReviewStatusPending})
 				mustCreateAccount(s.T(), client, &service.Account{Name: "internal", ReviewStatus: service.AccountReviewStatusApproved})
 			},
