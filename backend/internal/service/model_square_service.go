@@ -80,14 +80,18 @@ type ModelPlatformSection struct {
 }
 
 // ModelSquareCard 单个模型在广场上的展示卡片。
+//
+// Category 取值：claude / gpt / gemini / antigravity / image / embedding / other。
+// ContextWindow / MaxOutput 来自 LiteLLM 的 max_input_tokens / max_output_tokens。
+// Capabilities 是派生标签（参见 deriveCapabilities），key 由前端 i18n 渲染。
 type ModelSquareCard struct {
 	Name          string
 	DisplayName   string
-	Category      string // claude / gpt / gemini / antigravity / image / embedding / other
+	Category      string
 	Description   string
-	ContextWindow int      // max_input_tokens
-	MaxOutput     int      // max_output_tokens
-	Capabilities  []string // 派生标签，参见 deriveCapabilities
+	ContextWindow int
+	MaxOutput     int
+	Capabilities  []string
 	Featured      bool
 	IconURL       string
 	Platforms     []ModelPlatformSection
@@ -102,9 +106,10 @@ type ModelSquareService struct {
 	channelSvc *ChannelService
 	pricingSvc *PricingService
 
-	mu          sync.Mutex
-	publicEntry *modelSquareCacheEntry           // 全局共享
-	userEntries map[int64]*modelSquareCacheEntry // per-user
+	mu sync.Mutex
+	// publicEntry 全局共享；userEntries 按 userID 索引。
+	publicEntry *modelSquareCacheEntry
+	userEntries map[int64]*modelSquareCacheEntry
 }
 
 type modelSquareCacheEntry struct {
