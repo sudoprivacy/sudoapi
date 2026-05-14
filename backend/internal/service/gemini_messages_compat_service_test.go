@@ -215,7 +215,8 @@ func TestConvertClaudeToolChoiceToGeminiToolConfig(t *testing.T) {
 				return
 			}
 			require.NotNil(t, got)
-			fcc := got["functionCallingConfig"].(map[string]any)
+			fcc, ok := got["functionCallingConfig"].(map[string]any)
+			require.True(t, ok)
 			require.Equal(t, tt.wantMode, fcc["mode"])
 			if tt.wantAllowed != nil {
 				require.Equal(t, tt.wantAllowed, fcc["allowedFunctionNames"])

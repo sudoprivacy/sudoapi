@@ -83,7 +83,7 @@ type ModelPlatformSection struct {
 type ModelSquareCard struct {
 	Name          string
 	DisplayName   string
-	Category      string   // claude / gpt / gemini / antigravity / image / embedding / other
+	Category      string // claude / gpt / gemini / antigravity / image / embedding / other
 	Description   string
 	ContextWindow int      // max_input_tokens
 	MaxOutput     int      // max_output_tokens
@@ -103,8 +103,8 @@ type ModelSquareService struct {
 	pricingSvc *PricingService
 
 	mu          sync.Mutex
-	publicEntry *modelSquareCacheEntry            // 全局共享
-	userEntries map[int64]*modelSquareCacheEntry  // per-user
+	publicEntry *modelSquareCacheEntry           // 全局共享
+	userEntries map[int64]*modelSquareCacheEntry // per-user
 }
 
 type modelSquareCacheEntry struct {
