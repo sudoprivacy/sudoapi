@@ -101,7 +101,9 @@ export default {
     },
     modelSquare: {
       title: '模型广场',
-      subtitle: '浏览所有可用模型、API 端点和分组定价'
+      subtitle: '浏览所有可用模型、API 端点和分组定价',
+      menuEntry: '模型广场',
+      cta: '浏览全部模型与价格'
     },
     // CTA 区块
     cta: {
@@ -1007,6 +1009,19 @@ export default {
     viewAll: '查看全部',
     clearFilters: '清空筛选',
     resultCount: '显示 {count} / {total} 个模型',
+    loadFailed: '加载失败：{msg}',
+    tabs: {
+      all: '全部'
+    },
+    sort: {
+      label: '排序',
+      featured: '推荐优先',
+      nameAsc: '名称 A→Z',
+      nameDesc: '名称 Z→A',
+      priceAsc: '价格 低→高',
+      priceDesc: '价格 高→低',
+      contextDesc: '上下文 长→短'
+    },
     filter: {
       category: '厂商',
       capability: '能力',

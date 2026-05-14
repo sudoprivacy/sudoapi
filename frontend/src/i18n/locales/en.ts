@@ -101,7 +101,9 @@ export default {
     },
     modelSquare: {
       title: 'Model Square',
-      subtitle: 'Browse every available model, API endpoint, and group pricing'
+      subtitle: 'Browse every available model, API endpoint, and group pricing',
+      menuEntry: 'Models',
+      cta: 'Browse all models & pricing'
     },
     // CTA section
     cta: {
@@ -1003,6 +1005,19 @@ export default {
     viewAll: 'View all',
     clearFilters: 'Clear filters',
     resultCount: 'Showing {count} of {total} models',
+    loadFailed: 'Failed to load: {msg}',
+    tabs: {
+      all: 'All'
+    },
+    sort: {
+      label: 'Sort',
+      featured: 'Featured first',
+      nameAsc: 'Name A→Z',
+      nameDesc: 'Name Z→A',
+      priceAsc: 'Price Low→High',
+      priceDesc: 'Price High→Low',
+      contextDesc: 'Context Long→Short'
+    },
     filter: {
       category: 'Vendor',
       capability: 'Capability',

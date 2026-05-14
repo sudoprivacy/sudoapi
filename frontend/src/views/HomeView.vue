@@ -48,6 +48,15 @@
 
         <!-- Nav Actions -->
         <div class="flex items-center gap-3">
+          <!-- 模型广场入口（公开可见，未登录也能浏览） -->
+          <router-link
+            to="/models"
+            class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex dark:text-dark-200 dark:hover:bg-dark-800 dark:hover:text-white"
+          >
+            <Icon name="grid" size="sm" />
+            {{ t('home.modelSquare.menuEntry') }}
+          </router-link>
+
           <!-- Language Switcher -->
           <LocaleSwitcher />
 
@@ -370,22 +379,17 @@
           </div>
         </div>
 
-        <!-- Model Square preview -->
-        <section class="mb-16">
-          <div class="mb-6 text-center">
-            <h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
-              {{ t('home.modelSquare.title') }}
-            </h2>
-            <p class="text-sm text-gray-600 dark:text-dark-400">
-              {{ t('home.modelSquare.subtitle') }}
-            </p>
-          </div>
-          <ModelSquareGrid
-            :scope="isAuthenticated ? 'me' : 'public'"
-            compact
-            :max-items="8"
-          />
-        </section>
+        <!-- 模型广场入口 CTA：列出所有模型 / 端点 / 价格的完整页面在 /models -->
+        <div class="mb-16 text-center">
+          <router-link
+            to="/models"
+            class="inline-flex items-center gap-2 rounded-full border border-primary-500/30 bg-primary-500/5 px-5 py-2.5 text-sm font-medium text-primary-700 transition hover:bg-primary-500/10 dark:text-primary-300"
+          >
+            <Icon name="grid" size="sm" />
+            {{ t('home.modelSquare.cta') }}
+            <Icon name="arrowRight" size="sm" />
+          </router-link>
+        </div>
       </div>
     </main>
 
@@ -427,7 +431,6 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
-import ModelSquareGrid from '@/components/models/ModelSquareGrid.vue'
 
 const { t } = useI18n()
 
