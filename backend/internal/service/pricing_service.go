@@ -72,6 +72,19 @@ type LiteLLMModelPricing struct {
 	SupportsPromptCaching               bool    `json:"supports_prompt_caching"`
 	OutputCostPerImage                  float64 `json:"output_cost_per_image"`       // 图片生成模型每张图片价格
 	OutputCostPerImageToken             float64 `json:"output_cost_per_image_token"` // 图片输出 token 价格
+
+	// 上下文与能力元数据（供模型广场展示，不参与计费决策）
+	MaxTokens               int  `json:"max_tokens"`
+	MaxInputTokens          int  `json:"max_input_tokens"`
+	MaxOutputTokens         int  `json:"max_output_tokens"`
+	SupportsVision          bool `json:"supports_vision"`
+	SupportsFunctionCalling bool `json:"supports_function_calling"`
+	SupportsReasoning       bool `json:"supports_reasoning"`
+	SupportsAudioInput      bool `json:"supports_audio_input"`
+	SupportsAudioOutput     bool `json:"supports_audio_output"`
+	SupportsPDFInput        bool `json:"supports_pdf_input"`
+	SupportsToolChoice      bool `json:"supports_tool_choice"`
+	SupportsParallelTools   bool `json:"supports_parallel_function_calling"`
 }
 
 // PricingRemoteClient 远程价格数据获取接口
@@ -96,6 +109,20 @@ type LiteLLMRawEntry struct {
 	SupportsPromptCaching               bool     `json:"supports_prompt_caching"`
 	OutputCostPerImage                  *float64 `json:"output_cost_per_image"`
 	OutputCostPerImageToken             *float64 `json:"output_cost_per_image_token"`
+
+	// Context window + capability metadata (LiteLLM upstream JSON fields).
+	// Pointers tolerate absence; defaults remain zero / false.
+	MaxTokens               *int  `json:"max_tokens"`
+	MaxInputTokens          *int  `json:"max_input_tokens"`
+	MaxOutputTokens         *int  `json:"max_output_tokens"`
+	SupportsVision          *bool `json:"supports_vision"`
+	SupportsFunctionCalling *bool `json:"supports_function_calling"`
+	SupportsReasoning       *bool `json:"supports_reasoning"`
+	SupportsAudioInput      *bool `json:"supports_audio_input"`
+	SupportsAudioOutput     *bool `json:"supports_audio_output"`
+	SupportsPDFInput        *bool `json:"supports_pdf_input"`
+	SupportsToolChoice      *bool `json:"supports_tool_choice"`
+	SupportsParallelTools   *bool `json:"supports_parallel_function_calling"`
 }
 
 // PricingService 动态价格服务
@@ -412,6 +439,41 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.OutputCostPerImageToken != nil {
 			pricing.OutputCostPerImageToken = *entry.OutputCostPerImageToken
+		}
+
+		// Context window + capability metadata (Model Square display only).
+		if entry.MaxTokens != nil {
+			pricing.MaxTokens = *entry.MaxTokens
+		}
+		if entry.MaxInputTokens != nil {
+			pricing.MaxInputTokens = *entry.MaxInputTokens
+		}
+		if entry.MaxOutputTokens != nil {
+			pricing.MaxOutputTokens = *entry.MaxOutputTokens
+		}
+		if entry.SupportsVision != nil {
+			pricing.SupportsVision = *entry.SupportsVision
+		}
+		if entry.SupportsFunctionCalling != nil {
+			pricing.SupportsFunctionCalling = *entry.SupportsFunctionCalling
+		}
+		if entry.SupportsReasoning != nil {
+			pricing.SupportsReasoning = *entry.SupportsReasoning
+		}
+		if entry.SupportsAudioInput != nil {
+			pricing.SupportsAudioInput = *entry.SupportsAudioInput
+		}
+		if entry.SupportsAudioOutput != nil {
+			pricing.SupportsAudioOutput = *entry.SupportsAudioOutput
+		}
+		if entry.SupportsPDFInput != nil {
+			pricing.SupportsPDFInput = *entry.SupportsPDFInput
+		}
+		if entry.SupportsToolChoice != nil {
+			pricing.SupportsToolChoice = *entry.SupportsToolChoice
+		}
+		if entry.SupportsParallelTools != nil {
+			pricing.SupportsParallelTools = *entry.SupportsParallelTools
 		}
 
 		result[modelName] = pricing

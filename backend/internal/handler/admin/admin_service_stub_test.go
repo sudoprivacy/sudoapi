@@ -161,6 +161,15 @@ func (s *stubAdminService) CreateUser(ctx context.Context, input *service.Create
 	return &user, nil
 }
 
+func (s *stubAdminService) BatchCreateUsers(ctx context.Context, input *service.BatchCreateUsersInput) (*service.BatchCreateUsersOutput, error) {
+	out := &service.BatchCreateUsersOutput{Total: len(input.Rows), Results: make([]service.BatchCreateUserResult, 0, len(input.Rows))}
+	for i, row := range input.Rows {
+		out.Results = append(out.Results, service.BatchCreateUserResult{Index: i + 1, Email: row.Email, Success: true, UserID: int64(1000 + i)})
+		out.Created++
+	}
+	return out, nil
+}
+
 func (s *stubAdminService) UpdateUser(ctx context.Context, id int64, input *service.UpdateUserInput) (*service.User, error) {
 	user := service.User{ID: id, Email: "updated@example.com", Status: service.StatusActive}
 	return &user, nil

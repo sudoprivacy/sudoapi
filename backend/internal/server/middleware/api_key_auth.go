@@ -108,6 +108,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
 			return
 		}
+		apiKey = effectiveAPIKeyForRequest(c, apiKey, "")
 
 		// ── 4. SimpleMode → early return ─────────────────────────────
 

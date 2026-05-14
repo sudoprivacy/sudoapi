@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
@@ -53,6 +54,41 @@ func GetForcePlatformFromContext(c *gin.Context) (string, bool) {
 	}
 	platform, ok := value.(string)
 	return platform, ok
+}
+
+func effectiveAPIKeyForRequest(c *gin.Context, apiKey *service.APIKey, defaultPlatform string) *service.APIKey {
+	if apiKey == nil {
+		return nil
+	}
+	platform := defaultPlatform
+	if forced, ok := GetForcePlatformFromContext(c); ok && forced != "" {
+		platform = forced
+	}
+	if platform == "" {
+		platform = inferAPIKeyPlatformFromPath(c.Request.URL.Path, apiKey)
+	}
+	if platform == "" {
+		return apiKey
+	}
+	return apiKey.WithEffectiveGroupForPlatform(platform)
+}
+
+func inferAPIKeyPlatformFromPath(path string, apiKey *service.APIKey) string {
+	switch {
+	case path == "/chat/completions" || path == "/v1/chat/completions":
+		if apiKey.HasGroupForPlatform(service.PlatformOpenAI) {
+			return service.PlatformOpenAI
+		}
+	case path == "/responses" || strings.HasPrefix(path, "/responses/") ||
+		path == "/v1/responses" || strings.HasPrefix(path, "/v1/responses/") ||
+		path == "/backend-api/codex/responses" || strings.HasPrefix(path, "/backend-api/codex/responses/"):
+		if apiKey.HasGroupForPlatform(service.PlatformOpenAI) {
+			return service.PlatformOpenAI
+		}
+	case path == "/images/generations" || path == "/images/edits" || path == "/v1/images/generations" || path == "/v1/images/edits":
+		return service.PlatformOpenAI
+	}
+	return ""
 }
 
 // ErrorResponse 标准错误响应结构

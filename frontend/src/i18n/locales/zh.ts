@@ -99,6 +99,12 @@ export default {
       antigravity: 'Antigravity',
       more: '更多'
     },
+    modelSquare: {
+      title: '模型广场',
+      subtitle: '浏览所有可用模型、API 端点和分组定价',
+      menuEntry: '模型广场',
+      cta: '浏览全部模型与价格'
+    },
     // CTA 区块
     cta: {
       title: '准备好开始了吗？',
@@ -992,6 +998,86 @@ export default {
     }
   },
 
+  // Model Square (模型广场)
+  modelSquare: {
+    title: '模型广场',
+    subtitle: '浏览所有可用模型、API 端点和分组定价',
+    searchPlaceholder: '搜索模型名称、描述或平台...',
+    empty: '没有符合条件的模型',
+    fromPrice: '起步价',
+    featured: '推荐',
+    viewAll: '查看全部',
+    clearFilters: '清空筛选',
+    resultCount: '显示 {count} / {total} 个模型',
+    loadFailed: '加载失败：{msg}',
+    tabs: {
+      all: '全部'
+    },
+    sort: {
+      label: '排序',
+      featured: '推荐优先',
+      nameAsc: '名称 A→Z',
+      nameDesc: '名称 Z→A',
+      priceAsc: '价格 低→高',
+      priceDesc: '价格 高→低',
+      contextDesc: '上下文 长→短'
+    },
+    filter: {
+      category: '厂商',
+      capability: '能力',
+      priceRange: '价格区间'
+    },
+    categories: {
+      claude: 'Claude',
+      gpt: 'GPT / o-series',
+      gemini: 'Gemini',
+      image: '图像生成',
+      embedding: '向量嵌入',
+      audio: '语音',
+      other: '其它'
+    },
+    capabilities: {
+      vision: '多模态',
+      function_calling: '函数调用',
+      reasoning: '推理',
+      audio_input: '音频输入',
+      audio_output: '音频输出',
+      pdf_input: 'PDF',
+      prompt_caching: '提示缓存',
+      parallel_tools: '并行工具'
+    },
+    priceTier: {
+      free: '免费',
+      low: '低价 (≤$1/MTok)',
+      mid: '中等 ($1-$5)',
+      high: '高端 (>$5)'
+    },
+    detail: {
+      basicInfo: '基本信息',
+      noDescription: '暂无模型描述',
+      contextWindow: '上下文窗口',
+      maxOutput: '最大输出',
+      category: '类别',
+      endpoints: 'API 端点',
+      endpointsHint: '该模型支持的入站接口与方法。',
+      groupPrices: '分组价格',
+      groupPricesHint: '价格已按所在分组的有效倍率（base × user）换算后展示。',
+      noPricing: '该平台暂未配置价格',
+      exclusive: '专属',
+      subscription: '订阅',
+      rateMultiplier: '有效倍率',
+      priceItem: '项目',
+      priceValue: '价格',
+      inputPrice: '输入价格',
+      outputPrice: '补全价格',
+      cacheReadPrice: '缓存读取',
+      cacheWritePrice: '缓存创建',
+      imageOutputPrice: '图片输出',
+      perRequestPrice: '每次请求',
+      callChain: '{group} 分组调用链路'
+    }
+  },
+
   affiliate: {
     title: '邀请返利',
     description: '邀请新用户注册，并将返利额度转入账户余额',
@@ -1720,6 +1806,40 @@ export default {
       title: '用户管理',
       description: '管理用户账户和权限',
       createUser: '创建用户',
+      batch: {
+        menuLabel: '批量添加用户',
+        title: '批量创建用户',
+        columnsTitle: 'CSV 列顺序（固定）',
+        columnsHint: '支持逗号 / 分号 / 制表符分隔；可带或不带表头；# 开头的行被忽略',
+        securityNotice: '请在受信网络下操作。CSV 中包含明文密码，提交后不会被记录到日志。',
+        uploadCsv: '上传 CSV',
+        pasteLabel: '或直接粘贴 CSV 内容',
+        previewTitle: '预览',
+        statsValid: '有效',
+        statsError: '错误',
+        statsDup: '重复',
+        headerSkipped: '已跳过表头',
+        status: '状态',
+        errorMsg: '错误原因',
+        skipOnError: '跳过错误行继续提交（已勾选时仅提交有效行）',
+        submitWithCount: '提交 {count} 条',
+        submitting: '提交中…',
+        resultTitle: '执行结果',
+        resultSummary: '共 {total} 条：成功 {created} 条，失败 {failed} 条',
+        resultAborted: '已在首个错误后中止',
+        allFailed: '全部失败，请检查错误原因',
+        submitFailed: '批量创建失败',
+        errorCodes: {
+          INVALID_EMAIL: '邮箱格式无效',
+          WEAK_PASSWORD: '密码长度不足 6 位',
+          INVALID_BALANCE: '余额必须为非负数',
+          INVALID_CONCURRENCY: '并发数必须为非负整数',
+          INVALID_RPM: 'RPM 必须为非负整数',
+          DUPLICATE_IN_PAYLOAD: '与批次内其他行邮箱重复',
+          EMAIL_EXISTS: '该邮箱在系统中已存在',
+          CREATE_FAILED: '创建失败'
+        }
+      },
       editUser: '编辑用户',
       deleteUser: '删除用户',
       deleteConfirmMessage: "确定要删除用户 '{email}' 吗？此操作无法撤销。",
@@ -2872,10 +2992,10 @@ export default {
       dataImportParseFailed: '数据解析失败',
       dataImportFailed: '数据导入失败',
       dataImportResult: '导入结果',
-      dataImportResultSummary: '代理创建 {proxy_created}，复用 {proxy_reused}，失败 {proxy_failed}；账号创建 {account_created}，失败 {account_failed}',
+      dataImportResultSummary: '代理创建 {proxy_created}，复用 {proxy_reused}，失败 {proxy_failed}；账号创建 {account_created}，跳过 {account_skipped}，失败 {account_failed}',
       dataImportErrors: '失败详情',
-      dataImportSuccess: '导入完成：账号 {account_created}，失败 {account_failed}',
-      dataImportCompletedWithErrors: '导入完成但有错误：账号失败 {account_failed}，代理失败 {proxy_failed}',
+      dataImportSuccess: '导入完成：账号创建 {account_created}，跳过 {account_skipped}，失败 {account_failed}',
+      dataImportCompletedWithErrors: '导入完成但有错误：账号跳过 {account_skipped}，账号失败 {account_failed}，代理失败 {proxy_failed}',
       syncFromCrsTitle: '从 CRS 同步账号',
       syncFromCrsDesc:
         '将 claude-relay-service（CRS）中的账号同步到当前系统（不会在浏览器侧直接请求 CRS）。',

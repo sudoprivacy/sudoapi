@@ -123,6 +123,44 @@ export async function create(userData: {
   return data
 }
 
+export interface BatchCreateUserRow {
+  email: string
+  password: string
+  username?: string
+  balance?: number
+  concurrency?: number
+  rpm_limit?: number
+}
+
+export interface BatchCreateUserResult {
+  index: number
+  email: string
+  success: boolean
+  user_id?: number
+  error_code?: string
+  error_msg?: string
+}
+
+export interface BatchCreateUsersResponse {
+  total: number
+  created: number
+  failed: number
+  aborted: boolean
+  results: BatchCreateUserResult[]
+}
+
+/**
+ * Batch create users from a CSV-style payload.
+ * Server reports per-row outcomes; skip_on_error=true continues past row failures.
+ */
+export async function batchCreate(payload: {
+  users: BatchCreateUserRow[]
+  skip_on_error: boolean
+}): Promise<BatchCreateUsersResponse> {
+  const { data } = await apiClient.post<BatchCreateUsersResponse>('/admin/users/batch', payload)
+  return data
+}
+
 /**
  * Update user
  * @param id - User ID
@@ -301,6 +339,7 @@ export const usersAPI = {
   list,
   getById,
   create,
+  batchCreate,
   update,
   delete: deleteUser,
   updateBalance,

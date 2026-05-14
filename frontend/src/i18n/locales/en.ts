@@ -99,6 +99,12 @@ export default {
       antigravity: 'Antigravity',
       more: 'More'
     },
+    modelSquare: {
+      title: 'Model Square',
+      subtitle: 'Browse every available model, API endpoint, and group pricing',
+      menuEntry: 'Models',
+      cta: 'Browse all models & pricing'
+    },
     // CTA section
     cta: {
       title: 'Ready to Get Started?',
@@ -988,6 +994,86 @@ export default {
     }
   },
 
+  // Model Square
+  modelSquare: {
+    title: 'Model Square',
+    subtitle: 'Browse every available model, API endpoint, and group pricing',
+    searchPlaceholder: 'Search by model name, description, or platform...',
+    empty: 'No models match your filters',
+    fromPrice: 'From',
+    featured: 'Featured',
+    viewAll: 'View all',
+    clearFilters: 'Clear filters',
+    resultCount: 'Showing {count} of {total} models',
+    loadFailed: 'Failed to load: {msg}',
+    tabs: {
+      all: 'All'
+    },
+    sort: {
+      label: 'Sort',
+      featured: 'Featured first',
+      nameAsc: 'Name A→Z',
+      nameDesc: 'Name Z→A',
+      priceAsc: 'Price Low→High',
+      priceDesc: 'Price High→Low',
+      contextDesc: 'Context Long→Short'
+    },
+    filter: {
+      category: 'Vendor',
+      capability: 'Capability',
+      priceRange: 'Price'
+    },
+    categories: {
+      claude: 'Claude',
+      gpt: 'GPT / o-series',
+      gemini: 'Gemini',
+      image: 'Image generation',
+      embedding: 'Embedding',
+      audio: 'Audio',
+      other: 'Other'
+    },
+    capabilities: {
+      vision: 'Vision',
+      function_calling: 'Function calling',
+      reasoning: 'Reasoning',
+      audio_input: 'Audio input',
+      audio_output: 'Audio output',
+      pdf_input: 'PDF',
+      prompt_caching: 'Prompt caching',
+      parallel_tools: 'Parallel tools'
+    },
+    priceTier: {
+      free: 'Free',
+      low: 'Low (≤$1/MTok)',
+      mid: 'Mid ($1-$5)',
+      high: 'Premium (>$5)'
+    },
+    detail: {
+      basicInfo: 'Basic info',
+      noDescription: 'No description available',
+      contextWindow: 'Context window',
+      maxOutput: 'Max output',
+      category: 'Category',
+      endpoints: 'API endpoints',
+      endpointsHint: 'Inbound paths and HTTP methods this model accepts.',
+      groupPrices: 'Group pricing',
+      groupPricesHint: 'Prices already include the effective multiplier (base × user).',
+      noPricing: 'No pricing configured on this platform',
+      exclusive: 'Exclusive',
+      subscription: 'Subscription',
+      rateMultiplier: 'Effective multiplier',
+      priceItem: 'Item',
+      priceValue: 'Price',
+      inputPrice: 'Input',
+      outputPrice: 'Output',
+      cacheReadPrice: 'Cache read',
+      cacheWritePrice: 'Cache write',
+      imageOutputPrice: 'Image output',
+      perRequestPrice: 'Per request',
+      callChain: '{group} call chain'
+    }
+  },
+
   affiliate: {
     title: 'Affiliate Rebates',
     description: 'Invite new users and convert your rebate quota into account balance',
@@ -1699,6 +1785,40 @@ export default {
       title: 'User Management',
       description: 'Manage users and their permissions',
       createUser: 'Create User',
+      batch: {
+        menuLabel: 'Batch add users',
+        title: 'Batch create users',
+        columnsTitle: 'CSV column order (fixed)',
+        columnsHint: 'Supports comma / semicolon / tab. Header row is optional. Lines starting with # are ignored.',
+        securityNotice: 'Use a trusted network. The CSV contains plaintext passwords; they are not written to logs.',
+        uploadCsv: 'Upload CSV',
+        pasteLabel: 'Or paste CSV content here',
+        previewTitle: 'Preview',
+        statsValid: 'valid',
+        statsError: 'errors',
+        statsDup: 'duplicates',
+        headerSkipped: 'header row skipped',
+        status: 'Status',
+        errorMsg: 'Error',
+        skipOnError: 'Skip invalid rows and submit only valid ones',
+        submitWithCount: 'Submit {count} rows',
+        submitting: 'Submitting…',
+        resultTitle: 'Result',
+        resultSummary: '{total} rows: {created} created, {failed} failed',
+        resultAborted: 'aborted after first failure',
+        allFailed: 'All rows failed. Check the error column.',
+        submitFailed: 'Batch create failed',
+        errorCodes: {
+          INVALID_EMAIL: 'Invalid email format',
+          WEAK_PASSWORD: 'Password must be at least 6 characters',
+          INVALID_BALANCE: 'Balance must be a non-negative number',
+          INVALID_CONCURRENCY: 'Concurrency must be a non-negative integer',
+          INVALID_RPM: 'RPM must be a non-negative integer',
+          DUPLICATE_IN_PAYLOAD: 'Email duplicates another row in this batch',
+          EMAIL_EXISTS: 'Email already exists',
+          CREATE_FAILED: 'Create failed'
+        }
+      },
       editUser: 'Edit User',
       deleteUser: 'Delete User',
       searchUsers: 'Search by email, username, notes, or API key...',
@@ -2796,10 +2916,10 @@ export default {
       dataImportParseFailed: 'Failed to parse data file',
       dataImportFailed: 'Data import failed',
       dataImportResult: 'Import Result',
-      dataImportResultSummary: 'Proxies created {proxy_created}, reused {proxy_reused}, failed {proxy_failed}; Accounts created {account_created}, failed {account_failed}',
+      dataImportResultSummary: 'Proxies created {proxy_created}, reused {proxy_reused}, failed {proxy_failed}; Accounts created {account_created}, skipped {account_skipped}, failed {account_failed}',
       dataImportErrors: 'Error Details',
-      dataImportSuccess: 'Import completed: accounts {account_created}, failed {account_failed}',
-      dataImportCompletedWithErrors: 'Import completed with errors: account failed {account_failed}, proxy failed {proxy_failed}',
+      dataImportSuccess: 'Import completed: accounts created {account_created}, skipped {account_skipped}, failed {account_failed}',
+      dataImportCompletedWithErrors: 'Import completed with errors: account skipped {account_skipped}, account failed {account_failed}, proxy failed {proxy_failed}',
       syncFromCrsTitle: 'Sync Accounts from CRS',
       syncFromCrsDesc:
         'Sync accounts from claude-relay-service (CRS) into this system (CRS is called server-to-server).',

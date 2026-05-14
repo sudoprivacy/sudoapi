@@ -33,6 +33,7 @@ type APIKey struct {
 	Key         string
 	Name        string
 	GroupID     *int64
+	GroupIDs    []int64
 	Status      string
 	IPWhitelist []string
 	IPBlacklist []string
@@ -44,6 +45,7 @@ type APIKey struct {
 	UpdatedAt           time.Time
 	User                *User
 	Group               *Group
+	Groups              []*Group
 
 	// Quota fields
 	Quota     float64    // Quota limit in USD (0 = unlimited)
@@ -60,6 +62,48 @@ type APIKey struct {
 	Window5hStart *time.Time // Start of current 5h window
 	Window1dStart *time.Time // Start of current 1d window
 	Window7dStart *time.Time // Start of current 7d window
+}
+
+func (k *APIKey) CloneWithEffectiveGroup(group *Group) *APIKey {
+	if k == nil {
+		return nil
+	}
+	cloned := *k
+	if group == nil || group.ID <= 0 {
+		cloned.GroupID = nil
+		cloned.Group = nil
+		return &cloned
+	}
+	groupID := group.ID
+	cloned.GroupID = &groupID
+	cloned.Group = group
+	return &cloned
+}
+
+func (k *APIKey) GroupForPlatform(platform string) *Group {
+	if k == nil || platform == "" {
+		return nil
+	}
+	for _, group := range k.Groups {
+		if group != nil && group.Platform == platform {
+			return group
+		}
+	}
+	if k.Group != nil && k.Group.Platform == platform {
+		return k.Group
+	}
+	return nil
+}
+
+func (k *APIKey) HasGroupForPlatform(platform string) bool {
+	return k.GroupForPlatform(platform) != nil
+}
+
+func (k *APIKey) WithEffectiveGroupForPlatform(platform string) *APIKey {
+	if group := k.GroupForPlatform(platform); group != nil {
+		return k.CloneWithEffectiveGroup(group)
+	}
+	return k
 }
 
 func (k *APIKey) IsActive() bool {

@@ -76,6 +76,10 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		// 模型广场（已登录入口）：返回 public scope 叠加用户可访问的专属/订阅分组定价。
+		// 公开入口走 /public/models（不需 JWT）。
+		authenticated.GET("/models", h.ModelSquare.ListAuthenticated)
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{
