@@ -29,7 +29,7 @@
             <div class="flex items-center gap-1">
               <button class="btn btn-secondary px-2 py-1 text-xs" @click="openEdit(row)">{{ t('common.edit') }}</button>
               <button class="btn btn-secondary px-2 py-1 text-xs" @click="testAccount(row)" :disabled="testingId === row.id">
-                {{ testingId === row.id ? t('common.loading') : t('admin.accounts.test') }}
+                {{ testingId === row.id ? t('common.loading') : t('admin.accounts.testConnection') }}
               </button>
             </div>
           </template>

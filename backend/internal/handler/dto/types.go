@@ -45,6 +45,12 @@ type AdminUser struct {
 	GroupRates map[int64]float64 `json:"group_rates,omitempty"`
 }
 
+type AccountOwnerUser struct {
+	ID       int64  `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+}
+
 type APIKey struct {
 	ID          int64      `json:"id"`
 	UserID      int64      `json:"user_id"`
@@ -151,27 +157,28 @@ type AdminGroup struct {
 }
 
 type Account struct {
-	ID                 int64          `json:"id"`
-	Name               string         `json:"name"`
-	Notes              *string        `json:"notes"`
-	OwnerUserID        *int64         `json:"owner_user_id,omitempty"`
-	ReviewStatus       string         `json:"review_status"`
-	Platform           string         `json:"platform"`
-	Type               string         `json:"type"`
-	Credentials        map[string]any `json:"credentials"`
-	Extra              map[string]any `json:"extra"`
-	ProxyID            *int64         `json:"proxy_id"`
-	Concurrency        int            `json:"concurrency"`
-	LoadFactor         *int           `json:"load_factor,omitempty"`
-	Priority           int            `json:"priority"`
-	RateMultiplier     float64        `json:"rate_multiplier"`
-	Status             string         `json:"status"`
-	ErrorMessage       string         `json:"error_message"`
-	LastUsedAt         *time.Time     `json:"last_used_at"`
-	ExpiresAt          *int64         `json:"expires_at"`
-	AutoPauseOnExpired bool           `json:"auto_pause_on_expired"`
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `json:"updated_at"`
+	ID                 int64             `json:"id"`
+	Name               string            `json:"name"`
+	Notes              *string           `json:"notes"`
+	OwnerUserID        *int64            `json:"owner_user_id,omitempty"`
+	OwnerUser          *AccountOwnerUser `json:"owner_user,omitempty"`
+	ReviewStatus       string            `json:"review_status"`
+	Platform           string            `json:"platform"`
+	Type               string            `json:"type"`
+	Credentials        map[string]any    `json:"credentials"`
+	Extra              map[string]any    `json:"extra"`
+	ProxyID            *int64            `json:"proxy_id"`
+	Concurrency        int               `json:"concurrency"`
+	LoadFactor         *int              `json:"load_factor,omitempty"`
+	Priority           int               `json:"priority"`
+	RateMultiplier     float64           `json:"rate_multiplier"`
+	Status             string            `json:"status"`
+	ErrorMessage       string            `json:"error_message"`
+	LastUsedAt         *time.Time        `json:"last_used_at"`
+	ExpiresAt          *int64            `json:"expires_at"`
+	AutoPauseOnExpired bool              `json:"auto_pause_on_expired"`
+	CreatedAt          time.Time         `json:"created_at"`
+	UpdatedAt          time.Time         `json:"updated_at"`
 
 	Schedulable bool `json:"schedulable"`
 

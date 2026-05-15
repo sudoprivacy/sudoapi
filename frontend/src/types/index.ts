@@ -798,6 +798,7 @@ export interface Account {
   name: string
   notes?: string | null
   owner_user_id?: number | null
+  owner_user?: Pick<User, 'id' | 'email' | 'username'> | null
   review_status: 'pending' | 'approved' | 'rejected'
   platform: AccountPlatform
   type: AccountType
