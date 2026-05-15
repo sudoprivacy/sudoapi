@@ -938,19 +938,17 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
 
-	var groupID *int64
 	var platform string
 
 	if apiKey != nil && apiKey.Group != nil {
-		groupID = &apiKey.Group.ID
 		platform = apiKey.Group.Platform
 	}
 	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
 		platform = forcedPlatform
 	}
 
-	// Get available models from account configurations (without platform filter)
-	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, "")
+	// Get available models from account configurations across all groups bound to this key.
+	availableModels := h.gatewayService.GetAvailableModelsForGroups(c.Request.Context(), apiKeyModelGroupIDs(apiKey), "")
 
 	if len(availableModels) > 0 {
 		// Build model list from whitelist
@@ -983,6 +981,39 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		"object": "list",
 		"data":   claude.DefaultModels,
 	})
+}
+
+func apiKeyModelGroupIDs(apiKey *service.APIKey) []int64 {
+	if apiKey == nil {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(apiKey.GroupIDs)+len(apiKey.Groups)+1)
+	groupIDs := make([]int64, 0, len(apiKey.GroupIDs)+len(apiKey.Groups)+1)
+	add := func(groupID int64) {
+		if groupID <= 0 {
+			return
+		}
+		if _, ok := seen[groupID]; ok {
+			return
+		}
+		seen[groupID] = struct{}{}
+		groupIDs = append(groupIDs, groupID)
+	}
+	for _, groupID := range apiKey.GroupIDs {
+		add(groupID)
+	}
+	for _, group := range apiKey.Groups {
+		if group != nil {
+			add(group.ID)
+		}
+	}
+	if apiKey.GroupID != nil {
+		add(*apiKey.GroupID)
+	}
+	if apiKey.Group != nil {
+		add(apiKey.Group.ID)
+	}
+	return groupIDs
 }
 
 // AntigravityModels 返回 Antigravity 支持的全部模型
