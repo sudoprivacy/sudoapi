@@ -132,7 +132,7 @@ const columns = computed(() => [
   { key: 'platform', label: t('admin.accounts.columns.platformType') },
   { key: 'review_status', label: t('contributor.accounts.reviewStatus') },
   { key: 'status', label: t('admin.accounts.columns.status') },
-  { key: 'created_at', label: t('admin.accounts.columns.created') },
+  { key: 'created_at', label: t('common.created') },
   { key: 'actions', label: t('admin.accounts.columns.actions') },
 ])
 
