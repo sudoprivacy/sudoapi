@@ -80,6 +80,16 @@ func Notes(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldNotes, v))
 }
 
+// OwnerUserID applies equality check predicate on the "owner_user_id" field. It's identical to OwnerUserIDEQ.
+func OwnerUserID(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldOwnerUserID, v))
+}
+
+// ReviewStatus applies equality check predicate on the "review_status" field. It's identical to ReviewStatusEQ.
+func ReviewStatus(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewStatus, v))
+}
+
 // Platform applies equality check predicate on the "platform" field. It's identical to PlatformEQ.
 func Platform(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldPlatform, v))
@@ -453,6 +463,101 @@ func NotesEqualFold(v string) predicate.Account {
 // NotesContainsFold applies the ContainsFold predicate on the "notes" field.
 func NotesContainsFold(v string) predicate.Account {
 	return predicate.Account(sql.FieldContainsFold(FieldNotes, v))
+}
+
+// OwnerUserIDEQ applies the EQ predicate on the "owner_user_id" field.
+func OwnerUserIDEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDNEQ applies the NEQ predicate on the "owner_user_id" field.
+func OwnerUserIDNEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDIn applies the In predicate on the "owner_user_id" field.
+func OwnerUserIDIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldOwnerUserID, vs...))
+}
+
+// OwnerUserIDNotIn applies the NotIn predicate on the "owner_user_id" field.
+func OwnerUserIDNotIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldOwnerUserID, vs...))
+}
+
+// OwnerUserIDIsNil applies the IsNil predicate on the "owner_user_id" field.
+func OwnerUserIDIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldOwnerUserID))
+}
+
+// OwnerUserIDNotNil applies the NotNil predicate on the "owner_user_id" field.
+func OwnerUserIDNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldOwnerUserID))
+}
+
+// ReviewStatusEQ applies the EQ predicate on the "review_status" field.
+func ReviewStatusEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewStatus, v))
+}
+
+// ReviewStatusNEQ applies the NEQ predicate on the "review_status" field.
+func ReviewStatusNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldReviewStatus, v))
+}
+
+// ReviewStatusIn applies the In predicate on the "review_status" field.
+func ReviewStatusIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldReviewStatus, vs...))
+}
+
+// ReviewStatusNotIn applies the NotIn predicate on the "review_status" field.
+func ReviewStatusNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldReviewStatus, vs...))
+}
+
+// ReviewStatusGT applies the GT predicate on the "review_status" field.
+func ReviewStatusGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldReviewStatus, v))
+}
+
+// ReviewStatusGTE applies the GTE predicate on the "review_status" field.
+func ReviewStatusGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldReviewStatus, v))
+}
+
+// ReviewStatusLT applies the LT predicate on the "review_status" field.
+func ReviewStatusLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldReviewStatus, v))
+}
+
+// ReviewStatusLTE applies the LTE predicate on the "review_status" field.
+func ReviewStatusLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldReviewStatus, v))
+}
+
+// ReviewStatusContains applies the Contains predicate on the "review_status" field.
+func ReviewStatusContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldReviewStatus, v))
+}
+
+// ReviewStatusHasPrefix applies the HasPrefix predicate on the "review_status" field.
+func ReviewStatusHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldReviewStatus, v))
+}
+
+// ReviewStatusHasSuffix applies the HasSuffix predicate on the "review_status" field.
+func ReviewStatusHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldReviewStatus, v))
+}
+
+// ReviewStatusEqualFold applies the EqualFold predicate on the "review_status" field.
+func ReviewStatusEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldReviewStatus, v))
+}
+
+// ReviewStatusContainsFold applies the ContainsFold predicate on the "review_status" field.
+func ReviewStatusContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldReviewStatus, v))
 }
 
 // PlatformEQ applies the EQ predicate on the "platform" field.
@@ -1556,6 +1661,29 @@ func HasUsageLogs() predicate.Account {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.Account {
 	return predicate.Account(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasOwner applies the HasEdge predicate on the "owner" edge.
+func HasOwner() predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, OwnerTable, OwnerColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOwnerWith applies the HasEdge predicate on the "owner" edge with a given conditions (other predicates).
+func HasOwnerWith(preds ...predicate.User) predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := newOwnerStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

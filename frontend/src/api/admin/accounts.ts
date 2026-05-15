@@ -637,6 +637,13 @@ export async function setPrivacy(id: number): Promise<Account> {
   return data
 }
 
+export async function updateReviewStatus(id: number, reviewStatus: 'pending' | 'approved' | 'rejected'): Promise<Account> {
+  const { data } = await apiClient.put<Account>(`/admin/accounts/${id}/review-status`, {
+    review_status: reviewStatus
+  })
+  return data
+}
+
 export const accountsAPI = {
   list,
   listWithEtag,
@@ -674,7 +681,8 @@ export const accountsAPI = {
   getAntigravityDefaultModelMapping,
   batchClearError,
   batchRefresh,
-  setPrivacy
+  setPrivacy,
+  updateReviewStatus
 }
 
 export default accountsAPI

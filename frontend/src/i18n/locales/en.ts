@@ -364,6 +364,7 @@ export default {
     availableChannels: 'Available Channels',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
+    myModelAccounts: 'My Model Accounts',
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
@@ -1391,6 +1392,29 @@ export default {
     selectDateRange: 'Select date range'
   },
 
+  contributor: {
+    accounts: {
+      title: 'My Model Accounts',
+      description: 'Add and maintain model accounts you submitted. They are scheduled only after admin approval.',
+      search: 'Search accounts...',
+      add: 'Add Account',
+      edit: 'Edit Account',
+      reviewStatus: 'Review',
+      columns: {
+        created: 'Created'
+      },
+      review: {
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected'
+      },
+      loadFailed: 'Failed to load accounts',
+      saveFailed: 'Failed to save account',
+      created: 'Account submitted for admin review',
+      updated: 'Account updated and returned to review'
+    }
+  },
+
   // Admin
   admin: {
     // Dashboard
@@ -1976,7 +2000,8 @@ export default {
       totalRecharged: 'Total Recharged',
       roles: {
         admin: 'Admin',
-        user: 'User'
+        user: 'User',
+        account_contributor: 'Account Contributor'
       },
       // Settings Dropdowns
       filterSettings: 'Filter Settings',
@@ -3021,6 +3046,7 @@ export default {
         notes: 'Notes',
         priority: 'Priority',
         billingRateMultiplier: 'Billing Rate',
+        reviewStatus: 'Review',
         weight: 'Weight',
         status: 'Status',
         schedulable: 'Schedulable',
@@ -3032,6 +3058,23 @@ export default {
         expiresAt: 'Expires At',
         actions: 'Actions'
       },
+      review: {
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected'
+      },
+      reviewFilters: {
+        pending: 'Pending Review',
+        approved: 'Approved',
+        rejected: 'Rejected',
+        external: 'External Submissions'
+      },
+      externalSubmission: 'External submitter',
+      approve: 'Approve',
+      reject: 'Reject',
+      reviewApproved: 'Account approved',
+      reviewRejected: 'Account rejected',
+      reviewUpdateFailed: 'Failed to update review status',
       allPrivacyModes: 'All Privacy States',
       privacyUnset: 'Unset',
       privacyTrainingOff: 'Training data sharing disabled',

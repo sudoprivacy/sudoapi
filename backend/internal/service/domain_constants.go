@@ -14,8 +14,24 @@ const (
 
 // Role constants
 const (
-	RoleAdmin = domain.RoleAdmin
-	RoleUser  = domain.RoleUser
+	RoleAdmin              = domain.RoleAdmin
+	RoleUser               = domain.RoleUser
+	RoleAccountContributor = domain.RoleAccountContributor
+)
+
+// Account review status constants
+const (
+	AccountReviewStatusPending  = domain.AccountReviewStatusPending
+	AccountReviewStatusApproved = domain.AccountReviewStatusApproved
+	AccountReviewStatusRejected = domain.AccountReviewStatusRejected
+)
+
+// Account admin list pseudo status filters
+const (
+	AccountListStatusReviewPending  = domain.AccountListStatusReviewPending
+	AccountListStatusReviewApproved = domain.AccountListStatusReviewApproved
+	AccountListStatusReviewRejected = domain.AccountListStatusReviewRejected
+	AccountListStatusExternal       = domain.AccountListStatusExternal
 )
 
 // Affiliate rebate settings

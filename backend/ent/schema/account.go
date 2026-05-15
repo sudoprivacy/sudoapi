@@ -59,6 +59,16 @@ func (Account) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "text"}),
+		// owner_user_id: 外部账号贡献者创建人；管理员创建的内部账号为空
+		field.Int64("owner_user_id").
+			Optional().
+			Nillable().
+			Comment("User ID of the external contributor who owns this account. NULL for internal/admin accounts."),
+		// review_status: 外部账号审核状态；内部账号默认 approved
+		field.String("review_status").
+			MaxLen(20).
+			Default("approved").
+			Comment("Review status for contributor-submitted accounts: pending, approved, rejected."),
 
 		// platform: 所属平台，如 "claude", "gemini", "openai" 等
 		field.String("platform").
@@ -211,6 +221,10 @@ func (Account) Edges() []ent.Edge {
 			Unique(),
 		// usage_logs: 该账户的使用日志
 		edge.To("usage_logs", UsageLog.Type),
+		edge.From("owner", User.Type).
+			Ref("owned_accounts").
+			Field("owner_user_id").
+			Unique(),
 	}
 }
 
@@ -224,6 +238,8 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("proxy_id"),            // 按代理筛选
 		index.Fields("priority"),            // 按优先级排序
 		index.Fields("last_used_at"),        // 按最后使用时间排序
+		index.Fields("owner_user_id"),       // 按贡献者归属筛选
+		index.Fields("review_status"),       // 按审核状态筛选
 		index.Fields("schedulable"),         // 筛选可调度账户
 		index.Fields("rate_limited_at"),     // 筛选速率限制账户
 		index.Fields("rate_limit_reset_at"), // 筛选速率限制解除时间

@@ -364,6 +364,7 @@ export default {
     availableChannels: '可用渠道',
     subscriptions: '订阅管理',
     accounts: '账号管理',
+    myModelAccounts: '我的大模型账号',
     proxies: 'IP管理',
     redeemCodes: '兑换码',
     ops: '运维监控',
@@ -1395,6 +1396,29 @@ export default {
     selectDateRange: '选择日期范围'
   },
 
+  contributor: {
+    accounts: {
+      title: '我的大模型账号',
+      description: '添加和维护你提交的大模型账号，管理员审核通过后才会参与调度。',
+      search: '搜索账号...',
+      add: '添加账号',
+      edit: '编辑账号',
+      reviewStatus: '审核状态',
+      columns: {
+        created: '创建时间'
+      },
+      review: {
+        pending: '待审核',
+        approved: '已通过',
+        rejected: '已拒绝'
+      },
+      loadFailed: '加载账号失败',
+      saveFailed: '保存账号失败',
+      created: '账号已提交，等待管理员审核',
+      updated: '账号已更新，等待管理员重新审核'
+    }
+  },
+
   // Admin
   admin: {
     // Dashboard
@@ -1927,7 +1951,8 @@ export default {
       deleteConfirm: "确定要删除用户 '{email}' 吗？此操作无法撤销。",
       roles: {
         admin: '管理员',
-        user: '用户'
+        user: '用户',
+        account_contributor: '账号贡献者'
       },
       form: {
         emailLabel: '邮箱',
@@ -3059,6 +3084,7 @@ export default {
         notes: '备注',
         priority: '优先级',
         billingRateMultiplier: '账号倍率',
+        reviewStatus: '审核状态',
         weight: '权重',
         status: '状态',
         schedulable: '调度',
@@ -3070,6 +3096,23 @@ export default {
         expiresAt: '过期时间',
         actions: '操作'
       },
+      review: {
+        pending: '待审核',
+        approved: '已通过',
+        rejected: '已拒绝'
+      },
+      reviewFilters: {
+        pending: '待审核',
+        approved: '已通过',
+        rejected: '已拒绝',
+        external: '外部提交'
+      },
+      externalSubmission: '外部提交者',
+      approve: '通过',
+      reject: '拒绝',
+      reviewApproved: '账号已审核通过',
+      reviewRejected: '账号已拒绝',
+      reviewUpdateFailed: '更新审核状态失败',
       allPrivacyModes: '全部Privacy状态',
       privacyUnset: '未设置',
       privacyTrainingOff: '已关闭训练数据共享',

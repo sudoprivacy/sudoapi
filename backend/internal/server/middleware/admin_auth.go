@@ -4,6 +4,7 @@ package middleware
 import (
 	"crypto/subtle"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -189,6 +190,15 @@ func validateJWTForAdmin(
 
 	// 检查管理员权限
 	if !user.IsAdmin() {
+		if user.IsAccountContributor() && isAccountContributorAllowedAdminHelper(c) {
+			c.Set(string(ContextKeyUser), AuthSubject{
+				UserID:      user.ID,
+				Concurrency: user.Concurrency,
+			})
+			c.Set(string(ContextKeyUserRole), user.Role)
+			c.Set("auth_method", "jwt")
+			return true
+		}
 		AbortWithError(c, 403, "FORBIDDEN", "Admin access required")
 		return false
 	}
@@ -201,4 +211,55 @@ func validateJWTForAdmin(
 	c.Set("auth_method", "jwt")
 
 	return true
+}
+
+func isAccountContributorAllowedAdminHelper(c *gin.Context) bool {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return false
+	}
+	method := c.Request.Method
+	path := c.Request.URL.Path
+	idx := strings.Index(path, "/admin")
+	if idx < 0 {
+		return false
+	}
+	adminPath := path[idx+len("/admin"):]
+
+	if method == "GET" {
+		switch adminPath {
+		case "/accounts/antigravity/default-model-mapping",
+			"/gemini/oauth/capabilities",
+			"/tls-fingerprint-profiles":
+			return true
+		}
+		return false
+	}
+
+	if method == "POST" {
+		switch adminPath {
+		case "/accounts/generate-auth-url",
+			"/accounts/generate-setup-token-url",
+			"/accounts/exchange-code",
+			"/accounts/exchange-setup-token-code",
+			"/accounts/cookie-auth",
+			"/accounts/setup-token-cookie-auth",
+			"/openai/generate-auth-url",
+			"/openai/exchange-code",
+			"/openai/refresh-token",
+			"/gemini/oauth/auth-url",
+			"/gemini/oauth/exchange-code",
+			"/antigravity/oauth/auth-url",
+			"/antigravity/oauth/exchange-code",
+			"/antigravity/oauth/refresh-token":
+			return true
+		}
+
+		parts := strings.Split(strings.Trim(adminPath, "/"), "/")
+		if len(parts) == 3 && parts[0] == "proxies" && parts[2] == "test" {
+			_, err := strconv.ParseInt(parts[1], 10, 64)
+			return err == nil
+		}
+	}
+
+	return false
 }

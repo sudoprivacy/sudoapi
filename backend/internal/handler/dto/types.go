@@ -154,6 +154,8 @@ type Account struct {
 	ID                 int64          `json:"id"`
 	Name               string         `json:"name"`
 	Notes              *string        `json:"notes"`
+	OwnerUserID        *int64         `json:"owner_user_id,omitempty"`
+	ReviewStatus       string         `json:"review_status"`
 	Platform           string         `json:"platform"`
 	Type               string         `json:"type"`
 	Credentials        map[string]any `json:"credentials"`

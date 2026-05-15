@@ -260,6 +260,35 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			},
 		},
 		{
+			name: "filter_by_review_pending",
+			setup: func(client *dbent.Client) {
+				owner := mustCreateUser(s.T(), client, &service.User{Email: "pending-owner@example.com", Role: service.RoleAccountContributor})
+				ownerID := owner.ID
+				mustCreateAccount(s.T(), client, &service.Account{Name: "pending-external", OwnerUserID: &ownerID, ReviewStatus: service.AccountReviewStatusPending})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "approved-internal", ReviewStatus: service.AccountReviewStatusApproved})
+			},
+			status:    service.AccountListStatusReviewPending,
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal(service.AccountReviewStatusPending, accounts[0].ReviewStatus)
+				s.Require().NotNil(accounts[0].OwnerUserID)
+			},
+		},
+		{
+			name: "filter_external_accounts",
+			setup: func(client *dbent.Client) {
+				owner := mustCreateUser(s.T(), client, &service.User{Email: "external-owner@example.com", Role: service.RoleAccountContributor})
+				ownerID := owner.ID
+				mustCreateAccount(s.T(), client, &service.Account{Name: "external", OwnerUserID: &ownerID, ReviewStatus: service.AccountReviewStatusPending})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "internal", ReviewStatus: service.AccountReviewStatusApproved})
+			},
+			status:    service.AccountListStatusExternal,
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().NotNil(accounts[0].OwnerUserID)
+			},
+		},
+		{
 			name: "filter_by_status_active_excludes_runtime_blocked_accounts",
 			setup: func(client *dbent.Client) {
 				mustCreateAccount(s.T(), client, &service.Account{Name: "active-normal", Status: service.StatusActive})

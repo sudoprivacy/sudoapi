@@ -358,6 +358,55 @@ func (s *stubAdminService) DeleteAccount(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (s *stubAdminService) UpdateAccountReviewStatus(ctx context.Context, id int64, reviewStatus string) (*service.Account, error) {
+	account := service.Account{ID: id, Name: "account", Status: service.StatusActive, ReviewStatus: reviewStatus}
+	return &account, nil
+}
+
+func (s *stubAdminService) ListContributorAccounts(ctx context.Context, ownerUserID int64, page, pageSize int, platform, accountType, status, search string, sortBy, sortOrder string) ([]service.Account, int64, error) {
+	accounts := make([]service.Account, 0, len(s.accounts))
+	for _, account := range s.accounts {
+		if account.OwnerUserID != nil && *account.OwnerUserID != ownerUserID {
+			continue
+		}
+		accounts = append(accounts, account)
+	}
+	return accounts, int64(len(accounts)), nil
+}
+
+func (s *stubAdminService) GetContributorAccount(ctx context.Context, ownerUserID, accountID int64) (*service.Account, error) {
+	account, err := s.GetAccount(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	account.OwnerUserID = &ownerUserID
+	return account, nil
+}
+
+func (s *stubAdminService) CreateContributorAccount(ctx context.Context, ownerUserID int64, input *service.CreateAccountInput) (*service.Account, error) {
+	account, err := s.CreateAccount(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	account.OwnerUserID = &ownerUserID
+	account.ReviewStatus = service.AccountReviewStatusPending
+	account.Status = service.StatusDisabled
+	account.Schedulable = false
+	return account, nil
+}
+
+func (s *stubAdminService) UpdateContributorAccount(ctx context.Context, ownerUserID, accountID int64, input *service.UpdateAccountInput) (*service.Account, error) {
+	account, err := s.UpdateAccount(ctx, accountID, input)
+	if err != nil {
+		return nil, err
+	}
+	account.OwnerUserID = &ownerUserID
+	account.ReviewStatus = service.AccountReviewStatusPending
+	account.Status = service.StatusDisabled
+	account.Schedulable = false
+	return account, nil
+}
+
 func (s *stubAdminService) RefreshAccountCredentials(ctx context.Context, id int64) (*service.Account, error) {
 	account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
 	return &account, nil

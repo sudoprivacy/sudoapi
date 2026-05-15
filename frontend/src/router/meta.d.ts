@@ -20,6 +20,12 @@ declare module 'vue-router' {
     requiresAdmin?: boolean
 
     /**
+     * Whether this route requires account contributor role
+     * @default false
+     */
+    requiresAccountContributor?: boolean
+
+    /**
      * Page title for this route
      */
     title?: string
