@@ -55,6 +55,17 @@ func UserFromService(u *service.User) *User {
 	return out
 }
 
+func AccountOwnerUserFromService(u *service.User) *AccountOwnerUser {
+	if u == nil {
+		return nil
+	}
+	return &AccountOwnerUser{
+		ID:       u.ID,
+		Email:    u.Email,
+		Username: u.Username,
+	}
+}
+
 // UserFromServiceAdmin converts a service User to DTO for admin users.
 // It includes notes - user-facing endpoints must not use this.
 func UserFromServiceAdmin(u *service.User) *AdminUser {
@@ -210,6 +221,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		Name:                    a.Name,
 		Notes:                   a.Notes,
 		OwnerUserID:             a.OwnerUserID,
+		OwnerUser:               AccountOwnerUserFromService(a.OwnerUser),
 		ReviewStatus:            a.ReviewStatus,
 		Platform:                a.Platform,
 		Type:                    a.Type,

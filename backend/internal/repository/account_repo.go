@@ -25,6 +25,7 @@ import (
 	dbgroup "github.com/Wei-Shaw/sub2api/ent/group"
 	dbpredicate "github.com/Wei-Shaw/sub2api/ent/predicate"
 	dbproxy "github.com/Wei-Shaw/sub2api/ent/proxy"
+	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -188,6 +189,7 @@ func (r *accountRepository) GetByIDs(ctx context.Context, ids []int64) ([]*servi
 	entAccounts, err := r.client.Account.
 		Query().
 		Where(dbaccount.IDIn(uniqueIDs...)).
+		WithOwner().
 		WithProxy().
 		All(ctx)
 	if err != nil {
@@ -220,6 +222,7 @@ func (r *accountRepository) GetByIDs(ctx context.Context, ids []int64) ([]*servi
 		if entAcc.Edges.Proxy != nil {
 			out.Proxy = proxyEntityToService(entAcc.Edges.Proxy)
 		}
+		out.OwnerUser = userEntityToService(entAcc.Edges.Owner)
 
 		if groups, ok := groupsByAccount[entAcc.ID]; ok {
 			out.Groups = groups
@@ -1581,6 +1584,10 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 	if err != nil {
 		return nil, err
 	}
+	ownerMap, err := r.loadOwnerUsers(ctx, accounts)
+	if err != nil {
+		return nil, err
+	}
 	groupsByAccount, groupIDsByAccount, accountGroupsByAccount, err := r.loadAccountGroups(ctx, accountIDs)
 	if err != nil {
 		return nil, err
@@ -1591,6 +1598,11 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 		out := accountEntityToService(acc)
 		if out == nil {
 			continue
+		}
+		if acc.Edges.Owner != nil {
+			out.OwnerUser = userEntityToService(acc.Edges.Owner)
+		} else if acc.OwnerUserID != nil {
+			out.OwnerUser = ownerMap[*acc.OwnerUserID]
 		}
 		if acc.ProxyID != nil {
 			if proxy, ok := proxyMap[*acc.ProxyID]; ok {
@@ -1645,6 +1657,39 @@ func (r *accountRepository) loadProxies(ctx context.Context, proxyIDs []int64) (
 		proxyMap[p.ID] = proxyEntityToService(p)
 	}
 	return proxyMap, nil
+}
+
+func (r *accountRepository) loadOwnerUsers(ctx context.Context, accounts []*dbent.Account) (map[int64]*service.User, error) {
+	userMap := make(map[int64]*service.User)
+	ids := make([]int64, 0, len(accounts))
+	seen := make(map[int64]struct{}, len(accounts))
+	for _, acc := range accounts {
+		if acc == nil || acc.OwnerUserID == nil {
+			continue
+		}
+		if acc.Edges.Owner != nil {
+			userMap[acc.Edges.Owner.ID] = userEntityToService(acc.Edges.Owner)
+			continue
+		}
+		id := *acc.OwnerUserID
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return userMap, nil
+	}
+
+	users, err := r.client.User.Query().Where(dbuser.IDIn(ids...)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, u := range users {
+		userMap[u.ID] = userEntityToService(u)
+	}
+	return userMap, nil
 }
 
 func (r *accountRepository) loadAccountGroups(ctx context.Context, accountIDs []int64) (map[int64][]*service.Group, map[int64][]int64, map[int64][]service.AccountGroup, error) {

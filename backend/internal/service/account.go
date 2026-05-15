@@ -21,6 +21,7 @@ type Account struct {
 	Name         string
 	Notes        *string
 	OwnerUserID  *int64
+	OwnerUser    *User
 	ReviewStatus string
 	Platform     string
 	Type         string
