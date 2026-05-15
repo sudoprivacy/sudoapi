@@ -1400,6 +1400,9 @@ export default {
       add: 'Add Account',
       edit: 'Edit Account',
       reviewStatus: 'Review',
+      columns: {
+        created: 'Created'
+      },
       review: {
         pending: 'Pending',
         approved: 'Approved',

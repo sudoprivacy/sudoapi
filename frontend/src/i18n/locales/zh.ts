@@ -1404,6 +1404,9 @@ export default {
       add: '添加账号',
       edit: '编辑账号',
       reviewStatus: '审核状态',
+      columns: {
+        created: '创建时间'
+      },
       review: {
         pending: '待审核',
         approved: '已通过',
