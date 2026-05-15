@@ -1225,6 +1225,27 @@ func TestResponsesToAnthropicRequest_ToolChoiceLegacyFunctionName(t *testing.T) 
 	assert.Equal(t, "get_weather", tc["name"])
 }
 
+func TestResponsesToAnthropicRequest_MergesInstructionsDeveloperAndSystem(t *testing.T) {
+	req := &ResponsesRequest{
+		Model:        "gpt-5.2",
+		Instructions: "top instructions",
+		Input: json.RawMessage(`[
+			{"role":"developer","content":[{"type":"input_text","text":"developer instructions"}]},
+			{"role":"system","content":"system instructions"},
+			{"role":"user","content":"Hello"}
+		]`),
+	}
+
+	resp, err := ResponsesToAnthropicRequest(req)
+	require.NoError(t, err)
+
+	var system string
+	require.NoError(t, json.Unmarshal(resp.System, &system))
+	assert.Equal(t, "top instructions\n\ndeveloper instructions\n\nsystem instructions", system)
+	require.Len(t, resp.Messages, 1)
+	assert.Equal(t, "user", resp.Messages[0].Role)
+}
+
 // ---------------------------------------------------------------------------
 // Image content block conversion tests
 // ---------------------------------------------------------------------------

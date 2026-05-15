@@ -387,17 +387,26 @@ func convertChatToolsToResponses(tools []ChatTool, functions []ChatFunction) []R
 	var out []ResponsesTool
 
 	for _, t := range tools {
-		if t.Type != "function" || t.Function == nil {
-			continue
+		switch t.Type {
+		case "function":
+			if t.Function == nil {
+				continue
+			}
+			rt := ResponsesTool{
+				Type:        "function",
+				Name:        t.Function.Name,
+				Description: t.Function.Description,
+				Parameters:  t.Function.Parameters,
+				Strict:      t.Function.Strict,
+			}
+			out = append(out, rt)
+		default:
+			toolType := strings.TrimSpace(t.Type)
+			if toolType == "" {
+				continue
+			}
+			out = append(out, ResponsesTool{Type: toolType})
 		}
-		rt := ResponsesTool{
-			Type:        "function",
-			Name:        t.Function.Name,
-			Description: t.Function.Description,
-			Parameters:  t.Function.Parameters,
-			Strict:      t.Function.Strict,
-		}
-		out = append(out, rt)
 	}
 
 	// Legacy functions[] are treated as function-type tools.

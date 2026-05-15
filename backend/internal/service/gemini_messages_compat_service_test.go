@@ -193,6 +193,38 @@ func TestConvertClaudeToolsToGeminiTools_PreservesWebSearchAlongsideFunctions(t 
 	require.Empty(t, googleSearch)
 }
 
+func TestConvertClaudeToolChoiceToGeminiToolConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		toolChoice   any
+		wantMode     string
+		wantAllowed  []string
+		wantNoConfig bool
+	}{
+		{name: "none", toolChoice: map[string]any{"type": "none"}, wantMode: "NONE"},
+		{name: "required", toolChoice: map[string]any{"type": "any"}, wantMode: "ANY"},
+		{name: "specific", toolChoice: map[string]any{"type": "tool", "name": "get_weather"}, wantMode: "ANY", wantAllowed: []string{"get_weather"}},
+		{name: "web search choice leaves search tool uncontrolled", toolChoice: map[string]any{"type": "web_search"}, wantNoConfig: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := convertClaudeToolChoiceToGeminiToolConfig(tt.toolChoice)
+			if tt.wantNoConfig {
+				require.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			fcc, ok := got["functionCallingConfig"].(map[string]any)
+			require.True(t, ok)
+			require.Equal(t, tt.wantMode, fcc["mode"])
+			if tt.wantAllowed != nil {
+				require.Equal(t, tt.wantAllowed, fcc["allowedFunctionNames"])
+			}
+		})
+	}
+}
+
 func TestGeminiHandleNativeNonStreamingResponse_DebugDisabledDoesNotEmitHeaderLogs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logSink, restore := captureStructuredLog(t)

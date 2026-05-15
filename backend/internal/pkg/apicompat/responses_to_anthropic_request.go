@@ -11,7 +11,7 @@ import (
 // enables Anthropic platform groups to accept OpenAI Responses API requests
 // by converting them to the native /v1/messages format before forwarding upstream.
 func ResponsesToAnthropicRequest(req *ResponsesRequest) (*AnthropicRequest, error) {
-	system, messages, err := convertResponsesInputToAnthropic(req.Input)
+	system, messages, err := convertResponsesInputToAnthropic(req.Instructions, req.Input)
 	if err != nil {
 		return nil, err
 	}
@@ -100,12 +100,12 @@ func mapResponsesEffortToAnthropic(effort string) string {
 // convertResponsesInputToAnthropic extracts system prompt and messages from
 // a Responses API input array. Returns the system as raw JSON (for Anthropic's
 // polymorphic system field) and a list of Anthropic messages.
-func convertResponsesInputToAnthropic(inputRaw json.RawMessage) (json.RawMessage, []AnthropicMessage, error) {
+func convertResponsesInputToAnthropic(instructions string, inputRaw json.RawMessage) (json.RawMessage, []AnthropicMessage, error) {
 	// Try as plain string input.
 	var inputStr string
 	if err := json.Unmarshal(inputRaw, &inputStr); err == nil {
 		content, _ := json.Marshal(inputStr)
-		return nil, []AnthropicMessage{{Role: "user", Content: content}}, nil
+		return marshalSystemTexts([]string{instructions}), []AnthropicMessage{{Role: "user", Content: content}}, nil
 	}
 
 	var items []ResponsesInputItem
@@ -113,16 +113,21 @@ func convertResponsesInputToAnthropic(inputRaw json.RawMessage) (json.RawMessage
 		return nil, nil, fmt.Errorf("parse responses input: %w", err)
 	}
 
-	var system json.RawMessage
+	systemTexts := make([]string, 0, 2)
+	if strings.TrimSpace(instructions) != "" {
+		systemTexts = append(systemTexts, strings.TrimSpace(instructions))
+	}
 	var messages []AnthropicMessage
 
 	for _, item := range items {
 		switch {
-		case item.Role == "system":
-			// System prompt → Anthropic system field
+		case item.Role == "developer" || item.Role == "system":
+			// Responses instructions/developer/system prompts all become
+			// Anthropic system text so provider adapters do not accidentally
+			// treat high-priority instructions as normal user turns.
 			text := extractTextFromContent(item.Content)
 			if text != "" {
-				system, _ = json.Marshal(text)
+				systemTexts = append(systemTexts, text)
 			}
 
 		case item.Type == "function_call":
@@ -195,7 +200,21 @@ func convertResponsesInputToAnthropic(inputRaw json.RawMessage) (json.RawMessage
 	// Merge consecutive same-role messages (Anthropic requires alternating roles)
 	messages = mergeConsecutiveMessages(messages)
 
-	return system, messages, nil
+	return marshalSystemTexts(systemTexts), messages, nil
+}
+
+func marshalSystemTexts(texts []string) json.RawMessage {
+	var cleaned []string
+	for _, text := range texts {
+		if strings.TrimSpace(text) != "" {
+			cleaned = append(cleaned, strings.TrimSpace(text))
+		}
+	}
+	if len(cleaned) == 0 {
+		return nil
+	}
+	system, _ := json.Marshal(strings.Join(cleaned, "\n\n"))
+	return system
 }
 
 // extractTextFromContent extracts text from a content field that may be a
@@ -390,7 +409,7 @@ func convertResponsesToAnthropicTools(tools []ResponsesTool) []AnthropicTool {
 	var out []AnthropicTool
 	for _, t := range tools {
 		switch t.Type {
-		case "web_search", "google_search", "web_search_20250305":
+		case "web_search", "web_search_preview", "web_search_preview_2025_03_11", "google_search", "web_search_20250305":
 			out = append(out, AnthropicTool{
 				Type: "web_search_20250305",
 				Name: "web_search",
