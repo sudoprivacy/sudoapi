@@ -6,13 +6,11 @@ import (
 )
 
 type APIKeyModelRouteResolver struct {
-	accountRepo    AccountRepository
 	channelService *ChannelService
 }
 
-func NewAPIKeyModelRouteResolver(accountRepo AccountRepository, channelService *ChannelService) *APIKeyModelRouteResolver {
+func NewAPIKeyModelRouteResolver(channelService *ChannelService) *APIKeyModelRouteResolver {
 	return &APIKeyModelRouteResolver{
-		accountRepo:    accountRepo,
 		channelService: channelService,
 	}
 }
@@ -26,29 +24,31 @@ func (r *APIKeyModelRouteResolver) ResolveAPIKeyGroupForModel(ctx context.Contex
 		return nil
 	}
 
-	var best *Group
-	bestScore := 0
-	tied := false
+	if group, resolved := r.resolveByChannelModelSignal(ctx, groups, model); resolved {
+		return group
+	}
+	if group := resolveByModelFamily(groups, model); group != nil {
+		return group
+	}
+	return firstGroupByPlatform(groups, PlatformOpenAI)
+}
+
+func (r *APIKeyModelRouteResolver) resolveByChannelModelSignal(ctx context.Context, groups []*Group, model string) (*Group, bool) {
+	var matched *Group
 	for _, group := range groups {
-		score := r.scoreGroupForModel(ctx, group, model)
-		if score == 0 {
+		if group == nil || group.ID <= 0 || strings.TrimSpace(group.Platform) == "" {
 			continue
 		}
-		if score > bestScore {
-			best = group
-			bestScore = score
-			tied = false
+		if !r.channelHasModelSignal(ctx, group.ID, model) {
 			continue
 		}
-		if score == bestScore && best != nil && group.Platform != best.Platform {
-			// 跨平台同分说明仅凭模型无法确定真实目标协议，交回调用方走原有路由默认值。
-			tied = true
+		if matched != nil && matched.Platform != group.Platform {
+			// 跨平台显式配置同名模型/别名时无法安全判断真实目标协议，交回调用方走原有默认值。
+			return nil, true
 		}
+		matched = group
 	}
-	if tied {
-		return nil
-	}
-	return best
+	return matched, matched != nil
 }
 
 func apiKeyRouteGroups(apiKey *APIKey) []*Group {
@@ -74,30 +74,6 @@ func apiKeyRouteGroups(apiKey *APIKey) []*Group {
 	return groups
 }
 
-func (r *APIKeyModelRouteResolver) scoreGroupForModel(ctx context.Context, group *Group, model string) int {
-	if group == nil || group.ID <= 0 || strings.TrimSpace(group.Platform) == "" {
-		return 0
-	}
-	if r.channelHasModelSignal(ctx, group.ID, model) {
-		// channel pricing/mapping 是最明确的分组信号，但仍必须有可调度账号承接。
-		if r.groupHasSchedulableAccountModelSupport(ctx, group, model) {
-			return 100
-		}
-		return 0
-	}
-	if r.channelRestrictsModel(ctx, group.ID, model) {
-		return 0
-	}
-	if r.groupHasExplicitAccountModelSupport(ctx, group, model) {
-		return 80
-	}
-	if r.groupHasDefaultAccountModelSupport(ctx, group, model) {
-		// 未配置账号级 model_mapping 表示账号不限制模型；这里仅作为平台模型族 fallback。
-		return 10
-	}
-	return 0
-}
-
 func (r *APIKeyModelRouteResolver) channelHasModelSignal(ctx context.Context, groupID int64, model string) bool {
 	if r.channelService == nil {
 		return false
@@ -109,92 +85,25 @@ func (r *APIKeyModelRouteResolver) channelHasModelSignal(ctx context.Context, gr
 	return mapping.Mapped
 }
 
-func (r *APIKeyModelRouteResolver) channelRestrictsModel(ctx context.Context, groupID int64, model string) bool {
-	if r.channelService == nil {
-		return false
-	}
-	return r.channelService.IsModelRestricted(ctx, groupID, model)
-}
-
-func (r *APIKeyModelRouteResolver) groupHasExplicitAccountModelSupport(ctx context.Context, group *Group, model string) bool {
-	return r.anySchedulableAccountSupports(ctx, group, model, true)
-}
-
-func (r *APIKeyModelRouteResolver) groupHasDefaultAccountModelSupport(ctx context.Context, group *Group, model string) bool {
-	return r.anySchedulableAccountSupports(ctx, group, model, false)
-}
-
-func (r *APIKeyModelRouteResolver) groupHasSchedulableAccountModelSupport(ctx context.Context, group *Group, model string) bool {
-	// channel mapping 可能把自定义别名映射到上游模型，所以显式命中或账号不限制模型都可承接。
-	return r.anySchedulableAccountSupports(ctx, group, model, true) ||
-		r.groupHasUnrestrictedSchedulableAccount(ctx, group)
-}
-
-func (r *APIKeyModelRouteResolver) groupHasUnrestrictedSchedulableAccount(ctx context.Context, group *Group) bool {
-	if r.accountRepo == nil || group == nil {
-		return false
-	}
-	platforms := routeResolverPlatformsForGroup(group.Platform)
-	accounts, err := r.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, group.ID, platforms)
-	if err != nil || len(accounts) == 0 {
-		return false
-	}
-	for i := range accounts {
-		account := &accounts[i]
-		if routeResolverAccountAllowedForGroupPlatform(account, group.Platform) && len(account.GetModelMapping()) == 0 {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *APIKeyModelRouteResolver) anySchedulableAccountSupports(ctx context.Context, group *Group, model string, explicitOnly bool) bool {
-	if r.accountRepo == nil || group == nil {
-		return false
-	}
-	platforms := routeResolverPlatformsForGroup(group.Platform)
-	accounts, err := r.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, group.ID, platforms)
-	if err != nil || len(accounts) == 0 {
-		return false
-	}
-	for i := range accounts {
-		account := &accounts[i]
-		if !routeResolverAccountAllowedForGroupPlatform(account, group.Platform) {
+func resolveByModelFamily(groups []*Group, model string) *Group {
+	for _, group := range groups {
+		if group == nil {
 			continue
 		}
-		if explicitOnly {
-			if len(account.GetModelMapping()) > 0 && account.IsModelSupported(model) {
-				return true
-			}
-			continue
-		}
-		if len(account.GetModelMapping()) == 0 && routeResolverModelMatchesPlatform(model, group.Platform) {
-			return true
+		if routeResolverModelMatchesPlatform(model, group.Platform) {
+			return group
 		}
 	}
-	return false
+	return nil
 }
 
-func routeResolverPlatformsForGroup(platform string) []string {
-	switch platform {
-	case PlatformAnthropic, PlatformGemini:
-		// 与调度逻辑保持一致：Anthropic/Gemini 分组可混合调度启用 mixed_scheduling 的 Antigravity 账号。
-		return []string{platform, PlatformAntigravity}
-	default:
-		return []string{platform}
+func firstGroupByPlatform(groups []*Group, platform string) *Group {
+	for _, group := range groups {
+		if group != nil && group.Platform == platform {
+			return group
+		}
 	}
-}
-
-func routeResolverAccountAllowedForGroupPlatform(account *Account, groupPlatform string) bool {
-	if account == nil {
-		return false
-	}
-	if account.Platform == groupPlatform {
-		return true
-	}
-	return account.Platform == PlatformAntigravity &&
-		(groupPlatform == PlatformAnthropic || groupPlatform == PlatformGemini) &&
-		account.IsMixedSchedulingEnabled()
+	return nil
 }
 
 func routeResolverModelMatchesPlatform(model, platform string) bool {

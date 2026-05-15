@@ -94,6 +94,28 @@ func TestForcePlatform_SetsContextAndGinValue(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestInferAPIKeyPlatformFromPath_MessagesPrefersAnthropicGroup(t *testing.T) {
+	apiKey := &service.APIKey{
+		Groups: []*service.Group{
+			{ID: 1, Platform: service.PlatformOpenAI},
+			{ID: 2, Platform: service.PlatformAnthropic},
+		},
+	}
+
+	require.Equal(t, service.PlatformAnthropic, inferAPIKeyPlatformFromPath("/v1/messages", apiKey))
+	require.Equal(t, service.PlatformAnthropic, inferAPIKeyPlatformFromPath("/v1/messages/count_tokens", apiKey))
+}
+
+func TestInferAPIKeyPlatformFromPath_MessagesFallsBackToOpenAIDispatch(t *testing.T) {
+	apiKey := &service.APIKey{
+		Groups: []*service.Group{
+			{ID: 1, Platform: service.PlatformOpenAI},
+		},
+	}
+
+	require.Equal(t, service.PlatformOpenAI, inferAPIKeyPlatformFromPath("/v1/messages", apiKey))
+}
+
 func TestAuthSubjectHelpers_RoundTrip(t *testing.T) {
 	c := &gin.Context{}
 	c.Set(string(ContextKeyUser), AuthSubject{UserID: 1, Concurrency: 2})

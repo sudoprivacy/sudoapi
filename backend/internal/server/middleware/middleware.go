@@ -98,6 +98,13 @@ func inferAPIKeyPlatformFromRequest(c *gin.Context, apiKey *service.APIKey, rout
 
 func inferAPIKeyPlatformFromPath(path string, apiKey *service.APIKey) string {
 	switch {
+	case isAnthropicMessagesEndpoint(path):
+		if apiKey.HasGroupForPlatform(service.PlatformAnthropic) {
+			return service.PlatformAnthropic
+		}
+		if apiKey.HasGroupForPlatform(service.PlatformOpenAI) {
+			return service.PlatformOpenAI
+		}
 	case isOpenAIChatCompletionsEndpoint(path):
 		if apiKey.HasGroupForPlatform(service.PlatformOpenAI) {
 			return service.PlatformOpenAI
@@ -114,6 +121,11 @@ func inferAPIKeyPlatformFromPath(path string, apiKey *service.APIKey) string {
 
 func isOpenAITextEndpoint(path string) bool {
 	return isOpenAIChatCompletionsEndpoint(path) || isOpenAIResponsesEndpoint(path)
+}
+
+func isAnthropicMessagesEndpoint(path string) bool {
+	return path == "/messages" || path == "/v1/messages" ||
+		path == "/messages/count_tokens" || path == "/v1/messages/count_tokens"
 }
 
 func isOpenAIChatCompletionsEndpoint(path string) bool {
