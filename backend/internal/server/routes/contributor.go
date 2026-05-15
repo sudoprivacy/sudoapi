@@ -23,4 +23,8 @@ func RegisterContributorRoutes(
 		accounts.PUT("/:id", h.ContributorAccount.Update)
 		accounts.POST("/:id/test", h.ContributorAccount.Test)
 	}
+	proxies := contributor.Group("/proxies")
+	{
+		proxies.GET("/all", h.ContributorAccount.ListProxies)
+	}
 }

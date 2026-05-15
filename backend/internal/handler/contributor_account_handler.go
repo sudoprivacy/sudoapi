@@ -167,3 +167,16 @@ func (h *ContributorAccountHandler) Test(c *gin.Context) {
 		return
 	}
 }
+
+func (h *ContributorAccountHandler) ListProxies(c *gin.Context) {
+	proxies, err := h.adminService.GetAllProxies(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]dto.Proxy, 0, len(proxies))
+	for i := range proxies {
+		out = append(out, *dto.ProxyFromService(&proxies[i]))
+	}
+	response.Success(c, out)
+}

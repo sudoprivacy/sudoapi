@@ -1,5 +1,5 @@
 import { apiClient } from '../client'
-import type { Account, CreateAccountRequest, PaginatedResponse, UpdateAccountRequest } from '@/types'
+import type { Account, CreateAccountRequest, PaginatedResponse, Proxy, UpdateAccountRequest } from '@/types'
 
 export async function list(
   page = 1,
@@ -38,12 +38,18 @@ export async function testAccount(id: number): Promise<void> {
   await apiClient.post(`/contributor/accounts/${id}/test`)
 }
 
+export async function getProxies(): Promise<Proxy[]> {
+  const { data } = await apiClient.get<Proxy[]>('/contributor/proxies/all')
+  return data
+}
+
 export const contributorAccountsAPI = {
   list,
   getById,
   create,
   update,
-  testAccount
+  testAccount,
+  getProxies
 }
 
 export default contributorAccountsAPI

@@ -7,7 +7,7 @@
             <SearchInput v-model="search" :placeholder="t('contributor.accounts.search')" class="w-64" @search="loadAccounts" />
             <Select v-model="platform" :options="platformOptions" class="w-40" @change="loadAccounts" />
           </div>
-          <button class="btn btn-primary" @click="openCreate">{{ t('contributor.accounts.add') }}</button>
+          <button class="btn btn-primary" @click="showCreate = true">{{ t('contributor.accounts.add') }}</button>
         </div>
       </template>
 
@@ -79,6 +79,17 @@
         </div>
       </template>
     </BaseDialog>
+
+    <CreateAccountModal
+      :show="showCreate"
+      :proxies="proxies"
+      :groups="groups"
+      api-scope="contributor"
+      :show-groups="false"
+      :enable-codex-session-import="false"
+      @close="showCreate = false"
+      @created="handleCreated"
+    />
   </AppLayout>
 </template>
 
@@ -94,10 +105,11 @@ import Select from '@/components/common/Select.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
+import CreateAccountModal from '@/components/account/CreateAccountModal.vue'
 import { contributorAPI } from '@/api/contributor'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
-import type { Account, AccountPlatform, AccountType } from '@/types'
+import type { Account, AccountPlatform, AccountType, AdminGroup, Proxy } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -106,8 +118,11 @@ const accounts = ref<Account[]>([])
 const loading = ref(false)
 const submitting = ref(false)
 const testingId = ref<number | null>(null)
+const showCreate = ref(false)
 const showForm = ref(false)
 const editing = ref<Account | null>(null)
+const proxies = ref<Proxy[]>([])
+const groups = ref<AdminGroup[]>([])
 const search = ref('')
 const platform = ref('')
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
@@ -169,10 +184,17 @@ async function loadAccounts() {
   }
 }
 
-function openCreate() {
-  editing.value = null
-  Object.assign(form, { name: '', notes: '', platform: 'anthropic', type: 'apikey', base_url: '', api_key: '' })
-  showForm.value = true
+async function loadProxies() {
+  try {
+    proxies.value = await contributorAPI.accounts.getProxies()
+  } catch {
+    proxies.value = []
+  }
+}
+
+async function handleCreated() {
+  showCreate.value = false
+  await loadAccounts()
 }
 
 function openEdit(account: Account) {
@@ -271,5 +293,8 @@ function reviewBadgeClass(value: Account['review_status']) {
   return `${base} bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300`
 }
 
-onMounted(loadAccounts)
+onMounted(() => {
+  loadAccounts()
+  loadProxies()
+})
 </script>
