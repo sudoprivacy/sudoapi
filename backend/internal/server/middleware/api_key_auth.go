@@ -14,11 +14,12 @@ import (
 )
 
 // NewAPIKeyAuthMiddleware 创建 API Key 认证中间件
-func NewAPIKeyAuthMiddleware(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config, routeResolvers ...APIKeyModelRouteResolver) APIKeyAuthMiddleware {
-	var routeResolver APIKeyModelRouteResolver
-	if len(routeResolvers) > 0 {
-		routeResolver = routeResolvers[0]
-	}
+func NewAPIKeyAuthMiddleware(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) APIKeyAuthMiddleware {
+	return APIKeyAuthMiddleware(apiKeyAuthWithSubscription(apiKeyService, subscriptionService, cfg, nil))
+}
+
+// NewAPIKeyAuthMiddlewareWithRouteResolver 创建带模型路由解析的 API Key 认证中间件。
+func NewAPIKeyAuthMiddlewareWithRouteResolver(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config, routeResolver APIKeyModelRouteResolver) APIKeyAuthMiddleware {
 	return APIKeyAuthMiddleware(apiKeyAuthWithSubscription(apiKeyService, subscriptionService, cfg, routeResolver))
 }
 
