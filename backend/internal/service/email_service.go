@@ -198,17 +198,17 @@ func (s *EmailService) SendEmailWithConfig(config *SMTPConfig, to, subject, body
 		from, to, subject, body)
 
 	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
-	auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
+	auth := newSMTPAuth(config.Username, config.Password, config.Host)
 
-	if config.UseTLS {
+	if useImplicitSMTPTLS(config) {
 		return s.sendMailTLS(addr, auth, config.From, to, []byte(msg), config.Host)
 	}
 
-	return s.sendMailPlain(addr, auth, config.From, to, []byte(msg), config.Host)
+	return s.sendMailPlain(addr, auth, config.From, to, []byte(msg), config.Host, requireStartTLS(config))
 }
 
-// sendMailPlain sends mail without TLS using a dialer with timeout.
-func (s *EmailService) sendMailPlain(addr string, auth smtp.Auth, from, to string, msg []byte, host string) error {
+// sendMailPlain sends mail through a plain SMTP connection, optionally upgrading via STARTTLS.
+func (s *EmailService) sendMailPlain(addr string, auth smtp.Auth, from, to string, msg []byte, host string, requireTLS bool) error {
 	dialer := &net.Dialer{Timeout: smtpDialTimeout}
 	conn, err := dialer.Dial("tcp", addr)
 	if err != nil {
@@ -229,6 +229,8 @@ func (s *EmailService) sendMailPlain(addr string, auth smtp.Auth, from, to strin
 		if err = client.StartTLS(&tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}); err != nil {
 			return fmt.Errorf("starttls: %w", err)
 		}
+	} else if requireTLS {
+		return fmt.Errorf("starttls: server does not support STARTTLS")
 	}
 
 	if err = client.Auth(auth); err != nil {
@@ -460,8 +462,9 @@ func (s *EmailService) buildVerifyCodeEmailBody(code, siteName string) string {
 // TestSMTPConnectionWithConfig 使用指定配置测试SMTP连接
 func (s *EmailService) TestSMTPConnectionWithConfig(config *SMTPConfig) error {
 	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
+	auth := newSMTPAuth(config.Username, config.Password, config.Host)
 
-	if config.UseTLS {
+	if useImplicitSMTPTLS(config) {
 		tlsConfig := &tls.Config{
 			ServerName: config.Host,
 			// 与发送逻辑一致，显式要求 TLS 1.2+。
@@ -479,7 +482,6 @@ func (s *EmailService) TestSMTPConnectionWithConfig(config *SMTPConfig) error {
 		}
 		defer func() { _ = client.Close() }()
 
-		auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
 		if err = client.Auth(auth); err != nil {
 			return fmt.Errorf("smtp authentication failed: %w", err)
 		}
@@ -487,14 +489,29 @@ func (s *EmailService) TestSMTPConnectionWithConfig(config *SMTPConfig) error {
 		return client.Quit()
 	}
 
-	// 非TLS连接测试
-	client, err := smtp.Dial(addr)
+	dialer := &net.Dialer{Timeout: smtpDialTimeout}
+	conn, err := dialer.Dial("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("smtp connection failed: %w", err)
 	}
+	_ = conn.SetDeadline(time.Now().Add(smtpIOTimeout))
+	defer func() { _ = conn.Close() }()
+
+	client, err := smtp.NewClient(conn, config.Host)
+	if err != nil {
+		return fmt.Errorf("smtp client creation failed: %w", err)
+	}
 	defer func() { _ = client.Close() }()
 
-	auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
+	// sudoapi: SMTP STARTTLS and LOGIN authentication support.
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		if err = client.StartTLS(&tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}); err != nil {
+			return fmt.Errorf("starttls failed: %w", err)
+		}
+	} else if requireStartTLS(config) {
+		return fmt.Errorf("starttls failed: server does not support STARTTLS")
+	}
+
 	if err = client.Auth(auth); err != nil {
 		return fmt.Errorf("smtp authentication failed: %w", err)
 	}
