@@ -199,7 +199,8 @@ func (s *EmailService) SendEmailWithConfig(config *SMTPConfig, to, subject, body
 	}
 	defer func() { _ = client.Close() }()
 
-	auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
+	// sudoapi: SMTP STARTTLS auth support.
+	auth := SmartAuth(config.Username, config.Password)
 	if err = client.Auth(auth); err != nil {
 		return fmt.Errorf("smtp auth: %w", err)
 	}
@@ -459,7 +460,8 @@ func (s *EmailService) TestSMTPConnectionWithConfig(config *SMTPConfig) error {
 	}
 	defer func() { _ = client.Close() }()
 
-	auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
+	// sudoapi: SMTP STARTTLS auth support.
+	auth := SmartAuth(config.Username, config.Password)
 	if err := client.Auth(auth); err != nil {
 		return fmt.Errorf("smtp authentication failed: %w", err)
 	}
