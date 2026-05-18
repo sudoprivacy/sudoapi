@@ -199,7 +199,8 @@ func (s *EmailService) SendEmailWithConfig(config *SMTPConfig, to, subject, body
 		from, to, subject, body)
 
 	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
-	auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
+	// sudoapi: SMTP STARTTLS auth support.
+	auth := SmartAuth(config.Username, config.Password)
 
 	if config.UseTLS {
 		return s.sendMailTLS(addr, auth, config.From, to, []byte(msg), config.Host)
@@ -495,7 +496,14 @@ func (s *EmailService) TestSMTPConnectionWithConfig(config *SMTPConfig) error {
 	}
 	defer func() { _ = client.Close() }()
 
-	auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
+	// sudoapi: SMTP STARTTLS auth support.
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		if err = client.StartTLS(&tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}); err != nil {
+			return fmt.Errorf("starttls failed: %w", err)
+		}
+	}
+
+	auth := SmartAuth(config.Username, config.Password)
 	if err = client.Auth(auth); err != nil {
 		return fmt.Errorf("smtp authentication failed: %w", err)
 	}
