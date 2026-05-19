@@ -83,14 +83,38 @@
                   {{ t(`modelSquare.categories.${card.category}`, card.category) }}
                 </dd>
               </div>
+              <div v-if="card.model_type">
+                <dt class="text-gray-500 dark:text-dark-400">
+                  {{ t('modelSquare.detail.modelType') }}
+                </dt>
+                <dd class="font-medium text-gray-900 dark:text-white">
+                  {{ modelTypeLabel(card.model_type) }}
+                </dd>
+              </div>
+              <div v-if="card.input_modalities && card.input_modalities.length">
+                <dt class="text-gray-500 dark:text-dark-400">
+                  {{ t('modelSquare.detail.inputModalities') }}
+                </dt>
+                <dd class="font-medium text-gray-900 dark:text-white">
+                  {{ card.input_modalities.map(modalityLabel).join(' / ') }}
+                </dd>
+              </div>
+              <div v-if="card.output_modalities && card.output_modalities.length">
+                <dt class="text-gray-500 dark:text-dark-400">
+                  {{ t('modelSquare.detail.outputModalities') }}
+                </dt>
+                <dd class="font-medium text-gray-900 dark:text-white">
+                  {{ card.output_modalities.map(modalityLabel).join(' / ') }}
+                </dd>
+              </div>
             </dl>
-            <div v-if="card.capabilities && card.capabilities.length" class="mt-3 flex flex-wrap gap-1.5">
+            <div v-if="supportFlags.length" class="mt-3 flex flex-wrap gap-1.5">
               <span
-                v-for="cap in card.capabilities"
+                v-for="cap in supportFlags"
                 :key="cap"
                 class="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
               >
-                {{ t(`modelSquare.capabilities.${cap}`, cap) }}
+                {{ supportFlagLabel(cap) }}
               </span>
             </div>
           </section>
@@ -285,6 +309,9 @@ function close() {
 }
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
+  anthropic: 'bg-gradient-to-br from-orange-400 to-orange-500',
+  openai: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
+  antigravity: 'bg-gradient-to-br from-purple-500 to-purple-600',
   claude: 'bg-gradient-to-br from-orange-400 to-orange-500',
   gpt: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
   gemini: 'bg-gradient-to-br from-blue-500 to-blue-600',
@@ -296,6 +323,32 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
 const categoryGradient = computed(
   () => CATEGORY_GRADIENTS[props.card?.category ?? 'other'] ?? CATEGORY_GRADIENTS.other,
 )
+
+const supportFlags = computed(() => {
+  const card = props.card
+  if (!card) return []
+  return card.support_flags?.length ? card.support_flags : (card.capabilities ?? [])
+})
+
+function humanizeKey(key: string): string {
+  return key
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function supportFlagLabel(key: string): string {
+  return t(`modelSquare.capabilities.${key}`, humanizeKey(key))
+}
+
+function modalityLabel(key: string): string {
+  return t(`modelSquare.modalities.${key}`, humanizeKey(key))
+}
+
+function modelTypeLabel(key: string): string {
+  return t(`modelSquare.modelTypes.${key}`, humanizeKey(key))
+}
 
 /** 有效倍率 = base × user（user 缺失时按 1 计）。 */
 function effectiveMultiplier(row: ModelGroupPrice): number {

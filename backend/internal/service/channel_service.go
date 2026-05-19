@@ -32,6 +32,7 @@ type ChannelRepository interface {
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, params pagination.PaginationParams, status, search string) ([]Channel, *pagination.PaginationResult, error)
 	ListAll(ctx context.Context) ([]Channel, error)
+	ListConfiguredPlatforms(ctx context.Context) ([]string, error)
 	ExistsByName(ctx context.Context, name string) (bool, error)
 	ExistsByNameExcluding(ctx context.Context, name string, excludeID int64) (bool, error)
 
@@ -50,6 +51,17 @@ type ChannelRepository interface {
 	UpdateModelPricing(ctx context.Context, pricing *ChannelModelPricing) error
 	DeleteModelPricing(ctx context.Context, id int64) error
 	ReplaceModelPricing(ctx context.Context, channelID int64, pricingList []ChannelModelPricing) error
+}
+
+func (s *ChannelService) ListConfiguredPlatforms(ctx context.Context) ([]string, error) {
+	if s == nil || s.repo == nil {
+		return []string{}, nil
+	}
+	platforms, err := s.repo.ListConfiguredPlatforms(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list configured channel platforms: %w", err)
+	}
+	return platforms, nil
 }
 
 // channelModelKey 渠道缓存复合键（显式包含 platform 防止跨平台同名模型冲突）

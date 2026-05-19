@@ -363,6 +363,53 @@ func (r *channelRepository) ListAll(ctx context.Context) ([]service.Channel, err
 	return channels, nil
 }
 
+func (r *channelRepository) ListConfiguredPlatforms(ctx context.Context) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT platform FROM (
+			SELECT btrim(platform) AS platform
+			FROM groups
+			WHERE btrim(platform) <> ''
+
+			UNION
+
+			SELECT btrim(platform) AS platform
+			FROM channel_model_pricing
+			WHERE btrim(platform) <> ''
+
+			UNION
+
+			SELECT btrim(key) AS platform
+			FROM channels c
+			CROSS JOIN LATERAL jsonb_object_keys(
+				CASE
+					WHEN jsonb_typeof(COALESCE(c.model_mapping, '{}'::jsonb)) = 'object'
+						THEN COALESCE(c.model_mapping, '{}'::jsonb)
+					ELSE '{}'::jsonb
+				END
+			) AS key
+			WHERE btrim(key) <> ''
+		) platforms
+		ORDER BY platform
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list configured platforms: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	platforms := make([]string, 0)
+	for rows.Next() {
+		var platform string
+		if err := rows.Scan(&platform); err != nil {
+			return nil, fmt.Errorf("scan configured platform: %w", err)
+		}
+		platforms = append(platforms, platform)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate configured platforms: %w", err)
+	}
+	return platforms, nil
+}
+
 // --- 批量加载辅助方法 ---
 
 // batchLoadGroupIDs 批量加载多个渠道的分组 ID

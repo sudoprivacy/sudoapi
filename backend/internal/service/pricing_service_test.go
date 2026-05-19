@@ -37,6 +37,33 @@ func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+func TestParsePricingData_CollectsModalitiesAndTrueSupportFlags(t *testing.T) {
+	svc := &PricingService{}
+	body := []byte(`{
+		"gemini-test": {
+			"input_cost_per_token": 0.000001,
+			"output_cost_per_token": 0.000002,
+			"litellm_provider": "gemini",
+			"mode": "chat",
+			"supported_modalities": ["text", "image", "audio", "text"],
+			"supported_output_modalities": ["text", "image"],
+			"supports_vision": true,
+			"supports_web_search": true,
+			"supports_response_schema": false,
+			"supports_custom_string": "true"
+		}
+	}`)
+
+	data, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+	pricing := data["gemini-test"]
+	require.NotNil(t, pricing)
+	require.Equal(t, "chat", pricing.Mode)
+	require.Equal(t, []string{"text", "image", "audio"}, pricing.SupportedModalities)
+	require.Equal(t, []string{"text", "image"}, pricing.SupportedOutputModalities)
+	require.Equal(t, []string{"vision", "web_search"}, pricing.SupportFlags)
+}
+
 func TestGetModelPricing_Gpt53CodexSparkUsesGpt51CodexPricing(t *testing.T) {
 	sparkPricing := &LiteLLMModelPricing{InputCostPerToken: 1}
 	gpt53Pricing := &LiteLLMModelPricing{InputCostPerToken: 9}

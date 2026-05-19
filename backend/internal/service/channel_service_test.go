@@ -17,6 +17,7 @@ import (
 
 type mockChannelRepository struct {
 	listAllFn                  func(ctx context.Context) ([]Channel, error)
+	listConfiguredPlatformsFn  func(ctx context.Context) ([]string, error)
 	getGroupPlatformsFn        func(ctx context.Context, groupIDs []int64) (map[int64]string, error)
 	createFn                   func(ctx context.Context, channel *Channel) error
 	getByIDFn                  func(ctx context.Context, id int64) (*Channel, error)
@@ -74,6 +75,13 @@ func (m *mockChannelRepository) List(ctx context.Context, params pagination.Pagi
 func (m *mockChannelRepository) ListAll(ctx context.Context) ([]Channel, error) {
 	if m.listAllFn != nil {
 		return m.listAllFn(ctx)
+	}
+	return nil, nil
+}
+
+func (m *mockChannelRepository) ListConfiguredPlatforms(ctx context.Context) ([]string, error) {
+	if m.listConfiguredPlatformsFn != nil {
+		return m.listConfiguredPlatformsFn(ctx)
 	}
 	return nil, nil
 }

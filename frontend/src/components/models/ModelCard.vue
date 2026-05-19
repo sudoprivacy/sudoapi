@@ -47,13 +47,13 @@
     </p>
 
     <!-- Capability tags -->
-    <div v-if="card.capabilities && card.capabilities.length" class="mb-3 flex flex-wrap gap-1">
+    <div v-if="supportFlags.length" class="mb-3 flex flex-wrap gap-1">
       <span
         v-for="cap in displayedCapabilities"
         :key="cap"
         class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-dark-300"
       >
-        {{ t(`modelSquare.capabilities.${cap}`, cap) }}
+        {{ supportFlagLabel(cap) }}
       </span>
       <span
         v-if="hiddenCapabilityCount > 0"
@@ -100,14 +100,20 @@ const { t } = useI18n()
 
 const MAX_VISIBLE_TAGS = 4
 
+const supportFlags = computed(() =>
+  props.card.support_flags?.length ? props.card.support_flags : (props.card.capabilities ?? []),
+)
 const displayedCapabilities = computed(() =>
-  (props.card.capabilities ?? []).slice(0, MAX_VISIBLE_TAGS),
+  supportFlags.value.slice(0, MAX_VISIBLE_TAGS),
 )
 const hiddenCapabilityCount = computed(() =>
-  Math.max(0, (props.card.capabilities?.length ?? 0) - MAX_VISIBLE_TAGS),
+  Math.max(0, supportFlags.value.length - MAX_VISIBLE_TAGS),
 )
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
+  anthropic: 'bg-gradient-to-br from-orange-400 to-orange-500',
+  openai: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
+  antigravity: 'bg-gradient-to-br from-purple-500 to-purple-600',
   claude: 'bg-gradient-to-br from-orange-400 to-orange-500',
   gpt: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
   gemini: 'bg-gradient-to-br from-blue-500 to-blue-600',
@@ -119,6 +125,18 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
 const categoryGradient = computed(
   () => CATEGORY_GRADIENTS[props.card.category] ?? CATEGORY_GRADIENTS.other,
 )
+
+function humanizeKey(key: string): string {
+  return key
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function supportFlagLabel(key: string): string {
+  return t(`modelSquare.capabilities.${key}`, humanizeKey(key))
+}
 
 /**
  * 「起步价」用于卡片右下角速览：取所有平台/分组中最便宜的 input_price_per_mtok_usd。

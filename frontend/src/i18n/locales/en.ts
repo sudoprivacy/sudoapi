@@ -387,6 +387,7 @@ export default {
     paymentPlans: 'Plans',
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
+    modelMetadata: 'Model Metadata',
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
@@ -1071,6 +1072,9 @@ export default {
       priceRange: 'Price'
     },
     categories: {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI',
+      antigravity: 'Antigravity',
       claude: 'Claude',
       gpt: 'GPT / o-series',
       gemini: 'Gemini',
@@ -1087,7 +1091,33 @@ export default {
       audio_output: 'Audio output',
       pdf_input: 'PDF',
       prompt_caching: 'Prompt caching',
-      parallel_tools: 'Parallel tools'
+      parallel_tools: 'Parallel tools',
+      assistant_prefill: 'Assistant prefill',
+      computer_use: 'Computer use',
+      native_streaming: 'Native streaming',
+      parallel_function_calling: 'Parallel function calling',
+      response_schema: 'Response schema',
+      service_tier: 'Service tier',
+      system_messages: 'System messages',
+      tool_choice: 'Tool choice',
+      url_context: 'URL context',
+      video_input: 'Video input',
+      web_search: 'Web search'
+    },
+    modalities: {
+      text: 'Text',
+      image: 'Image',
+      audio: 'Audio',
+      video: 'Video'
+    },
+    modelTypes: {
+      chat: 'Chat',
+      responses: 'Responses',
+      completion: 'Completion',
+      embedding: 'Embedding',
+      image_generation: 'Image generation',
+      audio_speech: 'Audio speech',
+      audio_transcription: 'Audio transcription'
     },
     priceTier: {
       free: 'Free',
@@ -1101,6 +1131,9 @@ export default {
       contextWindow: 'Context window',
       maxOutput: 'Max output',
       category: 'Category',
+      modelType: 'Model type',
+      inputModalities: 'Input support',
+      outputModalities: 'Output support',
       endpoints: 'API endpoints',
       endpointsHint: 'Inbound paths and HTTP methods this model accepts.',
       groupPrices: 'Group pricing',
@@ -2442,6 +2475,21 @@ export default {
         perRequest: 'Per Request',
         image: 'Image (Per Request)'
       },
+      endpointConfig: {
+        title: 'Endpoint Config',
+        platformRules: 'Model type endpoint rules',
+        description: 'Rules are global per platform. Unmatched model types show no endpoints.',
+        addModelType: 'Add model type',
+        noRules: 'No endpoint rules. Unmatched models will not show endpoints.',
+        modelTypePlaceholder: 'model_type, e.g. chat',
+        addEndpoint: 'Add endpoint',
+        loadError: 'Failed to load endpoint config',
+        saveSuccess: 'Endpoint config saved',
+        saveError: 'Failed to save endpoint config',
+        invalidKey: 'Platform and model type may only contain lowercase letters, numbers, underscores, and hyphens.',
+        invalidMethod: 'Endpoint method must be GET or POST.',
+        invalidPath: 'Endpoint path must start with / and contain no spaces.'
+      },
       form: {
         name: 'Name',
         namePlaceholder: 'Enter channel name',
@@ -2517,6 +2565,71 @@ export default {
         ruleModelPricing: 'Model Pricing',
         noGroupsInChannel: 'No groups selected in platform tabs above',
         unnamed: 'Unnamed'
+      }
+    },
+
+    modelMetadata: {
+      title: 'Model Metadata',
+      description: 'Fill missing display metadata used by the /models page',
+      searchPlaceholder: 'Search models, platforms, or descriptions...',
+      missingOnly: 'Missing only',
+      refresh: 'Refresh',
+      edit: 'Edit metadata',
+      clear: 'Clear override',
+      clearConfirm: 'Clear metadata override for "{name}"?',
+      loadError: 'Failed to load model metadata',
+      saveSuccess: 'Model metadata saved',
+      saveError: 'Failed to save model metadata',
+      deleteSuccess: 'Model metadata override cleared',
+      deleteError: 'Failed to clear model metadata',
+      noModels: 'No maintainable models',
+      noModelsDesc: 'No displayable models are currently available from active channels',
+      noResults: 'No matching models',
+      overrideActive: 'Overridden',
+      missingCount: '{count} missing',
+      fields: {
+        modelName: 'Model',
+        displayName: 'Display name',
+        description: 'Description',
+        category: 'Category',
+        modelType: 'Model type',
+        contextWindow: 'Context',
+        maxOutput: 'Max output',
+        capabilities: 'Capabilities',
+        inputModalities: 'Input support',
+        outputModalities: 'Output support',
+        supportFlags: 'Model tags',
+        featured: 'Featured',
+        iconUrl: 'Icon URL',
+        platforms: 'Platforms',
+        missing: 'Missing',
+        actions: 'Actions'
+      },
+      missingFields: {
+        display_name: 'Display name',
+        description: 'Description',
+        category: 'Category',
+        model_type: 'Model type',
+        context_window: 'Context',
+        max_output: 'Max output',
+        capabilities: 'Capabilities',
+        input_modalities: 'Input support',
+        output_modalities: 'Output support',
+        support_flags: 'Model tags',
+        icon_url: 'Icon'
+      },
+      form: {
+        displayNamePlaceholder: 'Defaults to model name',
+        descriptionPlaceholder: 'Shown on /models cards and detail drawer',
+        categoryPlaceholder: 'Select category',
+        modelTypePlaceholder: 'e.g. chat / image_generation',
+        contextWindowPlaceholder: 'e.g. 200000',
+        maxOutputPlaceholder: 'e.g. 8192',
+        iconUrlPlaceholder: 'https://...',
+        capabilitiesHint: 'Selected capabilities override automatic inference. Leave empty to keep automatic data.',
+        modalitiesHint: 'Leave empty to keep LiteLLM automatic data.',
+        supportFlagsHint: 'Model tags come from all true LiteLLM supports_* fields. Leave empty to keep automatic data.',
+        featuredHint: 'Featured models are sorted first on /models.'
       }
     },
 

@@ -14,27 +14,31 @@ import (
 func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 	// 严格断言序列化结果只包含白名单 JSON key，不能漏暴露 channel_id / 调度元数据。
 	card := service.ModelSquareCard{
-		Name:          "claude-opus-4-7",
-		DisplayName:   "Claude Opus 4.7",
-		Category:      "claude",
-		Description:   "desc",
-		ContextWindow: 200000,
-		MaxOutput:     64000,
-		Capabilities:  []string{"vision", "reasoning"},
-		Featured:      true,
-		IconURL:       "https://cdn/icon.png",
+		Name:             "claude-opus-4-7",
+		DisplayName:      "Claude Opus 4.7",
+		Category:         "claude",
+		Description:      "desc",
+		ModelType:        "chat",
+		ContextWindow:    200000,
+		MaxOutput:        64000,
+		Capabilities:     []string{"vision", "reasoning"},
+		InputModalities:  []string{"text", "image"},
+		OutputModalities: []string{"text"},
+		SupportFlags:     []string{"vision", "reasoning", "web_search"},
+		Featured:         true,
+		IconURL:          "https://cdn/icon.png",
 		Platforms: []service.ModelPlatformSection{
 			{
 				Platform:  "anthropic",
 				Endpoints: []service.ModelEndpoint{{Path: "/v1/messages", Method: "POST"}},
 				GroupPrices: []service.ModelGroupPrice{
 					{
-						GroupID:          1,
-						GroupName:        "auto",
-						SubscriptionType: "standard",
-						IsExclusive:      false,
-						BaseRateMult:     1.0,
-						BillingMode:      service.BillingModeToken,
+						GroupID:           1,
+						GroupName:         "auto",
+						SubscriptionType:  "standard",
+						IsExclusive:       false,
+						BaseRateMult:      1.0,
+						BillingMode:       service.BillingModeToken,
 						InputPricePerMTok: func() *float64 { v := 17.5; return &v }(),
 					},
 				},
@@ -52,7 +56,8 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 	// 白名单：必须存在的字段
 	for _, k := range []string{
 		"name", "display_name", "category", "description",
-		"context_window", "max_output", "capabilities",
+		"model_type", "context_window", "max_output", "capabilities",
+		"input_modalities", "output_modalities", "support_flags",
 		"featured", "icon_url", "platforms",
 	} {
 		_, ok := m[k]
