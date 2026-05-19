@@ -94,6 +94,28 @@ func TestForcePlatform_SetsContextAndGinValue(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestInferAPIKeyPlatformFromPath_MessagesPrefersAnthropicGroup(t *testing.T) {
+	apiKey := &service.APIKey{
+		Groups: []*service.Group{
+			{ID: 1, Platform: service.PlatformOpenAI},
+			{ID: 2, Platform: service.PlatformAnthropic},
+		},
+	}
+
+	require.Equal(t, service.PlatformAnthropic, inferAPIKeyPlatformFromPath("/v1/messages", apiKey))
+	require.Equal(t, service.PlatformAnthropic, inferAPIKeyPlatformFromPath("/v1/messages/count_tokens", apiKey))
+}
+
+func TestInferAPIKeyPlatformFromPath_MessagesFallsBackToOpenAIDispatch(t *testing.T) {
+	apiKey := &service.APIKey{
+		Groups: []*service.Group{
+			{ID: 1, Platform: service.PlatformOpenAI},
+		},
+	}
+
+	require.Equal(t, service.PlatformOpenAI, inferAPIKeyPlatformFromPath("/v1/messages", apiKey))
+}
+
 func TestAuthSubjectHelpers_RoundTrip(t *testing.T) {
 	c := &gin.Context{}
 	c.Set(string(ContextKeyUser), AuthSubject{UserID: 1, Concurrency: 2})
@@ -123,4 +145,66 @@ func TestAPIKeyAndSubscriptionFromContext(t *testing.T) {
 	gotSub, ok := GetSubscriptionFromContext(c)
 	require.True(t, ok)
 	require.Equal(t, int64(2), gotSub.ID)
+}
+
+func TestInferAPIKeyPlatformFromRequest_UsesOpenAIFormatModel(t *testing.T) {
+	geminiGroup := &service.Group{
+		ID:       10,
+		Platform: service.PlatformGemini,
+	}
+	openAIGroup := &service.Group{
+		ID:       20,
+		Platform: service.PlatformOpenAI,
+	}
+	apiKey := &service.APIKey{
+		Group:  openAIGroup,
+		Groups: []*service.Group{openAIGroup, geminiGroup},
+	}
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewBufferString(`{"model":"gemini-2.5-flash","messages":[]}`))
+
+	resolver := stubAPIKeyModelRouteResolver{group: geminiGroup}
+	require.Equal(t, service.PlatformGemini, inferAPIKeyPlatformFromRequest(c, apiKey, resolver))
+
+	body, err := io.ReadAll(c.Request.Body)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"model":"gemini-2.5-flash","messages":[]}`, string(body))
+}
+
+func TestInferAPIKeyPlatformFromRequest_DefaultsOpenAIForOpenAIModels(t *testing.T) {
+	geminiGroup := &service.Group{ID: 10, Platform: service.PlatformGemini}
+	openAIGroup := &service.Group{ID: 20, Platform: service.PlatformOpenAI}
+	apiKey := &service.APIKey{
+		Group:  geminiGroup,
+		Groups: []*service.Group{geminiGroup, openAIGroup},
+	}
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewBufferString(`{"model":"gpt-5.2","input":"hi"}`))
+
+	resolver := stubAPIKeyModelRouteResolver{group: openAIGroup}
+	require.Equal(t, service.PlatformOpenAI, inferAPIKeyPlatformFromRequest(c, apiKey, resolver))
+}
+
+func TestInferAPIKeyPlatformFromRequest_UnknownOpenAIFormatModelKeepsLegacyOpenAIDefault(t *testing.T) {
+	geminiGroup := &service.Group{ID: 10, Platform: service.PlatformGemini}
+	openAIGroup := &service.Group{ID: 20, Platform: service.PlatformOpenAI}
+	apiKey := &service.APIKey{
+		Group:  geminiGroup,
+		Groups: []*service.Group{geminiGroup, openAIGroup},
+	}
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/chat/completions", bytes.NewBufferString(`{"model":"custom-alias","messages":[]}`))
+
+	require.Equal(t, service.PlatformOpenAI, inferAPIKeyPlatformFromRequest(c, apiKey, stubAPIKeyModelRouteResolver{}))
+}
+
+type stubAPIKeyModelRouteResolver struct {
+	group *service.Group
+}
+
+func (s stubAPIKeyModelRouteResolver) ResolveAPIKeyGroupForModel(context.Context, *service.APIKey, string) *service.Group {
+	return s.group
 }

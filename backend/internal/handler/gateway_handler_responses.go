@@ -224,7 +224,16 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		if channelMapping.Mapped {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
 		}
-		result, err := h.gatewayService.ForwardAsResponses(c.Request.Context(), c, account, forwardBody, parsedReq)
+		var result *service.ForwardResult
+		if account.Platform == service.PlatformGemini {
+			if h.geminiOpenAICompatService == nil {
+				h.responsesErrorResponse(c, http.StatusBadGateway, "server_error", "Gemini OpenAI compatibility service is not configured")
+				return
+			}
+			result, err = h.geminiOpenAICompatService.ForwardResponses(c.Request.Context(), c, account, forwardBody, parsedReq)
+		} else {
+			result, err = h.gatewayService.ForwardAsResponses(c.Request.Context(), c, account, forwardBody, parsedReq)
+		}
 
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()

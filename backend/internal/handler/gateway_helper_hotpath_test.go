@@ -177,6 +177,23 @@ func TestSetClaudeCodeClientContext_FastPathAndStrictPath(t *testing.T) {
 	})
 }
 
+func TestAPIKeyModelGroupIDs_CollectsAllBoundGroups(t *testing.T) {
+	legacyGroupID := int64(3)
+	apiKey := &service.APIKey{
+		GroupID:  &legacyGroupID,
+		GroupIDs: []int64{2, 1, 2, 0},
+		Groups: []*service.Group{
+			{ID: 4},
+			{ID: 1},
+			nil,
+		},
+		Group: &service.Group{ID: 5},
+	}
+
+	require.Equal(t, []int64{2, 1, 4, 3, 5}, apiKeyModelGroupIDs(apiKey))
+	require.Nil(t, apiKeyModelGroupIDs(nil))
+}
+
 func TestSetClaudeCodeClientContext_ReuseParsedRequestAndContextCache(t *testing.T) {
 	t.Run("reuse parsed request without body unmarshal", func(t *testing.T) {
 		c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")

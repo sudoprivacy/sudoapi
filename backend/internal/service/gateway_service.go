@@ -9436,6 +9436,56 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 	return cloneStringSlice(models)
 }
 
+// GetAvailableModelsForGroups returns the union of available models across groups.
+// It reuses the single-group cache entries so group-level invalidation remains effective.
+func (s *GatewayService) GetAvailableModelsForGroups(ctx context.Context, groupIDs []int64, platform string) []string {
+	groupIDs = uniquePositiveInt64s(groupIDs)
+	if len(groupIDs) == 0 {
+		return s.GetAvailableModels(ctx, nil, platform)
+	}
+	if len(groupIDs) == 1 {
+		groupID := groupIDs[0]
+		return s.GetAvailableModels(ctx, &groupID, platform)
+	}
+
+	modelSet := make(map[string]struct{})
+	for _, groupID := range groupIDs {
+		groupID := groupID
+		for _, model := range s.GetAvailableModels(ctx, &groupID, platform) {
+			modelSet[model] = struct{}{}
+		}
+	}
+	if len(modelSet) == 0 {
+		return nil
+	}
+
+	models := make([]string, 0, len(modelSet))
+	for model := range modelSet {
+		models = append(models, model)
+	}
+	sort.Strings(models)
+	return models
+}
+
+func uniquePositiveInt64s(values []int64) []int64 {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(values))
+	out := make([]int64, 0, len(values))
+	for _, value := range values {
+		if value <= 0 {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
 func (s *GatewayService) InvalidateAvailableModelsCache(groupID *int64, platform string) {
 	if s == nil || s.modelsListCache == nil {
 		return

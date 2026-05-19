@@ -43,6 +43,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		// Server layer ProviderSet
 		server.ProviderSet,
 
+		wire.Bind(new(middleware.APIKeyModelRouteResolver), new(*service.APIKeyModelRouteResolver)),
+
 		// Privacy client factory for OpenAI training opt-out
 		providePrivacyClientFactory,
 

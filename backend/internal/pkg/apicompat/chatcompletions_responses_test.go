@@ -285,6 +285,24 @@ func TestChatCompletionsToResponses_LegacyFunctions(t *testing.T) {
 	assert.NotContains(t, tc, "function")
 }
 
+func TestChatCompletionsToResponses_PreservesWebSearchTool(t *testing.T) {
+	req := &ChatCompletionsRequest{
+		Model:    "gpt-4o",
+		Messages: []ChatMessage{{Role: "user", Content: json.RawMessage(`"Search"`)}},
+		Tools: []ChatTool{
+			{Type: "web_search_preview"},
+			{Type: "function", Function: &ChatFunction{Name: "get_weather", Parameters: json.RawMessage(`{"type":"object"}`)}},
+		},
+	}
+
+	resp, err := ChatCompletionsToResponses(req)
+	require.NoError(t, err)
+	require.Len(t, resp.Tools, 2)
+	assert.Equal(t, "web_search_preview", resp.Tools[0].Type)
+	assert.Equal(t, "function", resp.Tools[1].Type)
+	assert.Equal(t, "get_weather", resp.Tools[1].Name)
+}
+
 func TestChatCompletionsToResponses_ServiceTier(t *testing.T) {
 	req := &ChatCompletionsRequest{
 		Model:       "gpt-4o",

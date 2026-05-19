@@ -580,6 +580,54 @@ func TestGetAvailableModels_ErrorAndGlobalListBranches(t *testing.T) {
 	require.Equal(t, int64(1), okRepo.listAllCalls.Load())
 }
 
+func TestGetAvailableModelsForGroups_UnionsModelsAcrossBoundGroups(t *testing.T) {
+	resetGatewayHotpathStatsForTest()
+
+	groupA := int64(10)
+	groupB := int64(20)
+	repo := &modelsListAccountRepoStub{
+		byGroup: map[int64][]Account{
+			groupA: {
+				{
+					ID:       1,
+					Platform: PlatformAnthropic,
+					Credentials: map[string]any{
+						"model_mapping": map[string]any{
+							"claude-3-5-sonnet": "claude-3-5-sonnet",
+							"shared-alias":      "claude-3-5-haiku",
+						},
+					},
+				},
+			},
+			groupB: {
+				{
+					ID:       2,
+					Platform: PlatformOpenAI,
+					Credentials: map[string]any{
+						"model_mapping": map[string]any{
+							"gpt-5.4":      "gpt-5.4",
+							"shared-alias": "gpt-5.4-mini",
+						},
+					},
+				},
+			},
+		},
+	}
+	svc := &GatewayService{
+		accountRepo:        repo,
+		modelsListCache:    gocache.New(time.Minute, time.Minute),
+		modelsListCacheTTL: time.Minute,
+	}
+
+	models := svc.GetAvailableModelsForGroups(context.Background(), []int64{groupA, groupB, groupA, 0}, "")
+	require.Equal(t, []string{"claude-3-5-sonnet", "gpt-5.4", "shared-alias"}, models)
+	require.Equal(t, int64(2), repo.listByGroupCalls.Load())
+
+	cached := svc.GetAvailableModelsForGroups(context.Background(), []int64{groupB, groupA}, "")
+	require.Equal(t, models, cached)
+	require.Equal(t, int64(2), repo.listByGroupCalls.Load())
+}
+
 func TestGatewayHotpathHelpers_CacheTTLAndStickyContext(t *testing.T) {
 	t.Run("resolve_user_group_rate_cache_ttl", func(t *testing.T) {
 		require.Equal(t, defaultUserGroupRateCacheTTL, resolveUserGroupRateCacheTTL(nil))

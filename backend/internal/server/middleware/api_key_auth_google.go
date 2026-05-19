@@ -54,7 +54,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 401, "User account is not active")
 			return
 		}
-		apiKey = effectiveAPIKeyForRequest(c, apiKey, service.PlatformGemini)
+		apiKey = effectiveAPIKeyForRequest(c, apiKey, service.PlatformGemini, nil)
 
 		// 简易模式：跳过余额和订阅检查
 		if cfg.RunMode == config.RunModeSimple {
