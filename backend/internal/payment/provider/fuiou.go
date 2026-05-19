@@ -179,7 +179,6 @@ type fuiouOrderRequest struct {
 	OrderAmt      string `json:"order_amt"`
 	OrderPayType  string `json:"order_pay_type"`
 	BackNotifyURL string `json:"back_notify_url"`
-	PageNotifyURL string `json:"page_notify_url,omitempty"`
 	GoodsName     string `json:"goods_name"`
 	GoodsDetail   string `json:"goods_detail"`
 	Ver           string `json:"ver"`
@@ -261,10 +260,6 @@ func (f *Fuiou) CreatePayment(ctx context.Context, req payment.CreatePaymentRequ
 	if notifyURL == "" {
 		return nil, fmt.Errorf("fuiou create payment: notify URL is required")
 	}
-	returnURL := strings.TrimSpace(req.ReturnURL)
-	if returnURL == "" {
-		returnURL = strings.TrimSpace(f.config["returnUrl"])
-	}
 
 	body := fuiouOrderRequest{
 		MchntCD:       f.config["mchntCd"],
@@ -273,7 +268,6 @@ func (f *Fuiou) CreatePayment(ctx context.Context, req payment.CreatePaymentRequ
 		OrderAmt:      strconv.FormatInt(amountCents, 10),
 		OrderPayType:  payType,
 		BackNotifyURL: notifyURL,
-		PageNotifyURL: returnURL,
 		GoodsName:     defaultIfBlank(req.Subject, req.OrderID),
 		GoodsDetail:   defaultIfBlank(req.Subject, req.OrderID),
 		Ver:           fuiouAPIVersion,
