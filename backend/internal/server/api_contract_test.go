@@ -951,7 +951,7 @@ func TestAPIContracts(t *testing.T) {
 					"google_oauth_frontend_redirect_url": "/auth/oauth/callback",
 					"site_name": "SudoRouter",
 					"site_logo": "",
-					"site_subtitle": "Subscription to API Conversion Platform",
+					"site_subtitle": "The Secured and Reliable GenAI Gateway for the Next Generation of AI Applications",
 					"api_base_url": "",
 					"contact_info": "",
 					"doc_url": "",
