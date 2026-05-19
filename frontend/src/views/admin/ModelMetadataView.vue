@@ -169,12 +169,64 @@
           </div>
           <div>
             <label class="input-label">{{ t('admin.modelMetadata.fields.category') }}</label>
-            <select v-model="form.category" class="input">
-              <option value="">{{ t('admin.modelMetadata.form.categoryPlaceholder') }}</option>
-              <option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </option>
-            </select>
+            <div ref="categoryComboboxRef" class="relative">
+              <div class="relative">
+                <input
+                  v-model="form.category"
+                  type="text"
+                  class="input pr-10"
+                  :placeholder="t('admin.modelMetadata.form.categoryPlaceholder')"
+                  list="model-metadata-category-options"
+                  @focus="categoryDropdownOpen = true"
+                  @keydown.escape="categoryDropdownOpen = false"
+                  @keydown.down.prevent="categoryDropdownOpen = true"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700 dark:hover:text-dark-200"
+                  @mousedown.prevent
+                  @click="toggleCategoryDropdown"
+                >
+                  <Icon
+                    name="chevronDown"
+                    size="sm"
+                    class="transition-transform"
+                    :class="categoryDropdownOpen ? 'rotate-180' : ''"
+                  />
+                </button>
+              </div>
+              <div
+                v-if="categoryDropdownOpen"
+                class="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-700 dark:bg-dark-800"
+              >
+                <button
+                  v-for="opt in categoryOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-dark-700"
+                  :class="opt.value === form.category ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300' : 'text-gray-700 dark:text-dark-200'"
+                  @mousedown.prevent
+                  @click="selectCategoryOption(opt.value)"
+                >
+                  <span class="truncate">{{ opt.label }}</span>
+                  <span
+                    v-if="opt.label !== opt.value"
+                    class="shrink-0 font-mono text-xs text-gray-400 dark:text-dark-400"
+                  >
+                    {{ opt.value }}
+                  </span>
+                </button>
+                <div
+                  v-if="categoryOptions.length === 0"
+                  class="px-3 py-2 text-sm text-gray-400 dark:text-dark-400"
+                >
+                  {{ t('common.noOptionsFound') }}
+                </div>
+              </div>
+            </div>
+            <datalist id="model-metadata-category-options">
+              <option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+            </datalist>
           </div>
           <div>
             <label class="input-label">{{ t('admin.modelMetadata.fields.modelType') }}</label>
@@ -335,7 +387,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { ModelMetadataListItem } from '@/api/admin/modelMetadata'
@@ -364,6 +416,9 @@ const showDialog = ref(false)
 const showClearDialog = ref(false)
 const clearing = ref<ModelMetadataListItem | null>(null)
 const configuredPlatforms = ref<string[]>([])
+const rememberedCategoryOptions = ref<string[]>([])
+const categoryDropdownOpen = ref(false)
+const categoryComboboxRef = ref<HTMLElement | null>(null)
 
 interface FormState {
   model_name: string
@@ -408,16 +463,20 @@ const columns = computed<Column[]>(() => [
 
 const categoryOptions = computed(() =>
   sortedUnique([
+    ...rememberedCategoryOptions.value,
     ...configuredPlatforms.value,
     ...items.value.flatMap((item) => item.platforms || []),
+    ...items.value.map((item) => item.metadata.category),
+    ...items.value.map((item) => item.override?.category || ''),
   ]).map((value) => ({
     value,
-    label: platformCategoryLabel(value),
+    label: categoryOptionLabel(value),
   })),
 )
 
 const defaultModelTypes = ['chat', 'responses', 'completion', 'embedding', 'image_generation', 'audio_speech', 'audio_transcription']
 const defaultModalities = ['text', 'image', 'audio', 'video']
+const legacyModelCategories = ['claude', 'gpt', 'image', 'embedding', 'audio', 'other']
 const defaultSupportFlags = [
   'assistant_prefill',
   'audio_input',
@@ -521,14 +580,10 @@ async function loadConfiguredPlatforms() {
 
 function openEditDialog(row: ModelMetadataListItem) {
   const src = row.metadata
-  const platformCategories = sortedUnique([
-    ...configuredPlatforms.value,
-    ...(row.platforms || []),
-  ])
   form.model_name = row.model_name
   form.display_name = src.display_name || ''
   form.description = src.description || ''
-  form.category = platformCategories.includes(src.category) ? src.category : (row.platforms?.[0] || platformCategories[0] || '')
+  form.category = src.category || ''
   form.model_type = src.model_type || ''
   form.context_window = src.context_window || 0
   form.max_output = src.max_output || 0
@@ -543,12 +598,13 @@ function openEditDialog(row: ModelMetadataListItem) {
 
 function closeDialog() {
   showDialog.value = false
+  categoryDropdownOpen.value = false
 }
 
 async function saveMetadata() {
   saving.value = true
   try {
-    await adminAPI.modelMetadata.upsert({
+    const saved = await adminAPI.modelMetadata.upsert({
       model_name: form.model_name,
       display_name: form.display_name,
       description: form.description,
@@ -563,6 +619,7 @@ async function saveMetadata() {
       featured: !!form.featured,
       icon_url: form.icon_url,
     })
+    rememberCategoryOption(saved.category || form.category)
     appStore.showSuccess(t('admin.modelMetadata.saveSuccess'))
     closeDialog()
     await loadItems()
@@ -599,6 +656,30 @@ function toggleListValue(field: 'input_modalities' | 'output_modalities' | 'supp
     : [...list, value]
 }
 
+function toggleCategoryDropdown() {
+  categoryDropdownOpen.value = !categoryDropdownOpen.value
+}
+
+function selectCategoryOption(value: string) {
+  form.category = value
+  categoryDropdownOpen.value = false
+}
+
+function rememberCategoryOption(value: string) {
+  const category = value.trim().toLowerCase()
+  if (!category) return
+  rememberedCategoryOptions.value = sortedUnique([
+    ...rememberedCategoryOptions.value,
+    category,
+  ])
+}
+
+function handleCategoryOutsideClick(event: PointerEvent) {
+  const root = categoryComboboxRef.value
+  if (!root || root.contains(event.target as Node)) return
+  categoryDropdownOpen.value = false
+}
+
 function missingFieldLabel(field: string) {
   return t(`admin.modelMetadata.missingFields.${field}`, field)
 }
@@ -607,9 +688,17 @@ function platformCategoryLabel(value: string): string {
   return t(`admin.groups.platforms.${value}`, platformLabel(value))
 }
 
+function categoryOptionLabel(value: string): string {
+  return configuredPlatforms.value.includes(value)
+    ? platformCategoryLabel(value)
+    : t(`modelSquare.categories.${value}`, value)
+}
+
 function formatCategoryLabel(category: string, rowPlatforms: string[]): string {
   const platforms = sortedUnique([...configuredPlatforms.value, ...(rowPlatforms || [])])
-  const effective = platforms.includes(category) ? category : (rowPlatforms?.[0] || category)
+  const effective = platforms.includes(category)
+    ? category
+    : (legacyModelCategories.includes(category) ? (rowPlatforms?.[0] || category) : category)
   if (!effective) return '-'
   return platforms.includes(effective)
     ? platformCategoryLabel(effective)
@@ -636,7 +725,12 @@ function humanizeKey(key: string): string {
 }
 
 onMounted(() => {
+  document.addEventListener('pointerdown', handleCategoryOutsideClick)
   loadConfiguredPlatforms()
   loadItems()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleCategoryOutsideClick)
 })
 </script>

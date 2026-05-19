@@ -2534,7 +2534,7 @@ export default {
         modelName: 'Model',
         displayName: 'Display name',
         description: 'Description',
-        category: 'Category',
+        category: 'Vendor',
         modelType: 'Model type',
         contextWindow: 'Context',
         maxOutput: 'Max output',
@@ -2551,7 +2551,7 @@ export default {
       missingFields: {
         display_name: 'Display name',
         description: 'Description',
-        category: 'Category',
+        category: 'Vendor',
         model_type: 'Model type',
         context_window: 'Context',
         max_output: 'Max output',
@@ -2564,7 +2564,7 @@ export default {
       form: {
         displayNamePlaceholder: 'Defaults to model name',
         descriptionPlaceholder: 'Shown on /models cards and detail drawer',
-        categoryPlaceholder: 'Select category',
+        categoryPlaceholder: 'Enter or select vendor',
         modelTypePlaceholder: 'e.g. chat / image_generation',
         contextWindowPlaceholder: 'e.g. 200000',
         maxOutputPlaceholder: 'e.g. 8192',
