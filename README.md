@@ -1,4 +1,4 @@
-# Sub2API
+# SudoRouter
 
 <div align="center">
 
@@ -16,23 +16,23 @@ English | [中文](README_CN.md) | [日本語](README_JA.md)
 
 </div>
 
-> **Sub2API officially uses only the domains `sub2api.org` and `pincc.ai`. Other websites using the Sub2API name may be third-party deployments or services and are not affiliated with this project. Please verify and exercise your own judgment.**
+> **SudoRouter officially uses only the domains `sub2api.org` and `pincc.ai`. Other websites using the SudoRouter name may be third-party deployments or services and are not affiliated with this project. Please verify and exercise your own judgment.**
 
 ---
 
 ## Demo
 
-Try Sub2API online: **[https://demo.sub2api.org/](https://demo.sub2api.org/)**
+Try SudoRouter online: **[https://demo.sub2api.org/](https://demo.sub2api.org/)**
 
 Demo credentials (shared demo environment; **not** created automatically for self-hosted installs):
 
-| Email | Password |
-|-------|----------|
+| Email             | Password |
+| ----------------- | -------- |
 | admin@sub2api.org | admin123 |
 
 ## Overview
 
-Sub2API is an AI API gateway platform designed to distribute and manage API quotas from AI product subscriptions. Users can access upstream AI services through platform-generated API Keys, while the platform handles authentication, billing, load balancing, and request forwarding.
+SudoRouter is an AI API gateway platform designed to distribute and manage API quotas from AI product subscriptions. Users can access upstream AI services through platform-generated API Keys, while the platform handles authentication, billing, load balancing, and request forwarding.
 
 ## Features
 
@@ -53,7 +53,7 @@ Sub2API is an AI API gateway platform designed to distribute and manage API quot
 <table>
 <tr>
 <td width="180" align="center" valign="middle"><a href="https://shop.pincc.ai/"><img src="assets/partners/logos/pincc-logo.png" alt="pincc" width="150"></a></td>
-<td valign="middle"><b><a href="https://shop.pincc.ai/">PinCC</a></b> is the official relay service built on Sub2API, offering stable access to Claude Code, Codex, Gemini and other popular models — ready to use, no deployment or maintenance required.</td>
+<td valign="middle"><b><a href="https://shop.pincc.ai/">PinCC</a></b> is the official relay service built on SudoRouter, offering stable access to Claude Code, Codex, Gemini and other popular models — ready to use, no deployment or maintenance required.</td>
 </tr>
 
 <tr>
@@ -72,8 +72,8 @@ Sub2API is an AI API gateway platform designed to distribute and manage API quot
 </tr>
 
 <tr>
-<td width="180"><a href="https://code.silkapi.com/register?aff=SUB2API"><img src="assets/partners/logos/silkapi.png" alt="silkapi" width="150"></a></td>
-<td>Thanks to SilkAPI for sponsoring this project! <a href="https://code.silkapi.com/register?aff=SUB2API">SilkAPI</a> is a relay service built on Sub2API, specializing in providing high-speed and stable Codex API relay.</td>
+<td width="180"><a href="https://code.silkapi.com/register?aff=SUDOROUTER"><img src="assets/partners/logos/silkapi.png" alt="silkapi" width="150"></a></td>
+<td>Thanks to SilkAPI for sponsoring this project! <a href="https://code.silkapi.com/register?aff=SUDOROUTER">SilkAPI</a> is a relay service built on SudoRouter, specializing in providing high-speed and stable Codex API relay.</td>
 </tr>
 
 <tr>
@@ -113,27 +113,27 @@ Register now via <a href="https://pateway.ai/?ch=1tsfr51">this link</a> to recei
 
 ## Ecosystem
 
-Community projects that extend or integrate with Sub2API:
+Community projects that extend or integrate with SudoRouter:
 
-| Project | Description | Features |
-|---------|-------------|----------|
-| ~~[Sub2ApiPay](https://github.com/touwaeriol/sub2apipay)~~ | ~~Self-service payment system~~ | **Now Built-in** — Payment is now integrated into Sub2API, no separate deployment needed. See [Payment Configuration Guide](docs/PAYMENT.md) |
-| [sub2api-mobile](https://github.com/ckken/sub2api-mobile) | Mobile admin console | Cross-platform app (iOS/Android/Web) for user management, account management, monitoring dashboard, and multi-backend switching; built with Expo + React Native |
+| Project                                                   | Description                     | Features                                                                                                                                                        |
+| --------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~[LegacyPay](https://github.com/touwaeriol/sub2apipay)~~ | ~~Self-service payment system~~ | **Now Built-in** — Payment is now integrated into SudoRouter, no separate deployment needed. See [Payment Configuration Guide](docs/PAYMENT.md)                 |
+| [sub2api-mobile](https://github.com/ckken/sub2api-mobile) | Mobile admin console            | Cross-platform app (iOS/Android/Web) for user management, account management, monitoring dashboard, and multi-backend switching; built with Expo + React Native |
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Backend | Go 1.25.7, Gin, Ent |
-| Frontend | Vue 3.4+, Vite 5+, TailwindCSS |
-| Database | PostgreSQL 15+ |
-| Cache/Queue | Redis 7+ |
+| Component   | Technology                     |
+| ----------- | ------------------------------ |
+| Backend     | Go 1.25.7, Gin, Ent            |
+| Frontend    | Vue 3.4+, Vite 5+, TailwindCSS |
+| Database    | PostgreSQL 15+                 |
+| Cache/Queue | Redis 7+                       |
 
 ---
 
 ## Nginx Reverse Proxy Note
 
-When using Nginx as a reverse proxy for Sub2API (or CRS) with Codex CLI, add the following to the `http` block in your Nginx configuration:
+When using Nginx as a reverse proxy for SudoRouter (or CRS) with Codex CLI, add the following to the `http` block in your Nginx configuration:
 
 ```nginx
 underscores_in_headers on;
@@ -163,6 +163,7 @@ curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install
 ```
 
 The script will:
+
 1. Detect your system architecture
 2. Download the latest release
 3. Install binary to `/opt/sub2api`
@@ -183,6 +184,7 @@ sudo systemctl enable sub2api
 ```
 
 The Setup Wizard will guide you through:
+
 - Database configuration
 - Redis configuration
 - Admin account creation
@@ -192,6 +194,7 @@ The Setup Wizard will guide you through:
 You can upgrade directly from the **Admin Dashboard** by clicking the **Check for Updates** button in the top-left corner.
 
 The web interface will:
+
 - Check for new versions automatically
 - Download and apply updates with one click
 - Support rollback if needed
@@ -242,6 +245,7 @@ docker compose logs -f sub2api
 ```
 
 **What the script does:**
+
 - Downloads `docker-compose.local.yml` (saved as `docker-compose.yml`) and `.env.example`
 - Generates secure credentials (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with auto-generated secrets
@@ -285,6 +289,7 @@ SERVER_PORT=8080
 ```
 
 **Generate secure secrets:**
+
 ```bash
 # Generate JWT_SECRET
 openssl rand -hex 32
@@ -316,10 +321,10 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 #### Deployment Versions
 
-| Version | Data Storage | Migration | Best For |
-|---------|-------------|-----------|----------|
+| Version                      | Data Storage      | Migration                      | Best For                     |
+| ---------------------------- | ----------------- | ------------------------------ | ---------------------------- |
 | **docker-compose.local.yml** | Local directories | ✅ Easy (tar entire directory) | Production, frequent backups |
-| **docker-compose.yml** | Named volumes | ⚠️ Requires docker commands | Simple setup |
+| **docker-compose.yml**       | Named volumes     | ⚠️ Requires docker commands    | Simple setup                 |
 
 **Recommendation:** Use `docker-compose.local.yml` (deployed by script) for easier data management.
 
@@ -328,6 +333,7 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 Open `http://YOUR_SERVER_IP:8080` in your browser.
 
 If admin password was auto-generated, find it in logs:
+
 ```bash
 docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 ```
@@ -475,8 +481,8 @@ When `security.url_allowlist.enabled=false`, the system performs minimal URL val
 ```yaml
 security:
   url_allowlist:
-    enabled: false                # Disable allowlist checks
-    allow_insecure_http: true     # Allow HTTP URLs (⚠️ INSECURE)
+    enabled: false # Disable allowlist checks
+    allow_insecure_http: true # Allow HTTP URLs (⚠️ INSECURE)
 ```
 
 **Or via environment variable:**
@@ -487,22 +493,26 @@ SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
 ```
 
 **Risks of allowing HTTP:**
+
 - API keys and data transmitted in **plaintext** (vulnerable to interception)
 - Susceptible to **man-in-the-middle (MITM) attacks**
 - **NOT suitable for production** environments
 
 **When to use HTTP:**
+
 - ✅ Development/testing with local servers (http://localhost)
 - ✅ Internal networks with trusted endpoints
 - ✅ Testing account connectivity before obtaining HTTPS
 - ❌ Production environments (use HTTPS only)
 
 **Example error without this setting:**
+
 ```
 Invalid base URL: invalid url scheme: http
 ```
 
 If you disable URL validation or response header filtering, harden your network layer:
+
 - Enforce an egress allowlist for upstream domains/IPs
 - Block private/loopback/link-local ranges
 - Enforce TLS-only outbound traffic
@@ -549,14 +559,14 @@ Simple Mode is designed for individual developers or internal teams who want qui
 
 ## Antigravity Support
 
-Sub2API supports [Antigravity](https://antigravity.so/) accounts. After authorization, dedicated endpoints are available for Claude and Gemini models.
+SudoRouter supports [Antigravity](https://antigravity.so/) accounts. After authorization, dedicated endpoints are available for Claude and Gemini models.
 
 ### Dedicated Endpoints
 
-| Endpoint | Model |
-|----------|-------|
+| Endpoint                   | Model         |
+| -------------------------- | ------------- |
 | `/antigravity/v1/messages` | Claude models |
-| `/antigravity/v1beta/` | Gemini models |
+| `/antigravity/v1beta/`     | Gemini models |
 
 ### Claude Code Configuration
 

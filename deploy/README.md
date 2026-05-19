@@ -1,6 +1,6 @@
-# Sub2API Deployment Files
+# SudoRouter Deployment Files
 
-This directory contains files for deploying Sub2API on Linux servers.
+This directory contains files for deploying SudoRouter on Linux servers.
 
 ## Deployment Methods
 
@@ -170,7 +170,7 @@ docker compose -f docker-compose.local.yml down
 # View logs
 docker compose -f docker-compose.local.yml logs -f sub2api
 
-# Restart Sub2API only
+# Restart SudoRouter only
 docker compose -f docker-compose.local.yml restart sub2api
 
 # Update to latest version
@@ -194,7 +194,7 @@ docker compose down
 # View logs
 docker compose logs -f sub2api
 
-# Restart Sub2API only
+# Restart SudoRouter only
 docker compose restart sub2api
 
 # Update to latest version
@@ -251,7 +251,7 @@ Your entire deployment (configuration + data) is migrated!
 
 ## Gemini OAuth Configuration
 
-Sub2API supports three methods to connect to Gemini:
+SudoRouter supports three methods to connect to Gemini:
 
 ### Method 1: Code Assist OAuth (Recommended for GCP Users)
 
@@ -296,7 +296,7 @@ Requires your own OAuth client credentials.
    - Go to "APIs & Services" → "Credentials"
    - Click "Create Credentials" → "OAuth client ID"
    - Application type: **Web application** (or **Desktop app**)
-   - Name: e.g., "Sub2API Gemini"
+   - Name: e.g., "SudoRouter Gemini"
    - Authorized redirect URIs: Add `http://localhost:1455/auth/callback`
 6. Copy the **Client ID** and **Client Secret**
 7. **⚠️ Publish to Production (IMPORTANT):**
@@ -559,7 +559,7 @@ sudo systemctl status redis
 
 ## TLS Fingerprint Configuration
 
-Sub2API supports TLS fingerprint simulation to make requests appear as if they come from the official Claude CLI (Node.js client).
+SudoRouter supports TLS fingerprint simulation to make requests appear as if they come from the official Claude CLI (Node.js client).
 
 > **💡 Tip:** Visit **[tls.sub2api.org](https://tls.sub2api.org/)** to get TLS fingerprint information for different devices and browsers.
 

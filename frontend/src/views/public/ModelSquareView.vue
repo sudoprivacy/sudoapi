@@ -59,7 +59,7 @@ const authStore = useAuthStore()
 const appStore = useAppStore()
 
 const siteName = computed(
-  () => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'Sub2API',
+  () => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'SudoRouter',
 )
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
