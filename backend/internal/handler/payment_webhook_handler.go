@@ -67,6 +67,12 @@ func (h *PaymentWebhookHandler) AirwallexWebhook(c *gin.Context) {
 	h.handleNotify(c, payment.TypeAirwallex)
 }
 
+// FuiouNotify 处理富友支付的异步通知。
+// POST /api/v1/payment/webhook/fuiou
+func (h *PaymentWebhookHandler) FuiouNotify(c *gin.Context) {
+	h.handleNotify(c, payment.TypeFuiou)
+}
+
 // handleNotify is the shared logic for all provider webhook handlers.
 func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string) {
 	var rawBody string
@@ -163,6 +169,16 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 		}
 		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
 			return strings.TrimSpace(payload.Data.Object.MerchantOrderID)
+		}
+	case payment.TypeFuiou:
+		// Fuiou wraps the real order_id inside an RSA-encrypted "message" that
+		// only the matching merchant private key can decrypt. The outer envelope
+		// exposes mchnt_cd in plaintext, so we use it as the lookup key instead.
+		var payload struct {
+			MchntCD string `json:"mchnt_cd"`
+		}
+		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
+			return strings.TrimSpace(payload.MchntCD)
 		}
 	}
 	// For other providers (Stripe, Alipay direct, WxPay direct), the registry

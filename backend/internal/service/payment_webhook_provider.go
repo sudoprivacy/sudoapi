@@ -30,6 +30,12 @@ func (s *PaymentService) GetWebhookProvider(ctx context.Context, providerKey, ou
 // Official WeChat Pay may require multiple candidates because the callback body
 // cannot be bound to a merchant before decryption.
 func (s *PaymentService) GetWebhookProviders(ctx context.Context, providerKey, outTradeNo string) ([]payment.Provider, error) {
+	// Fuiou wraps the real order_id inside an RSA-encrypted body, so the handler
+	// passes the unencrypted mchnt_cd as the lookup key instead of out_trade_no.
+	// Match it against each enabled fuiou instance's MerchantIdentityMetadata.
+	if strings.TrimSpace(providerKey) == payment.TypeFuiou {
+		return s.getFuiouProvidersByMchntCd(ctx, outTradeNo)
+	}
 	if outTradeNo != "" {
 		order, err := s.entClient.PaymentOrder.Query().Where(paymentorder.OutTradeNo(outTradeNo)).Only(ctx)
 		if err == nil {
@@ -145,4 +151,57 @@ func (s *PaymentService) getEnabledWebhookProvidersByKey(ctx context.Context, pr
 		return nil, payment.ErrProviderNotFound
 	}
 	return providers, nil
+}
+
+// getFuiouProvidersByMchntCd returns the fuiou provider instance whose
+// configured mchnt_cd matches the value extracted from the webhook envelope.
+// When mchntCd is empty and only one enabled fuiou instance exists, that
+// instance is returned (legacy single-instance fallback).
+func (s *PaymentService) getFuiouProvidersByMchntCd(ctx context.Context, mchntCd string) ([]payment.Provider, error) {
+	instances, err := s.entClient.PaymentProviderInstance.Query().
+		Where(
+			paymentproviderinstance.ProviderKeyEQ(payment.TypeFuiou),
+			paymentproviderinstance.EnabledEQ(true),
+		).
+		Order(dbent.Asc(paymentproviderinstance.FieldSortOrder)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query fuiou webhook instances: %w", err)
+	}
+	if len(instances) == 0 {
+		return nil, payment.ErrProviderNotFound
+	}
+
+	candidates := make([]payment.Provider, 0, len(instances))
+	for _, inst := range instances {
+		prov, provErr := s.createProviderFromInstance(ctx, inst)
+		if provErr != nil {
+			slog.Warn("skip fuiou webhook instance", "instanceID", inst.ID, "error", provErr)
+			continue
+		}
+		candidates = append(candidates, prov)
+	}
+	if len(candidates) == 0 {
+		return nil, payment.ErrProviderNotFound
+	}
+
+	if strings.TrimSpace(mchntCd) == "" {
+		// Single-instance fallback only — multiple instances without a mchnt_cd
+		// hint would be ambiguous and we'd verify against the wrong merchant.
+		if len(candidates) == 1 {
+			return candidates, nil
+		}
+		return nil, fmt.Errorf("webhook provider fallback is ambiguous for fuiou (missing mchnt_cd)")
+	}
+
+	for _, prov := range candidates {
+		identifier, ok := prov.(payment.MerchantIdentityProvider)
+		if !ok {
+			continue
+		}
+		if identifier.MerchantIdentityMetadata()["mchnt_cd"] == mchntCd {
+			return []payment.Provider{prov}, nil
+		}
+	}
+	return nil, payment.ErrProviderNotFound
 }

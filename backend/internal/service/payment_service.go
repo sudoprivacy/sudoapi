@@ -45,7 +45,8 @@ const (
 	topUsersLimit      = 10
 	amountToleranceCNY = 0.01
 
-	orderIDPrefix = "sub2_"
+	orderIDPrefix      = "sub2_"
+	fuiouOrderIDPrefix = "sub2"
 )
 
 const paymentResumeSigningKeyEnv = "PAYMENT_RESUME_SIGNING_KEY"
@@ -58,6 +59,20 @@ func generateOutTradeNo() string {
 	date := time.Now().Format("20060102")
 	rnd := generateRandomString(8)
 	return orderIDPrefix + date + rnd
+}
+
+func generateProviderOutTradeNo(providerKey string) string {
+	if strings.TrimSpace(providerKey) == payment.TypeFuiou {
+		return generateFuiouOutTradeNo()
+	}
+	return generateOutTradeNo()
+}
+
+// generateFuiouOutTradeNo keeps Fuiou order_id alphanumeric only.
+func generateFuiouOutTradeNo() string {
+	date := time.Now().Format("20060102")
+	rnd := generateRandomString(8)
+	return fuiouOrderIDPrefix + date + rnd
 }
 
 func generateRandomString(n int) string {

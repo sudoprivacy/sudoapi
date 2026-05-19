@@ -36,6 +36,7 @@ export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
   wxpay: ['wxpay'],
   stripe: ['card', 'alipay', 'wxpay', 'link'],
   airwallex: ['airwallex'],
+  fuiou: ['alipay', 'wxpay'],
 }
 
 /** Available payment modes for EasyPay providers. */
@@ -91,6 +92,7 @@ export const WEBHOOK_PATHS: Record<string, string> = {
   wxpay: '/api/v1/payment/webhook/wxpay',
   stripe: '/api/v1/payment/webhook/stripe',
   airwallex: '/api/v1/payment/webhook/airwallex',
+  fuiou: '/api/v1/payment/webhook/fuiou',
 }
 
 export const RETURN_PATH = '/payment/result'
@@ -100,6 +102,7 @@ export const PROVIDER_CALLBACK_PATHS: Record<string, CallbackPaths> = {
   easypay: { notifyUrl: WEBHOOK_PATHS.easypay, returnUrl: RETURN_PATH },
   alipay: { notifyUrl: WEBHOOK_PATHS.alipay, returnUrl: RETURN_PATH },
   wxpay: { notifyUrl: WEBHOOK_PATHS.wxpay },
+  fuiou: { notifyUrl: WEBHOOK_PATHS.fuiou, returnUrl: RETURN_PATH },
   // stripe: 不需要回调 URL 配置，Webhook 单独配置。
   // airwallex: 不需要回调 URL 配置，Webhook 在空中云汇后台配置。
 }
@@ -141,6 +144,13 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'countryCode', label: '', sensitive: false, defaultValue: 'CN' },
     { key: 'currency', label: '', sensitive: false, defaultValue: 'CNY', hintKey: 'admin.settings.payment.field_paymentCurrencyHint', options: PAYMENT_CURRENCY_OPTIONS },
     { key: 'accountId', label: '', sensitive: false, optional: true, clearable: true, hintKey: 'admin.settings.payment.field_accountIdHint' },
+  ],
+  fuiou: [
+    { key: 'mchntCd', label: '', sensitive: false },
+    { key: 'apiBase', label: '', sensitive: false, defaultValue: 'https://hlwnets.fuioupay.com', hintKey: 'admin.settings.payment.field_fuiouApiBaseHint' },
+    { key: 'fuiouPublicKey', label: '', sensitive: true },
+    { key: 'merchantPrivateKey', label: '', sensitive: true },
+    { key: 'currency', label: '', sensitive: false, defaultValue: 'CNY', hintKey: 'admin.settings.payment.field_paymentCurrencyHint', options: PAYMENT_CURRENCY_OPTIONS },
   ],
 }
 

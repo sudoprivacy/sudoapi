@@ -161,17 +161,17 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		tm = defaultOrderTimeoutMin
 	}
 	exp := time.Now().Add(time.Duration(tm) * time.Minute)
-	outTradeNo, err := s.allocateOutTradeNo(ctx, tx)
-	if err != nil {
-		return nil, err
-	}
-	providerSnapshot := buildPaymentOrderProviderSnapshot(sel, req)
 	selectedInstanceID := ""
 	selectedProviderKey := ""
 	if sel != nil {
 		selectedInstanceID = strings.TrimSpace(sel.InstanceID)
 		selectedProviderKey = strings.TrimSpace(sel.ProviderKey)
 	}
+	outTradeNo, err := s.allocateOutTradeNo(ctx, tx, selectedProviderKey)
+	if err != nil {
+		return nil, err
+	}
+	providerSnapshot := buildPaymentOrderProviderSnapshot(sel, req)
 	b := tx.PaymentOrder.Create().
 		SetUserID(req.UserID).
 		SetUserEmail(user.Email).
@@ -219,10 +219,10 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	return order, nil
 }
 
-func (s *PaymentService) allocateOutTradeNo(ctx context.Context, tx *dbent.Tx) (string, error) {
+func (s *PaymentService) allocateOutTradeNo(ctx context.Context, tx *dbent.Tx, providerKey string) (string, error) {
 	const maxAttempts = 5
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		candidate := generateOutTradeNo()
+		candidate := generateProviderOutTradeNo(providerKey)
 		exists, err := tx.PaymentOrder.Query().Where(paymentorder.OutTradeNo(candidate)).Exist(ctx)
 		if err != nil {
 			return "", fmt.Errorf("check out_trade_no uniqueness: %w", err)
