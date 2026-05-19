@@ -57,8 +57,13 @@ export interface ModelSquareCard {
   /** claude / gpt / gemini / image / embedding / audio / other */
   category: string
   description: string
+  /** LiteLLM mode, e.g. chat / responses / embedding / image_generation. */
+  model_type: string
   context_window: number
   max_output: number
+  input_modalities: string[]
+  output_modalities: string[]
+  support_flags: string[]
   capabilities: string[]
   featured: boolean
   icon_url: string | null

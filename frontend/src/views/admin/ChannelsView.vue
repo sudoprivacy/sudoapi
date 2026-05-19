@@ -734,12 +734,28 @@ const form = reactive({
 let abortController: AbortController | null = null
 
 // ── Platform config ──
-const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity']
+const fallbackPlatformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity']
+const platformOrder = ref<GroupPlatform[]>([...fallbackPlatformOrder])
+
+async function loadConfiguredPlatforms() {
+  try {
+    const res = await adminAPI.channels.listPlatforms()
+    const platforms = sortedUniquePlatforms(res.platforms)
+    platformOrder.value = platforms.length > 0 ? platforms as GroupPlatform[] : [...fallbackPlatformOrder]
+  } catch (error) {
+    console.warn('Error loading configured platforms:', error)
+    platformOrder.value = [...fallbackPlatformOrder]
+  }
+}
 
 // ── Helpers ──
 function formatDate(value: string): string {
   if (!value) return '-'
   return new Date(value).toLocaleDateString()
+}
+
+function sortedUniquePlatforms(values: string[]): string[] {
+  return Array.from(new Set(values.map(v => v.trim().toLowerCase()).filter(Boolean))).sort()
 }
 
 // ── Platform section helpers ──
@@ -1097,12 +1113,12 @@ function apiToForm(channel: Channel): PlatformSection[] {
     if (p.platform) activePlatforms.add(p.platform as GroupPlatform)
   }
   for (const p of Object.keys(channel.model_mapping || {})) {
-    if (platformOrder.includes(p as GroupPlatform)) activePlatforms.add(p as GroupPlatform)
+    if (platformOrder.value.includes(p as GroupPlatform)) activePlatforms.add(p as GroupPlatform)
   }
 
   // Build sections in platform order
   const sections: PlatformSection[] = []
-  for (const platform of platformOrder) {
+  for (const platform of platformOrder.value) {
     if (!activePlatforms.has(platform)) continue
 
     const groupIds = (channel.group_ids || []).filter(gid => groupPlatformMap.get(gid) === platform)
@@ -1240,7 +1256,7 @@ function resetForm() {
 async function openCreateDialog() {
   editingChannel.value = null
   resetForm()
-  await Promise.all([loadGroups(), loadAllChannelsForConflict()])
+  await Promise.all([loadConfiguredPlatforms(), loadGroups(), loadAllChannelsForConflict()])
   showDialog.value = true
 }
 
@@ -1253,7 +1269,7 @@ async function openEditDialog(channel: Channel) {
   form.billing_model_source = channel.billing_model_source || 'channel_mapped'
   form.apply_pricing_to_account_stats = channel.apply_pricing_to_account_stats || false
   // Must load groups first so apiToForm can map groupID → platform
-  await Promise.all([loadGroups(), loadAllChannelsForConflict()])
+  await Promise.all([loadConfiguredPlatforms(), loadGroups(), loadAllChannelsForConflict()])
   form.platforms = apiToForm(channel)
 
   // Distribute channel-level rules into per-platform sections
@@ -1515,6 +1531,7 @@ async function confirmDelete() {
 
 // ── Lifecycle ──
 onMounted(() => {
+  loadConfiguredPlatforms()
   loadChannels()
   loadGroups()
   loadWebSearchGlobalState()

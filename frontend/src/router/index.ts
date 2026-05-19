@@ -443,6 +443,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/channels/model-metadata',
+    name: 'AdminModelMetadata',
+    component: () => import('@/views/admin/ModelMetadataView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Model Metadata',
+      titleKey: 'admin.modelMetadata.title',
+      descriptionKey: 'admin.modelMetadata.description'
+    }
+  },
+  {
     path: '/monitor',
     name: 'ChannelStatus',
     component: () => import('@/views/user/ChannelStatusView.vue'),

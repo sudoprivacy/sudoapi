@@ -402,6 +402,9 @@ const (
 
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
+
+	// Model Endpoint Config
+	SettingKeyModelEndpointConfig = "model_endpoint_config" // JSON 配置：platform -> model_type -> endpoints
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

@@ -590,7 +590,13 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	channels := admin.Group("/channels")
 	{
 		channels.GET("", h.Admin.Channel.List)
+		channels.GET("/platforms", h.Admin.Channel.ListPlatforms)
+		channels.GET("/endpoint-config", h.Admin.Channel.GetEndpointConfig)
+		channels.PUT("/endpoint-config", h.Admin.Channel.UpdateEndpointConfig)
 		channels.GET("/model-pricing", h.Admin.Channel.GetModelDefaultPricing)
+		channels.GET("/model-metadata", h.Admin.ModelMetadata.List)
+		channels.POST("/model-metadata", h.Admin.ModelMetadata.Upsert)
+		channels.DELETE("/model-metadata", h.Admin.ModelMetadata.Delete)
 		channels.GET("/:id", h.Admin.Channel.GetByID)
 		channels.POST("", h.Admin.Channel.Create)
 		channels.PUT("/:id", h.Admin.Channel.Update)

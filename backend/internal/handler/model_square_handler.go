@@ -68,16 +68,20 @@ type modelPlatformSectionDTO struct {
 }
 
 type modelSquareCardDTO struct {
-	Name          string                    `json:"name"`
-	DisplayName   string                    `json:"display_name"`
-	Category      string                    `json:"category"`
-	Description   string                    `json:"description"`
-	ContextWindow int                       `json:"context_window"`
-	MaxOutput     int                       `json:"max_output"`
-	Capabilities  []string                  `json:"capabilities"`
-	Featured      bool                      `json:"featured"`
-	IconURL       string                    `json:"icon_url"`
-	Platforms     []modelPlatformSectionDTO `json:"platforms"`
+	Name             string                    `json:"name"`
+	DisplayName      string                    `json:"display_name"`
+	Category         string                    `json:"category"`
+	Description      string                    `json:"description"`
+	ModelType        string                    `json:"model_type"`
+	ContextWindow    int                       `json:"context_window"`
+	MaxOutput        int                       `json:"max_output"`
+	Capabilities     []string                  `json:"capabilities"`
+	InputModalities  []string                  `json:"input_modalities"`
+	OutputModalities []string                  `json:"output_modalities"`
+	SupportFlags     []string                  `json:"support_flags"`
+	Featured         bool                      `json:"featured"`
+	IconURL          string                    `json:"icon_url"`
+	Platforms        []modelPlatformSectionDTO `json:"platforms"`
 }
 
 // ListPublic 处理 GET /api/v1/public/models。
@@ -127,19 +131,30 @@ func toCardDTOs(cards []service.ModelSquareCard, userRateMultipliers map[int64]f
 	out := make([]modelSquareCardDTO, 0, len(cards))
 	for _, c := range cards {
 		out = append(out, modelSquareCardDTO{
-			Name:          c.Name,
-			DisplayName:   c.DisplayName,
-			Category:      c.Category,
-			Description:   c.Description,
-			ContextWindow: c.ContextWindow,
-			MaxOutput:     c.MaxOutput,
-			Capabilities:  c.Capabilities,
-			Featured:      c.Featured,
-			IconURL:       c.IconURL,
-			Platforms:     toPlatformDTOs(c.Platforms, userRateMultipliers),
+			Name:             c.Name,
+			DisplayName:      c.DisplayName,
+			Category:         c.Category,
+			Description:      c.Description,
+			ModelType:        c.ModelType,
+			ContextWindow:    c.ContextWindow,
+			MaxOutput:        c.MaxOutput,
+			Capabilities:     c.Capabilities,
+			InputModalities:  emptyStrings(c.InputModalities),
+			OutputModalities: emptyStrings(c.OutputModalities),
+			SupportFlags:     emptyStrings(c.SupportFlags),
+			Featured:         c.Featured,
+			IconURL:          c.IconURL,
+			Platforms:        toPlatformDTOs(c.Platforms, userRateMultipliers),
 		})
 	}
 	return out
+}
+
+func emptyStrings(in []string) []string {
+	if in == nil {
+		return []string{}
+	}
+	return in
 }
 
 func toPlatformDTOs(in []service.ModelPlatformSection, rates map[int64]float64) []modelPlatformSectionDTO {
