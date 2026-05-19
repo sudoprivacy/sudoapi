@@ -33,6 +33,9 @@ const (
 	VisibleMethodSourceEasyPayAlipay  = "easypay_alipay"
 	VisibleMethodSourceOfficialWechat = "official_wxpay"
 	VisibleMethodSourceEasyPayWechat  = "easypay_wxpay"
+	// sudoapi: Fuiou Pay payment provider integration.
+	VisibleMethodSourceFuiouAlipay = "fuiou_alipay"
+	VisibleMethodSourceFuiouWechat = "fuiou_wxpay"
 
 	wechatPaymentResumeTokenType = "wechat_payment_resume"
 
@@ -156,6 +159,9 @@ func NormalizeVisibleMethodSource(method, source string) string {
 			return VisibleMethodSourceOfficialAlipay
 		case VisibleMethodSourceEasyPayAlipay, payment.TypeEasyPay:
 			return VisibleMethodSourceEasyPayAlipay
+		// sudoapi: Fuiou Pay payment provider integration.
+		case VisibleMethodSourceFuiouAlipay, payment.TypeFuiou:
+			return VisibleMethodSourceFuiouAlipay
 		}
 	case payment.TypeWxpay:
 		switch strings.TrimSpace(strings.ToLower(source)) {
@@ -163,6 +169,9 @@ func NormalizeVisibleMethodSource(method, source string) string {
 			return VisibleMethodSourceOfficialWechat
 		case VisibleMethodSourceEasyPayWechat, payment.TypeEasyPay:
 			return VisibleMethodSourceEasyPayWechat
+		// sudoapi: Fuiou Pay payment provider integration.
+		case VisibleMethodSourceFuiouWechat, payment.TypeFuiou:
+			return VisibleMethodSourceFuiouWechat
 		}
 	}
 	return ""
@@ -174,10 +183,16 @@ func VisibleMethodProviderKeyForSource(method, source string) (string, bool) {
 		return payment.TypeAlipay, NormalizeVisibleMethod(method) == payment.TypeAlipay
 	case VisibleMethodSourceEasyPayAlipay:
 		return payment.TypeEasyPay, NormalizeVisibleMethod(method) == payment.TypeAlipay
+	// sudoapi: Fuiou Pay payment provider integration.
+	case VisibleMethodSourceFuiouAlipay:
+		return payment.TypeFuiou, NormalizeVisibleMethod(method) == payment.TypeAlipay
 	case VisibleMethodSourceOfficialWechat:
 		return payment.TypeWxpay, NormalizeVisibleMethod(method) == payment.TypeWxpay
 	case VisibleMethodSourceEasyPayWechat:
 		return payment.TypeEasyPay, NormalizeVisibleMethod(method) == payment.TypeWxpay
+	// sudoapi: Fuiou Pay payment provider integration.
+	case VisibleMethodSourceFuiouWechat:
+		return payment.TypeFuiou, NormalizeVisibleMethod(method) == payment.TypeWxpay
 	default:
 		return "", false
 	}
