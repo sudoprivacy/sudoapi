@@ -45,7 +45,7 @@ func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []stri
 				break
 			}
 		}
-	case payment.TypeEasyPay:
+	case payment.TypeEasyPay, payment.TypeFuiou:
 		for _, supportedType := range splitTypes(supportedTypes) {
 			addMethod(supportedType)
 		}
@@ -138,7 +138,7 @@ func (s *PaymentConfigService) validateVisibleMethodEnablementConflicts(
 	supportedTypes string,
 	enabled bool,
 ) error {
-	// Visible methods are selected by configured source (official/easypay),
+	// Visible methods are selected by configured source (official/aggregator),
 	// so multiple enabled providers can intentionally claim the same user-facing
 	// method. Order creation and limits will route through the configured source.
 	_, _, _, _, _ = ctx, excludeID, providerKey, supportedTypes, enabled
