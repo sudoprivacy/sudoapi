@@ -18,6 +18,8 @@ const (
 	TypeLink         PaymentType = "link"
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
+	// sudoapi: Fuiou Pay payment provider integration.
+	TypeFuiou PaymentType = "fuiou"
 )
 
 // Order status constants shared across payment and service layers.

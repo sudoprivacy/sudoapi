@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { PAYMENT_CURRENCY_OPTIONS, PROVIDER_CONFIG_FIELDS } from '@/components/payment/providerConfig'
+import {
+  PAYMENT_CURRENCY_OPTIONS,
+  PROVIDER_CALLBACK_PATHS,
+  PROVIDER_CONFIG_FIELDS,
+  PROVIDER_SUPPORTED_TYPES,
+  WEBHOOK_PATHS,
+} from '@/components/payment/providerConfig'
 
 function findField(providerKey: string, key: string) {
   const fields = PROVIDER_CONFIG_FIELDS[providerKey] || []
@@ -48,5 +54,44 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
     expect(currency?.defaultValue).toBe('CNY')
     expect(currency?.hintKey).toBe('admin.settings.payment.field_paymentCurrencyHint')
     expect(currency?.options).toBe(PAYMENT_CURRENCY_OPTIONS)
+  })
+})
+
+// sudoapi: Fuiou Pay payment provider integration.
+describe('PROVIDER_CONFIG_FIELDS.fuiou', () => {
+  it('exposes mchnt_cd as a non-sensitive identity field', () => {
+    const mchnt = findField('fuiou', 'mchntCd')
+    expect(mchnt).toBeDefined()
+    expect(mchnt?.sensitive).toBe(false)
+  })
+
+  it('marks the RSA key pair fields as sensitive', () => {
+    expect(findField('fuiou', 'fuiouPublicKey')?.sensitive).toBe(true)
+    expect(findField('fuiou', 'merchantPrivateKey')?.sensitive).toBe(true)
+  })
+
+  it('defaults apiBase to the Fuiou production gateway with an environment hint', () => {
+    const apiBase = findField('fuiou', 'apiBase')
+    expect(apiBase?.defaultValue).toBe('https://hlwnets.fuioupay.com')
+    expect(apiBase?.hintKey).toBe('admin.settings.payment.field_fuiouApiBaseHint')
+  })
+
+  it('defaults currency to CNY', () => {
+    const currency = findField('fuiou', 'currency')
+    expect(currency?.defaultValue).toBe('CNY')
+    expect(currency?.options).toBe(PAYMENT_CURRENCY_OPTIONS)
+  })
+
+  it('supports both alipay and wxpay payment types', () => {
+    expect(PROVIDER_SUPPORTED_TYPES.fuiou).toEqual(['alipay', 'wxpay'])
+  })
+
+  it('registers a dedicated webhook path', () => {
+    expect(WEBHOOK_PATHS.fuiou).toBe('/api/v1/payment/webhook/fuiou')
+  })
+
+  it('exposes notify + return callback paths for the admin form', () => {
+    expect(PROVIDER_CALLBACK_PATHS.fuiou?.notifyUrl).toBe(WEBHOOK_PATHS.fuiou)
+    expect(PROVIDER_CALLBACK_PATHS.fuiou?.returnUrl).toBe('/payment/result')
   })
 })

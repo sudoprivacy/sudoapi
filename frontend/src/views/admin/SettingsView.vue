@@ -8885,6 +8885,8 @@ const allPaymentTypes = computed(() => [
   { value: "wxpay", label: t("payment.methods.wxpay") },
   { value: "stripe", label: t("payment.methods.stripe") },
   { value: "airwallex", label: t("payment.methods.airwallex") },
+  // sudoapi: Fuiou Pay payment provider integration.
+  { value: "fuiou", label: t("payment.methods.fuiou") },
 ]);
 
 function isPaymentTypeEnabled(type: string): boolean {
@@ -8942,6 +8944,8 @@ const providerKeyOptions = computed(() => [
   { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
   { value: "stripe", label: t("admin.settings.payment.providerStripe") },
   { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
+  // sudoapi: Fuiou Pay payment provider integration.
+  { value: "fuiou", label: t("admin.settings.payment.providerFuiou") },
 ]);
 
 const enabledProviderKeyOptions = computed(() => {

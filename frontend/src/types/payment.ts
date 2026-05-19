@@ -18,7 +18,16 @@ export type OrderStatus =
   | 'REFUNDED'
   | 'REFUND_FAILED'
 
-export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex'
+export type PaymentType =
+  | 'alipay'
+  | 'wxpay'
+  | 'alipay_direct'
+  | 'wxpay_direct'
+  | 'stripe'
+  | 'easypay'
+  | 'airwallex'
+  // sudoapi: Fuiou Pay payment provider integration.
+  | 'fuiou'
 
 export type OrderType = 'balance' | 'subscription'
 

@@ -45,7 +45,8 @@ func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []stri
 				break
 			}
 		}
-	case payment.TypeEasyPay:
+	// sudoapi: Fuiou Pay payment provider integration.
+	case payment.TypeEasyPay, payment.TypeFuiou:
 		for _, supportedType := range splitTypes(supportedTypes) {
 			addMethod(supportedType)
 		}

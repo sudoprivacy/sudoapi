@@ -383,6 +383,15 @@ func TestGetAvailableMethodLimitsUsesConfiguredVisibleMethodSource(t *testing.T)
 			wantGlobalMin:       20,
 			wantGlobalMax:       300,
 		},
+		// sudoapi: Fuiou Pay payment provider integration.
+		{
+			name:                "fuiou source",
+			sourceSetting:       VisibleMethodSourceFuiouAlipay,
+			wantAlipaySingleMin: 25,
+			wantAlipaySingleMax: 250,
+			wantGlobalMin:       25,
+			wantGlobalMax:       300,
+		},
 	}
 
 	for _, tt := range tests {
@@ -411,6 +420,18 @@ func TestGetAvailableMethodLimitsUsesConfiguredVisibleMethodSource(t *testing.T)
 				Save(ctx)
 			if err != nil {
 				t.Fatalf("create easypay alipay instance: %v", err)
+			}
+			// sudoapi: Fuiou Pay payment provider integration.
+			_, err = client.PaymentProviderInstance.Create().
+				SetProviderKey(payment.TypeFuiou).
+				SetName("Fuiou Alipay").
+				SetConfig("{}").
+				SetSupportedTypes("alipay").
+				SetLimits(`{"alipay":{"singleMin":25,"singleMax":250}}`).
+				SetEnabled(true).
+				Save(ctx)
+			if err != nil {
+				t.Fatalf("create fuiou alipay instance: %v", err)
 			}
 			_, err = client.PaymentProviderInstance.Create().
 				SetProviderKey(payment.TypeWxpay).
@@ -457,6 +478,37 @@ func TestGetAvailableMethodLimitsUsesConfiguredVisibleMethodSource(t *testing.T)
 				t.Fatalf("global range = (%v, %v), want (%v, %v)", resp.GlobalMin, resp.GlobalMax, tt.wantGlobalMin, tt.wantGlobalMax)
 			}
 		})
+	}
+}
+
+// sudoapi: Fuiou Pay payment provider integration.
+func TestGetAvailableMethodLimitsExposesSingleFuiouVisibleMethods(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	_, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeFuiou).
+		SetName("Fuiou").
+		SetConfig("{}").
+		SetSupportedTypes("alipay,wxpay").
+		SetLimits(`{"alipay":{"singleMin":10,"singleMax":100},"wxpay":{"singleMin":20,"singleMax":200}}`).
+		SetEnabled(true).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create fuiou instance: %v", err)
+	}
+
+	svc := &PaymentConfigService{entClient: client}
+	resp, err := svc.GetAvailableMethodLimits(ctx)
+	if err != nil {
+		t.Fatalf("GetAvailableMethodLimits returned error: %v", err)
+	}
+
+	if _, ok := resp.Methods[payment.TypeAlipay]; !ok {
+		t.Fatalf("expected alipay to be visible for fuiou instance, got %v", resp.Methods)
+	}
+	if _, ok := resp.Methods[payment.TypeWxpay]; !ok {
+		t.Fatalf("expected wxpay to be visible for fuiou instance, got %v", resp.Methods)
 	}
 }
 

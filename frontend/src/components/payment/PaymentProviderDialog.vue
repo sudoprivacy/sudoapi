@@ -482,6 +482,15 @@ const paymentGuide = computed<PaymentGuide | null>(() => {
     }
   }
 
+  // sudoapi: Fuiou Pay payment provider integration.
+  if (form.provider_key === 'fuiou') {
+    return {
+      summary: t('admin.settings.payment.fuiouGuideSummary'),
+      note: t('admin.settings.payment.fuiouGuideNote'),
+      items: [],
+    }
+  }
+
   return null
 })
 
