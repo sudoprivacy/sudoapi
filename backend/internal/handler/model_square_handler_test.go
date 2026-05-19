@@ -40,6 +40,12 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 						BaseRateMult:      1.0,
 						BillingMode:       service.BillingModeToken,
 						InputPricePerMTok: func() *float64 { v := 17.5; return &v }(),
+						Intervals: []service.ModelGroupPriceInterval{{
+							MinTokens:          0,
+							MaxTokens:          func() *int { v := 200000; return &v }(),
+							InputPricePerMTok:  func() *float64 { v := 3.0; return &v }(),
+							OutputPricePerMTok: func() *float64 { v := 15.0; return &v }(),
+						}},
 					},
 				},
 			},
@@ -80,10 +86,19 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 	require.Contains(t, row, "output_price_per_mtok_usd")
 	require.Contains(t, row, "cache_read_price_per_mtok_usd")
 	require.Contains(t, row, "cache_write_price_per_mtok_usd")
+	require.Contains(t, row, "intervals")
 	require.Contains(t, row, "channel_chain")
 	require.Contains(t, row, "base_rate_multiplier")
 	// 未传 userRateMultipliers 时 user_rate_multiplier 必须是 null（json: null → nil 反序列化为 nil）
 	require.Nil(t, row["user_rate_multiplier"])
+
+	intervals, _ := row["intervals"].([]any)
+	require.Len(t, intervals, 1)
+	interval := intervals[0].(map[string]any)
+	require.Contains(t, interval, "min_tokens")
+	require.Contains(t, interval, "max_tokens")
+	require.Contains(t, interval, "input_price_per_mtok_usd")
+	require.Contains(t, interval, "output_price_per_mtok_usd")
 }
 
 func TestToCardDTOs_UserRateMultiplierJoinsByGroupID(t *testing.T) {

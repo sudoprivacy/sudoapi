@@ -1107,6 +1107,9 @@ export default {
       cacheWritePrice: '缓存创建',
       imageOutputPrice: '图片输出',
       perRequestPrice: '每次请求',
+      intervalPrices: '上下文区间定价',
+      contextRange: '上下文区间',
+      tier: '层级',
       callChain: '{group} 分组调用链路'
     }
   },

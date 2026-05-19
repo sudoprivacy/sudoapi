@@ -451,6 +451,9 @@ func (h *ChannelHandler) Create(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if h.modelSquareSvc != nil {
+		h.modelSquareSvc.InvalidateAll()
+	}
 
 	response.Success(c, channelToResponse(channel))
 }
@@ -516,6 +519,9 @@ func (h *ChannelHandler) Update(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if h.modelSquareSvc != nil {
+		h.modelSquareSvc.InvalidateAll()
+	}
 
 	response.Success(c, channelToResponse(channel))
 }
@@ -532,6 +538,9 @@ func (h *ChannelHandler) Delete(c *gin.Context) {
 	if err := h.channelService.Delete(c.Request.Context(), id); err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+	if h.modelSquareSvc != nil {
+		h.modelSquareSvc.InvalidateAll()
 	}
 
 	response.Success(c, gin.H{"message": "Channel deleted successfully"})

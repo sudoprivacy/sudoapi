@@ -156,6 +156,16 @@ const minInputPriceLabel = computed(() => {
         const scaled = row.per_request_price_usd * effective
         if (minPerRequest == null || scaled < minPerRequest) minPerRequest = scaled
       }
+      for (const iv of row.intervals ?? []) {
+        if (iv.input_price_per_mtok_usd != null) {
+          const scaled = iv.input_price_per_mtok_usd * effective
+          if (minToken == null || scaled < minToken) minToken = scaled
+        }
+        if (iv.per_request_price_usd != null) {
+          const scaled = iv.per_request_price_usd * effective
+          if (minPerRequest == null || scaled < minPerRequest) minPerRequest = scaled
+        }
+      }
     }
   }
   if (minToken != null) {

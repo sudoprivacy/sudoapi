@@ -17,6 +17,18 @@ export interface ModelEndpoint {
   method: string
 }
 
+export interface ModelPriceInterval {
+  min_tokens: number
+  max_tokens: number | null
+  tier_label: string
+  input_price_per_mtok_usd: number | null
+  output_price_per_mtok_usd: number | null
+  cache_read_price_per_mtok_usd: number | null
+  cache_write_price_per_mtok_usd: number | null
+  per_request_price_usd: number | null
+  sort_order: number
+}
+
 /** 单个分组下的定价行。
  *
  *  调用方展示有效倍率：
@@ -40,6 +52,8 @@ export interface ModelGroupPrice {
   image_output_price_per_mtok_usd: number | null
   /** per_request / image 模式：每次调用价格（USD）。 */
   per_request_price_usd: number | null
+  /** 上下文区间定价；token 模式为 USD/MTok，按次/图片模式为 USD/call。 */
+  intervals: ModelPriceInterval[]
   /** 同模型同分组在多个渠道下都有定价时的渠道名链路（已按字典序去重排序）。 */
   channel_chain: string[]
 }

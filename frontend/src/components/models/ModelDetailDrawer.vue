@@ -277,6 +277,75 @@
                       />
                     </tbody>
                   </table>
+
+                  <div
+                    v-if="row.intervals && row.intervals.length > 0"
+                    class="mt-3 overflow-x-auto rounded-md border border-gray-100 dark:border-dark-700"
+                  >
+                    <div class="border-b border-gray-100 px-2 py-1.5 text-[11px] font-medium text-gray-500 dark:border-dark-700 dark:text-dark-300">
+                      {{ t('modelSquare.detail.intervalPrices') }}
+                    </div>
+                    <table v-if="row.billing_mode === 'token'" class="min-w-[560px] w-full text-xs">
+                      <thead>
+                        <tr class="border-b border-gray-100 text-left text-[11px] text-gray-400 dark:border-dark-700">
+                          <th class="px-2 py-1">{{ t('modelSquare.detail.contextRange') }}</th>
+                          <th class="px-2 py-1 text-right">{{ t('modelSquare.detail.inputPrice') }}</th>
+                          <th class="px-2 py-1 text-right">{{ t('modelSquare.detail.outputPrice') }}</th>
+                          <th class="px-2 py-1 text-right">{{ t('modelSquare.detail.cacheReadPrice') }}</th>
+                          <th class="px-2 py-1 text-right">{{ t('modelSquare.detail.cacheWritePrice') }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="iv in sortedIntervals(row)"
+                          :key="`${platform.platform}-${row.group_id}-${iv.min_tokens}-${iv.max_tokens ?? 'inf'}-${iv.sort_order}`"
+                          class="border-b border-gray-100 last:border-0 dark:border-dark-700/60"
+                        >
+                          <td class="whitespace-nowrap px-2 py-1.5 font-mono text-gray-600 dark:text-dark-300">
+                            {{ formatIntervalRange(iv) }}
+                          </td>
+                          <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                            {{ formatIntervalPrice(iv.input_price_per_mtok_usd, row, 'MTok') }}
+                          </td>
+                          <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                            {{ formatIntervalPrice(iv.output_price_per_mtok_usd, row, 'MTok') }}
+                          </td>
+                          <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                            {{ formatIntervalPrice(iv.cache_read_price_per_mtok_usd, row, 'MTok') }}
+                          </td>
+                          <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                            {{ formatIntervalPrice(iv.cache_write_price_per_mtok_usd, row, 'MTok') }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <table v-else class="min-w-[420px] w-full text-xs">
+                      <thead>
+                        <tr class="border-b border-gray-100 text-left text-[11px] text-gray-400 dark:border-dark-700">
+                          <th class="px-2 py-1">{{ t('modelSquare.detail.tier') }}</th>
+                          <th class="px-2 py-1">{{ t('modelSquare.detail.contextRange') }}</th>
+                          <th class="px-2 py-1 text-right">{{ t('modelSquare.detail.perRequestPrice') }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="iv in sortedIntervals(row)"
+                          :key="`${platform.platform}-${row.group_id}-${iv.tier_label}-${iv.min_tokens}-${iv.max_tokens ?? 'inf'}-${iv.sort_order}`"
+                          class="border-b border-gray-100 last:border-0 dark:border-dark-700/60"
+                        >
+                          <td class="whitespace-nowrap px-2 py-1.5 text-gray-600 dark:text-dark-300">
+                            {{ iv.tier_label || '-' }}
+                          </td>
+                          <td class="whitespace-nowrap px-2 py-1.5 font-mono text-gray-600 dark:text-dark-300">
+                            {{ formatIntervalRange(iv) }}
+                          </td>
+                          <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                            {{ formatIntervalPrice(iv.per_request_price_usd, row, 'call') }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -290,7 +359,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ModelSquareCard, ModelGroupPrice } from '@/api/models'
+import type { ModelSquareCard, ModelGroupPrice, ModelPriceInterval } from '@/api/models'
 import { platformBadgeClass } from '@/utils/platformColors'
 import Icon from '@/components/icons/Icon.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
@@ -353,6 +422,36 @@ function modelTypeLabel(key: string): string {
 /** 有效倍率 = base × user（user 缺失时按 1 计）。 */
 function effectiveMultiplier(row: ModelGroupPrice): number {
   return row.base_rate_multiplier * (row.user_rate_multiplier ?? 1)
+}
+
+function sortedIntervals(row: ModelGroupPrice): ModelPriceInterval[] {
+  return [...(row.intervals ?? [])].sort((a, b) => {
+    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+    if (a.min_tokens !== b.min_tokens) return a.min_tokens - b.min_tokens
+    return (a.max_tokens ?? Number.MAX_SAFE_INTEGER) - (b.max_tokens ?? Number.MAX_SAFE_INTEGER)
+  })
+}
+
+function formatIntervalRange(iv: ModelPriceInterval): string {
+  const min = formatTokenBoundary(iv.min_tokens)
+  const max = iv.max_tokens == null ? '∞' : formatTokenBoundary(iv.max_tokens)
+  return `(${min}, ${max}]`
+}
+
+function formatIntervalPrice(value: number | null, row: ModelGroupPrice, unit: 'MTok' | 'call'): string {
+  if (value == null) return '-'
+  return `$${formatMoney(value * effectiveMultiplier(row))} / ${unit}`
+}
+
+function formatMoney(v: number): string {
+  if (v >= 1) return v.toFixed(2)
+  if (v >= 0.01) return v.toFixed(4)
+  return v.toFixed(6)
+}
+
+function formatTokenBoundary(n: number): string {
+  if (n === 0) return '0'
+  return formatTokens(n)
 }
 
 function formatTokens(n: number): string {
