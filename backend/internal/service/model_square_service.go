@@ -68,8 +68,30 @@ type ModelGroupPrice struct {
 	// per_request / image：USD per call
 	PerRequestPrice *float64
 
+	// 上下文区间定价。token 模式价格统一为 USD per 1M tokens；
+	// per_request / image 模式价格保持 USD per call。
+	Intervals []ModelGroupPriceInterval
+
 	// 同模型在多渠道提供时记录调用链路（按渠道名稳定排序），仅展示用。
 	ChannelChain []string
+}
+
+// ModelGroupPriceInterval 单个分组价格下的上下文区间。
+type ModelGroupPriceInterval struct {
+	MinTokens int
+	MaxTokens *int
+	TierLabel string
+
+	// USD per 1M tokens
+	InputPricePerMTok      *float64
+	OutputPricePerMTok     *float64
+	CacheReadPricePerMTok  *float64
+	CacheWritePricePerMTok *float64
+
+	// per_request / image：USD per call
+	PerRequestPrice *float64
+
+	SortOrder int
 }
 
 // ModelPlatformSection 单个模型在某平台下的完整切片。
@@ -649,7 +671,55 @@ func buildGroupPrice(g AvailableGroupRef, p *ChannelModelPricing) ModelGroupPric
 		v := *p.PerRequestPrice
 		row.PerRequestPrice = &v
 	}
+	row.Intervals = buildGroupPriceIntervals(p.Intervals)
 	return row
+}
+
+func buildGroupPriceIntervals(intervals []PricingInterval) []ModelGroupPriceInterval {
+	if len(intervals) == 0 {
+		return nil
+	}
+	out := make([]ModelGroupPriceInterval, 0, len(intervals))
+	for _, iv := range intervals {
+		if !pricingIntervalHasPrice(iv) {
+			continue
+		}
+		out = append(out, ModelGroupPriceInterval{
+			MinTokens:              iv.MinTokens,
+			MaxTokens:              iv.MaxTokens,
+			TierLabel:              iv.TierLabel,
+			InputPricePerMTok:      scaleIntervalPtrPerMillion(iv.InputPrice),
+			OutputPricePerMTok:     scaleIntervalPtrPerMillion(iv.OutputPrice),
+			CacheReadPricePerMTok:  scaleIntervalPtrPerMillion(iv.CacheReadPrice),
+			CacheWritePricePerMTok: scaleIntervalPtrPerMillion(iv.CacheWritePrice),
+			PerRequestPrice:        cloneFloatPtr(iv.PerRequestPrice),
+			SortOrder:              iv.SortOrder,
+		})
+	}
+	return out
+}
+
+func pricingIntervalHasPrice(iv PricingInterval) bool {
+	return iv.InputPrice != nil || iv.OutputPrice != nil ||
+		iv.CacheWritePrice != nil || iv.CacheReadPrice != nil ||
+		iv.PerRequestPrice != nil
+}
+
+func cloneFloatPtr(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	vv := *v
+	return &vv
+}
+
+// scaleIntervalPtrPerMillion 用于区间展示，保留显式 0 价格以表达免费区间。
+func scaleIntervalPtrPerMillion(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	scaled := *v * 1_000_000
+	return &scaled
 }
 
 // scalePtrPerMillion 把每 token 价格乘 1e6 转为「USD per 1M tokens」。
@@ -779,6 +849,9 @@ func cloneCards(in []ModelSquareCard) []ModelSquareCard {
 					out[i].Platforms[j].GroupPrices = make([]ModelGroupPrice, len(p.GroupPrices))
 					for k, gp := range p.GroupPrices {
 						out[i].Platforms[j].GroupPrices[k] = gp
+						if gp.Intervals != nil {
+							out[i].Platforms[j].GroupPrices[k].Intervals = append([]ModelGroupPriceInterval(nil), gp.Intervals...)
+						}
 						if gp.ChannelChain != nil {
 							out[i].Platforms[j].GroupPrices[k].ChannelChain = append([]string(nil), gp.ChannelChain...)
 						}

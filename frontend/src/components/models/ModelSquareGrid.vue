@@ -279,6 +279,15 @@ function minInputPrice(card: ModelSquareCard): number {
           (row.user_rate_multiplier ?? 1);
         if (min == null || v < min) min = v;
       }
+      for (const iv of row.intervals ?? []) {
+        if (iv.input_price_per_mtok_usd != null) {
+          const v =
+            iv.input_price_per_mtok_usd *
+            row.base_rate_multiplier *
+            (row.user_rate_multiplier ?? 1);
+          if (min == null || v < min) min = v;
+        }
+      }
     }
   }
   return min ?? Number.POSITIVE_INFINITY;

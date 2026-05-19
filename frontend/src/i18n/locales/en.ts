@@ -1149,6 +1149,9 @@ export default {
       cacheWritePrice: 'Cache write',
       imageOutputPrice: 'Image output',
       perRequestPrice: 'Per request',
+      intervalPrices: 'Context interval pricing',
+      contextRange: 'Context range',
+      tier: 'Tier',
       callChain: '{group} call chain'
     }
   },

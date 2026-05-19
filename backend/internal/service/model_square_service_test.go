@@ -35,6 +35,7 @@ func stubChannelServiceProvider(t *testing.T, channels []Channel, groups []Group
 }
 
 func msPtrFloat(v float64) *float64 { return &v }
+func msPtrInt(v int) *int           { return &v }
 
 type stubModelMetadataReader map[string]*ModelMetadataOverride
 
@@ -164,6 +165,58 @@ func TestModelSquareService_PricePerMillionConversion(t *testing.T) {
 	require.InDelta(t, 87.5, *p.OutputPricePerMTok, 1e-6)
 	require.InDelta(t, 1.75, *p.CacheReadPricePerMTok, 1e-6)
 	require.InDelta(t, 21.875, *p.CacheWritePricePerMTok, 1e-6)
+}
+
+func TestModelSquareService_ContextIntervalsConversion(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformAnthropic, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformAnthropic, Models: []string{"claude-opus-4-7"},
+			BillingMode: BillingModeToken,
+			InputPrice:  msPtrFloat(1e-6),
+			OutputPrice: msPtrFloat(2e-6),
+			Intervals: []PricingInterval{
+				{
+					MinTokens:       0,
+					MaxTokens:       msPtrInt(200000),
+					InputPrice:      msPtrFloat(3e-6),
+					OutputPrice:     msPtrFloat(1.5e-5),
+					CacheReadPrice:  msPtrFloat(3e-7),
+					CacheWritePrice: msPtrFloat(3.75e-6),
+					SortOrder:       0,
+				},
+				{
+					MinTokens:  200000,
+					MaxTokens:  nil,
+					InputPrice: msPtrFloat(6e-6),
+					SortOrder:  1,
+				},
+				{
+					MinTokens: 400000,
+					MaxTokens: nil,
+					SortOrder: 2,
+				},
+			},
+		}},
+	}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), nil)
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	intervals := cards[0].Platforms[0].GroupPrices[0].Intervals
+	require.Len(t, intervals, 2, "empty intervals are not shown")
+	require.Equal(t, 0, intervals[0].MinTokens)
+	require.NotNil(t, intervals[0].MaxTokens)
+	require.Equal(t, 200000, *intervals[0].MaxTokens)
+	require.InDelta(t, 3, *intervals[0].InputPricePerMTok, 1e-9)
+	require.InDelta(t, 15, *intervals[0].OutputPricePerMTok, 1e-9)
+	require.InDelta(t, 0.3, *intervals[0].CacheReadPricePerMTok, 1e-9)
+	require.InDelta(t, 3.75, *intervals[0].CacheWritePricePerMTok, 1e-9)
+	require.Equal(t, 200000, intervals[1].MinTokens)
+	require.Nil(t, intervals[1].MaxTokens)
+	require.InDelta(t, 6, *intervals[1].InputPricePerMTok, 1e-9)
 }
 
 func TestModelSquareService_ZeroPriceTreatedAsUnconfigured(t *testing.T) {
