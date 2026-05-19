@@ -369,7 +369,7 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 		m[SettingBalancePayDisabled] = formatBoolOrEmpty(req.BalanceDisabled)
 	}
 	if req.BalanceRechargeMultiplier != nil {
-		m[SettingBalanceRechargeMult] = formatPositiveFloat(req.BalanceRechargeMultiplier)
+		m[SettingBalanceRechargeMult] = formatPositiveFloatExact(req.BalanceRechargeMultiplier)
 	}
 	if req.SubscriptionUSDToCNYRate != nil {
 		m[SettingSubscriptionUSDToCNYRate] = formatPositiveFloatExact(req.SubscriptionUSDToCNYRate)
@@ -524,13 +524,22 @@ func buildVisibleMethodSourceAvailability(instances []*dbent.PaymentProviderInst
 			if inst.SupportedTypes == "" || payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeWxpay) || payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeWxpayDirect) {
 				available[VisibleMethodSourceOfficialWechat] = true
 			}
-		case payment.TypeEasyPay:
+		// sudoapi: Fuiou Pay payment provider integration.
+		case payment.TypeEasyPay, payment.TypeFuiou:
 			for _, supportedType := range splitTypes(inst.SupportedTypes) {
 				switch NormalizeVisibleMethod(supportedType) {
 				case payment.TypeAlipay:
-					available[VisibleMethodSourceEasyPayAlipay] = true
+					if inst.ProviderKey == payment.TypeFuiou {
+						available[VisibleMethodSourceFuiouAlipay] = true
+					} else {
+						available[VisibleMethodSourceEasyPayAlipay] = true
+					}
 				case payment.TypeWxpay:
-					available[VisibleMethodSourceEasyPayWechat] = true
+					if inst.ProviderKey == payment.TypeFuiou {
+						available[VisibleMethodSourceFuiouWechat] = true
+					} else {
+						available[VisibleMethodSourceEasyPayWechat] = true
+					}
 				}
 			}
 		}
