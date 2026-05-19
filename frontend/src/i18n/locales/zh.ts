@@ -2670,7 +2670,7 @@ export default {
         modelName: '模型名',
         displayName: '显示名',
         description: '描述',
-        category: '分类',
+        category: '厂商',
         modelType: '模型类型',
         contextWindow: '上下文',
         maxOutput: '最大输出',
@@ -2687,7 +2687,7 @@ export default {
       missingFields: {
         display_name: '显示名',
         description: '描述',
-        category: '分类',
+        category: '厂商',
         model_type: '模型类型',
         context_window: '上下文',
         max_output: '最大输出',
@@ -2700,7 +2700,7 @@ export default {
       form: {
         displayNamePlaceholder: '不填则使用模型名',
         descriptionPlaceholder: '用于 /models 卡片和详情页展示',
-        categoryPlaceholder: '选择分类',
+        categoryPlaceholder: '输入或选择厂商',
         modelTypePlaceholder: '例如 chat / image_generation',
         contextWindowPlaceholder: '例如 200000',
         maxOutputPlaceholder: '例如 8192',
