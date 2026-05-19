@@ -601,18 +601,6 @@ func isImageMode(mode string) bool {
 	return m == "image_generation" || m == "image"
 }
 
-// modeFromPricing 查模型 mode；pricingSvc 为 nil 或查不到时返回空串。
-func modeFromPricing(pricingSvc *PricingService, modelName string) string {
-	if pricingSvc == nil {
-		return ""
-	}
-	lp := pricingSvc.GetModelPricing(modelName)
-	if lp == nil {
-		return ""
-	}
-	return lp.Mode
-}
-
 // filterGroupsForScope 根据 scope 过滤可见分组。
 //
 //   - ScopePublic：standard + 非专属（IsExclusive=false）。
