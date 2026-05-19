@@ -16,8 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/shopspring/decimal"
+
+	"github.com/Wei-Shaw/sub2api/internal/payment"
 )
 
 // Fuiou (富友支付) constants.
@@ -379,14 +380,14 @@ func (f *Fuiou) Refund(ctx context.Context, req payment.RefundRequest) (*payment
 		refundID = refundID[:32]
 	}
 	body := fuiouRefundRequest{
-		MchntCD:    f.config["mchntCd"],
-		OrderID:    refundID,
-		OrderDate:  time.Now().Format("20060102"),
-		RefundAmt:  strconv.FormatInt(amountCents, 10),
-		RefundID:   refundID,
-		RefundDesc: defaultIfBlank(req.Reason, "refund"),
+		MchntCD:     f.config["mchntCd"],
+		OrderID:     refundID,
+		OrderDate:   time.Now().Format("20060102"),
+		RefundAmt:   strconv.FormatInt(amountCents, 10),
+		RefundID:    refundID,
+		RefundDesc:  defaultIfBlank(req.Reason, "refund"),
 		OrigOrderID: orderID,
-		Ver:        fuiouAPIVersion,
+		Ver:         fuiouAPIVersion,
 	}
 	var resp fuiouRefundResponse
 	if err := f.doEncryptedRequest(ctx, fuiouRefundPath, body, &resp); err != nil {
@@ -507,7 +508,7 @@ func fuiouRSAEncrypt(pub *rsa.PublicKey, data []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		buf.Write(block)
+		_, _ = buf.Write(block)
 	}
 	return buf.Bytes(), nil
 }
@@ -528,7 +529,7 @@ func fuiouRSADecrypt(pri *rsa.PrivateKey, data []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		buf.Write(block)
+		_, _ = buf.Write(block)
 	}
 	return buf.Bytes(), nil
 }
