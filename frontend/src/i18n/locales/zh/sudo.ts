@@ -7,5 +7,21 @@ export default {
       dataImportSuccess: '导入完成：账号创建 {account_created}，跳过 {account_skipped}，失败 {account_failed}',
       dataImportCompletedWithErrors: '导入完成但有错误：账号跳过 {account_skipped}，账号失败 {account_failed}，代理失败 {proxy_failed}',
     },
+    settings: {
+      payment: {
+        providerFuiou: '富友支付',
+        field_mchntCd: '商户号',
+        field_fuiouPublicKey: '富友公钥',
+        field_merchantPrivateKey: '商户私钥',
+        field_fuiouApiBaseHint: '生产环境填写 https://hlwnets.fuioupay.com，沙箱/测试环境填写 https://hlwnets-test.fuioupay.com。请确保 API Key 与环境一致。',
+        fuiouGuideSummary: '富友聚合支付：通过同一个商户号同时受理支付宝和微信支付。',
+        fuiouGuideNote: '商户私钥需 PKCS8 + Base64 编码；富友公钥为对接方在富友后台下载的 PKIX + Base64 公钥；商户号 mchnt_cd 同时用于回调归属，请确保与富友合同/后台一致。',
+      },
+    },
+  },
+  payment: {
+    methods: {
+      fuiou: '富友支付',
+    },
   },
 }

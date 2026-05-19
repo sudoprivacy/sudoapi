@@ -6774,8 +6774,8 @@
                           ) || 1
                       "
                       type="number"
-                      step="0.01"
-                      min="0.01"
+                      step="0.00000001"
+                      min="0.00000001"
                       class="input"
                     />
                     <p class="mt-0.5 text-xs text-gray-400">
@@ -6793,7 +6793,7 @@
                           usd: (
                             Number(form.payment_balance_recharge_multiplier) ||
                             1
-                          ).toFixed(2),
+                          ).toFixed(8),
                         })
                       }}
                     </p>
@@ -10786,6 +10786,8 @@ const allPaymentTypes = computed(() => [
   { value: "wxpay", label: t("payment.methods.wxpay") },
   { value: "stripe", label: t("payment.methods.stripe") },
   { value: "airwallex", label: t("payment.methods.airwallex") },
+  // sudoapi: Fuiou Pay payment provider integration.
+  { value: "fuiou", label: t("payment.methods.fuiou") },
 ]);
 
 function isPaymentTypeEnabled(type: string): boolean {
@@ -10843,6 +10845,8 @@ const providerKeyOptions = computed(() => [
   { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
   { value: "stripe", label: t("admin.settings.payment.providerStripe") },
   { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
+  // sudoapi: Fuiou Pay payment provider integration.
+  { value: "fuiou", label: t("admin.settings.payment.providerFuiou") },
 ]);
 
 const enabledProviderKeyOptions = computed(() => {
