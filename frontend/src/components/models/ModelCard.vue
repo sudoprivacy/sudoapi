@@ -22,10 +22,16 @@
           <ModelIcon :model="card.name" size="22px" />
         </div>
         <div class="min-w-0 flex-1">
-          <div class="truncate text-sm font-semibold text-gray-900 dark:text-white" :title="card.display_name || card.name">
+          <div
+            class="truncate text-sm font-semibold text-gray-900 dark:text-white"
+            :title="card.display_name || card.name"
+          >
             {{ card.display_name || card.name }}
           </div>
-          <div class="truncate text-[11px] text-gray-500 dark:text-dark-400" :title="card.name">
+          <div
+            class="truncate text-[11px] text-gray-500 dark:text-dark-400"
+            :title="card.name"
+          >
             {{ card.name }}
           </div>
         </div>
@@ -34,7 +40,7 @@
         v-if="card.featured"
         class="flex-shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
       >
-        {{ t('modelSquare.featured') }}
+        {{ t("modelSquare.featured") }}
       </span>
     </div>
 
@@ -69,16 +75,21 @@
         <span
           v-for="p in card.platforms"
           :key="p.platform"
-          :class="['rounded border px-1.5 py-0.5 text-[10px] font-medium', platformBadgeClass(p.platform)]"
+          :class="[
+            'rounded border px-1.5 py-0.5 text-[10px] font-medium',
+            platformBadgeClass(p.platform),
+          ]"
         >
           {{ p.platform }}
         </span>
       </div>
       <div v-if="minInputPriceLabel" class="text-right">
         <div class="text-[10px] text-gray-500 dark:text-dark-400">
-          {{ t('modelSquare.fromPrice') }}
+          {{ t("modelSquare.fromPrice") }}
         </div>
-        <div class="text-xs font-semibold text-primary-600 dark:text-primary-400">
+        <div
+          class="text-xs font-semibold text-primary-600 dark:text-primary-400"
+        >
           {{ minInputPriceLabel }}
         </div>
       </div>
@@ -87,55 +98,57 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import type { ModelSquareCard } from '@/api/models'
-import { platformBadgeClass } from '@/utils/platformColors'
-import ModelIcon from '@/components/common/ModelIcon.vue'
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import type { ModelSquareCard } from "@/api/models";
+import { platformBadgeClass } from "@/utils/platformColors";
+import ModelIcon from "@/components/common/ModelIcon.vue";
 
-const props = defineProps<{ card: ModelSquareCard }>()
-defineEmits<{ (e: 'open', card: ModelSquareCard): void }>()
+const props = defineProps<{ card: ModelSquareCard }>();
+defineEmits<{ (e: "open", card: ModelSquareCard): void }>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const MAX_VISIBLE_TAGS = 4
+const MAX_VISIBLE_TAGS = 4;
 
 const supportFlags = computed(() =>
-  props.card.support_flags?.length ? props.card.support_flags : (props.card.capabilities ?? []),
-)
+  props.card.support_flags?.length
+    ? props.card.support_flags
+    : (props.card.capabilities ?? []),
+);
 const displayedCapabilities = computed(() =>
   supportFlags.value.slice(0, MAX_VISIBLE_TAGS),
-)
+);
 const hiddenCapabilityCount = computed(() =>
   Math.max(0, supportFlags.value.length - MAX_VISIBLE_TAGS),
-)
+);
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
-  anthropic: 'bg-gradient-to-br from-orange-400 to-orange-500',
-  openai: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
-  antigravity: 'bg-gradient-to-br from-purple-500 to-purple-600',
-  claude: 'bg-gradient-to-br from-orange-400 to-orange-500',
-  gpt: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
-  gemini: 'bg-gradient-to-br from-blue-500 to-blue-600',
-  image: 'bg-gradient-to-br from-pink-500 to-rose-600',
-  embedding: 'bg-gradient-to-br from-teal-500 to-cyan-600',
-  audio: 'bg-gradient-to-br from-violet-500 to-purple-600',
-  other: 'bg-gradient-to-br from-slate-400 to-slate-500',
-}
+  anthropic: "bg-gradient-to-br from-orange-400 to-orange-500",
+  openai: "bg-gradient-to-br from-emerald-500 to-emerald-600",
+  antigravity: "bg-gradient-to-br from-purple-500 to-purple-600",
+  claude: "bg-gradient-to-br from-orange-400 to-orange-500",
+  gpt: "bg-gradient-to-br from-emerald-500 to-emerald-600",
+  gemini: "bg-gradient-to-br from-blue-500 to-blue-600",
+  image: "bg-gradient-to-br from-pink-500 to-rose-600",
+  embedding: "bg-gradient-to-br from-teal-500 to-cyan-600",
+  audio: "bg-gradient-to-br from-violet-500 to-purple-600",
+  other: "bg-gradient-to-br from-slate-400 to-slate-500",
+};
 const categoryGradient = computed(
   () => CATEGORY_GRADIENTS[props.card.category] ?? CATEGORY_GRADIENTS.other,
-)
+);
 
 function humanizeKey(key: string): string {
   return key
-    .split('_')
+    .split("_")
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+    .join(" ");
 }
 
 function supportFlagLabel(key: string): string {
-  return t(`modelSquare.capabilities.${key}`, humanizeKey(key))
+  return t(`modelSquare.capabilities.${key}`, humanizeKey(key));
 }
 
 /**
@@ -143,37 +156,40 @@ function supportFlagLabel(key: string): string {
  * 若全为 null，则尝试 per_request_price_usd（按次模式）。完全无价时返回空串。
  */
 const minInputPriceLabel = computed(() => {
-  let minToken: number | null = null
-  let minPerRequest: number | null = null
+  let minToken: number | null = null;
+  let minPerRequest: number | null = null;
   for (const platform of props.card.platforms ?? []) {
     for (const row of platform.group_prices ?? []) {
-      const effective = (row.user_rate_multiplier ?? 1) * row.base_rate_multiplier
+      const effective =
+        (row.user_rate_multiplier ?? 1) * row.base_rate_multiplier;
       if (row.input_price_per_mtok_usd != null) {
-        const scaled = row.input_price_per_mtok_usd * effective
-        if (minToken == null || scaled < minToken) minToken = scaled
+        const scaled = row.input_price_per_mtok_usd * effective;
+        if (minToken == null || scaled < minToken) minToken = scaled;
       }
       if (row.per_request_price_usd != null) {
-        const scaled = row.per_request_price_usd * effective
-        if (minPerRequest == null || scaled < minPerRequest) minPerRequest = scaled
+        const scaled = row.per_request_price_usd * effective;
+        if (minPerRequest == null || scaled < minPerRequest)
+          minPerRequest = scaled;
       }
       for (const iv of row.intervals ?? []) {
         if (iv.input_price_per_mtok_usd != null) {
-          const scaled = iv.input_price_per_mtok_usd * effective
-          if (minToken == null || scaled < minToken) minToken = scaled
+          const scaled = iv.input_price_per_mtok_usd * effective;
+          if (minToken == null || scaled < minToken) minToken = scaled;
         }
         if (iv.per_request_price_usd != null) {
-          const scaled = iv.per_request_price_usd * effective
-          if (minPerRequest == null || scaled < minPerRequest) minPerRequest = scaled
+          const scaled = iv.per_request_price_usd * effective;
+          if (minPerRequest == null || scaled < minPerRequest)
+            minPerRequest = scaled;
         }
       }
     }
   }
   if (minToken != null) {
-    return `$${minToken.toFixed(2)} / MTok`
+    return `$${minToken.toFixed(2)} / MTok`;
   }
   if (minPerRequest != null) {
-    return `$${minPerRequest.toFixed(4)} / call`
+    return `$${minPerRequest.toFixed(4)} / call`;
   }
-  return ''
-})
+  return "";
+});
 </script>

@@ -1219,6 +1219,55 @@ export default {
     },
   },
 
+  modelQuote: {
+    title: "Model Quote",
+    subtitle: "Public model prices compared with LiteLLM reference pricing",
+    searchPlaceholder: "Search models, vendors, or types...",
+    empty: "No quote rows match your filters",
+    resultCount: "Showing {count} of {total} quote rows",
+    loadFailed: "Failed to load quote: {msg}",
+    unmatchedOfficial: "-",
+    discountValue: "{fold} off",
+    filters: {
+      allPlatforms: "All vendors",
+      allTypes: "All types",
+    },
+    sort: {
+      modelAsc: "Model A-Z",
+      modelDesc: "Model Z-A",
+      platformAsc: "Vendor A-Z",
+      priceAsc: "Platform price low-high",
+      priceDesc: "Platform price high-low",
+      discountAsc: "Best discount",
+      discountDesc: "Smallest discount",
+      contextDesc: "Context long-short",
+    },
+    columns: {
+      model: "Model",
+      platform: "Vendor",
+      type: "Type",
+      context: "Context",
+      officialInput: "Official input",
+      officialOutput: "Official output",
+      officialCacheRead: "Official cache read",
+      officialCacheWrite: "Official cache write",
+      officialImageOrRequest: "Official image/request",
+      platformInput: "Platform input",
+      platformOutput: "Platform output",
+      platformCacheRead: "Platform cache read",
+      platformCacheWrite: "Platform cache write",
+      platformImageOrRequest: "Platform image/request",
+      discount: "Discount",
+    },
+    price: {
+      officialShort: "Official",
+      platformShort: "Platform",
+    },
+    units: {
+      perMTok: "/M",
+    },
+  },
+
   affiliate: {
     title: "Affiliate Rebates",
     description:

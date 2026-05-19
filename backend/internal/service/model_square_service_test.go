@@ -167,6 +167,64 @@ func TestModelSquareService_PricePerMillionConversion(t *testing.T) {
 	require.InDelta(t, 21.875, *p.CacheWritePricePerMTok, 1e-6)
 }
 
+func TestModelSquareService_OfficialPriceFromLiteLLM(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 0.5, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformOpenAI, Models: []string{"gpt-quote-test"},
+			BillingMode: BillingModeToken,
+			InputPrice:  msPtrFloat(1e-6),
+			OutputPrice: msPtrFloat(5e-6),
+		}},
+	}}
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-quote-test": {
+			InputCostPerToken:           2e-6,
+			OutputCostPerToken:          10e-6,
+			CacheReadInputTokenCost:     0.2e-6,
+			CacheCreationInputTokenCost: 2.5e-6,
+			OutputCostPerImageToken:     3e-6,
+			OutputCostPerImage:          0.04,
+			LiteLLMProvider:             "openai",
+			Mode:                        "chat",
+		},
+	}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), pricingSvc)
+
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	require.NotNil(t, cards[0].OfficialPrice)
+	require.InDelta(t, 2.0, *cards[0].OfficialPrice.InputPricePerMTok, 1e-9)
+	require.InDelta(t, 10.0, *cards[0].OfficialPrice.OutputPricePerMTok, 1e-9)
+	require.InDelta(t, 0.2, *cards[0].OfficialPrice.CacheReadPricePerMTok, 1e-9)
+	require.InDelta(t, 2.5, *cards[0].OfficialPrice.CacheWritePricePerMTok, 1e-9)
+	require.InDelta(t, 3.0, *cards[0].OfficialPrice.ImageOutputPricePerMTok, 1e-9)
+	require.InDelta(t, 0.04, *cards[0].OfficialPrice.ImagePriceUSD, 1e-12)
+}
+
+func TestModelSquareService_OfficialPriceMissingWhenLiteLLMUnmatched(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformAnthropic, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformAnthropic, Models: []string{"private-model"},
+			BillingMode: BillingModeToken,
+			InputPrice:  msPtrFloat(1e-6),
+		}},
+	}}
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), pricingSvc)
+
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	require.Nil(t, cards[0].OfficialPrice)
+}
+
 func TestModelSquareService_ContextIntervalsConversion(t *testing.T) {
 	g := Group{ID: 1, Name: "auto", Platform: PlatformAnthropic, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
 	channels := []Channel{{

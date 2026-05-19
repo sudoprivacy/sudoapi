@@ -74,6 +74,15 @@ type modelPriceIntervalDTO struct {
 	SortOrder            int      `json:"sort_order"`
 }
 
+type modelOfficialPriceDTO struct {
+	InputPricePerMTok       *float64 `json:"input_price_per_mtok_usd"`
+	OutputPricePerMTok      *float64 `json:"output_price_per_mtok_usd"`
+	CacheReadPricePerMTok   *float64 `json:"cache_read_price_per_mtok_usd"`
+	CacheWritePricePerMTok  *float64 `json:"cache_write_price_per_mtok_usd"`
+	ImageOutputPricePerMTok *float64 `json:"image_output_price_per_mtok_usd"`
+	ImagePriceUSD           *float64 `json:"image_price_usd"`
+}
+
 type modelPlatformSectionDTO struct {
 	Platform    string               `json:"platform"`
 	Endpoints   []modelEndpointDTO   `json:"endpoints"`
@@ -94,6 +103,7 @@ type modelSquareCardDTO struct {
 	SupportFlags     []string                  `json:"support_flags"`
 	Featured         bool                      `json:"featured"`
 	IconURL          string                    `json:"icon_url"`
+	OfficialPrice    *modelOfficialPriceDTO    `json:"official_price"`
 	Platforms        []modelPlatformSectionDTO `json:"platforms"`
 }
 
@@ -157,10 +167,25 @@ func toCardDTOs(cards []service.ModelSquareCard, userRateMultipliers map[int64]f
 			SupportFlags:     emptyStrings(c.SupportFlags),
 			Featured:         c.Featured,
 			IconURL:          c.IconURL,
+			OfficialPrice:    toOfficialPriceDTO(c.OfficialPrice),
 			Platforms:        toPlatformDTOs(c.Platforms, userRateMultipliers),
 		})
 	}
 	return out
+}
+
+func toOfficialPriceDTO(in *service.ModelOfficialPrice) *modelOfficialPriceDTO {
+	if in == nil {
+		return nil
+	}
+	return &modelOfficialPriceDTO{
+		InputPricePerMTok:       in.InputPricePerMTok,
+		OutputPricePerMTok:      in.OutputPricePerMTok,
+		CacheReadPricePerMTok:   in.CacheReadPricePerMTok,
+		CacheWritePricePerMTok:  in.CacheWritePricePerMTok,
+		ImageOutputPricePerMTok: in.ImageOutputPricePerMTok,
+		ImagePriceUSD:           in.ImagePriceUSD,
+	}
 }
 
 func emptyStrings(in []string) []string {

@@ -176,6 +176,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/models/quote',
+    name: 'ModelQuote',
+    component: () => import('@/views/public/ModelQuoteView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model Quote',
+      titleKey: 'modelQuote.title',
+    }
+  },
+  {
     path: '/legal/:documentId',
     name: 'LegalDocument',
     component: () => import('@/views/public/LegalDocumentView.vue'),
