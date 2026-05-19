@@ -64,6 +64,15 @@ export interface ModelPlatformSection {
   group_prices: ModelGroupPrice[]
 }
 
+export interface ModelOfficialPrice {
+  input_price_per_mtok_usd: number | null
+  output_price_per_mtok_usd: number | null
+  cache_read_price_per_mtok_usd: number | null
+  cache_write_price_per_mtok_usd: number | null
+  image_output_price_per_mtok_usd: number | null
+  image_price_usd: number | null
+}
+
 /** 模型广场卡片。capabilities 是 i18n key（vision/function_calling/reasoning/...）。 */
 export interface ModelSquareCard {
   name: string
@@ -81,6 +90,7 @@ export interface ModelSquareCard {
   capabilities: string[]
   featured: boolean
   icon_url: string | null
+  official_price: ModelOfficialPrice | null
   platforms: ModelPlatformSection[]
 }
 

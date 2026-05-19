@@ -27,6 +27,12 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 		SupportFlags:     []string{"vision", "reasoning", "web_search"},
 		Featured:         true,
 		IconURL:          "https://cdn/icon.png",
+		OfficialPrice: &service.ModelOfficialPrice{
+			InputPricePerMTok:      func() *float64 { v := 15.0; return &v }(),
+			OutputPricePerMTok:     func() *float64 { v := 75.0; return &v }(),
+			CacheReadPricePerMTok:  func() *float64 { v := 1.5; return &v }(),
+			CacheWritePricePerMTok: func() *float64 { v := 18.75; return &v }(),
+		},
 		Platforms: []service.ModelPlatformSection{
 			{
 				Platform:  "anthropic",
@@ -64,7 +70,7 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 		"name", "display_name", "category", "description",
 		"model_type", "context_window", "max_output", "capabilities",
 		"input_modalities", "output_modalities", "support_flags",
-		"featured", "icon_url", "platforms",
+		"featured", "icon_url", "official_price", "platforms",
 	} {
 		_, ok := m[k]
 		require.True(t, ok, "missing whitelisted field: %s", k)
@@ -77,6 +83,14 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 
 	platforms, _ := m["platforms"].([]any)
 	require.Len(t, platforms, 1)
+	officialPrice, _ := m["official_price"].(map[string]any)
+	require.Contains(t, officialPrice, "input_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "output_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "cache_read_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "cache_write_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "image_output_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "image_price_usd")
+
 	platform := platforms[0].(map[string]any)
 	prices, _ := platform["group_prices"].([]any)
 	require.Len(t, prices, 1)

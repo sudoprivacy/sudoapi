@@ -94,6 +94,19 @@ type ModelGroupPriceInterval struct {
 	SortOrder int
 }
 
+// ModelOfficialPrice is the LiteLLM reference price for a model.
+//
+// Token prices are normalized to USD per 1M tokens for display. ImagePriceUSD
+// keeps LiteLLM's per-image unit where available.
+type ModelOfficialPrice struct {
+	InputPricePerMTok       *float64
+	OutputPricePerMTok      *float64
+	CacheReadPricePerMTok   *float64
+	CacheWritePricePerMTok  *float64
+	ImageOutputPricePerMTok *float64
+	ImagePriceUSD           *float64
+}
+
 // ModelPlatformSection 单个模型在某平台下的完整切片。
 type ModelPlatformSection struct {
 	Platform    string
@@ -120,6 +133,7 @@ type ModelSquareCard struct {
 	SupportFlags     []string
 	Featured         bool
 	IconURL          string
+	OfficialPrice    *ModelOfficialPrice
 	Platforms        []ModelPlatformSection
 }
 
@@ -396,6 +410,7 @@ type modelSquareCardBuilder struct {
 	SupportFlags     []string
 	Featured         bool
 	IconURL          string
+	OfficialPrice    *ModelOfficialPrice
 	platformOrder    []string
 	platformByName   map[string]*ModelPlatformSection
 }
@@ -460,6 +475,7 @@ func (b *modelSquareCardBuilder) toCard() ModelSquareCard {
 		SupportFlags:     b.SupportFlags,
 		Featured:         b.Featured,
 		IconURL:          b.IconURL,
+		OfficialPrice:    cloneOfficialPrice(b.OfficialPrice),
 		Platforms:        platforms,
 	}
 }
@@ -496,6 +512,7 @@ func fillModelSquareMetadata(pricingSvc *PricingService, cb *modelSquareCardBuil
 	if lp == nil {
 		return
 	}
+	cb.OfficialPrice = officialPriceFromLiteLLM(lp)
 	if cb.ModelType == "" {
 		cb.ModelType = strings.TrimSpace(lp.Mode)
 	}
@@ -701,6 +718,35 @@ func cloneFloatPtr(v *float64) *float64 {
 	return &vv
 }
 
+func officialPriceFromLiteLLM(lp *LiteLLMModelPricing) *ModelOfficialPrice {
+	if lp == nil {
+		return nil
+	}
+	return &ModelOfficialPrice{
+		InputPricePerMTok:       scaleFloatPerMillion(lp.InputCostPerToken),
+		OutputPricePerMTok:      scaleFloatPerMillion(lp.OutputCostPerToken),
+		CacheReadPricePerMTok:   scaleFloatPerMillion(lp.CacheReadInputTokenCost),
+		CacheWritePricePerMTok:  scaleFloatPerMillion(lp.CacheCreationInputTokenCost),
+		ImageOutputPricePerMTok: scaleFloatPerMillion(lp.OutputCostPerImageToken),
+		ImagePriceUSD:           nonZeroFloatPtr(lp.OutputCostPerImage),
+	}
+}
+
+func scaleFloatPerMillion(v float64) *float64 {
+	if v == 0 {
+		return nil
+	}
+	scaled := v * 1_000_000
+	return &scaled
+}
+
+func nonZeroFloatPtr(v float64) *float64 {
+	if v == 0 {
+		return nil
+	}
+	return &v
+}
+
 // scaleIntervalPtrPerMillion 用于区间展示，保留显式 0 价格以表达免费区间。
 func scaleIntervalPtrPerMillion(v *float64) *float64 {
 	if v == nil {
@@ -814,6 +860,7 @@ func cloneCards(in []ModelSquareCard) []ModelSquareCard {
 	out := make([]ModelSquareCard, len(in))
 	for i, c := range in {
 		out[i] = c
+		out[i].OfficialPrice = cloneOfficialPrice(c.OfficialPrice)
 		if c.Capabilities != nil {
 			out[i].Capabilities = append([]string(nil), c.Capabilities...)
 		}
@@ -849,4 +896,18 @@ func cloneCards(in []ModelSquareCard) []ModelSquareCard {
 		}
 	}
 	return out
+}
+
+func cloneOfficialPrice(in *ModelOfficialPrice) *ModelOfficialPrice {
+	if in == nil {
+		return nil
+	}
+	return &ModelOfficialPrice{
+		InputPricePerMTok:       cloneFloatPtr(in.InputPricePerMTok),
+		OutputPricePerMTok:      cloneFloatPtr(in.OutputPricePerMTok),
+		CacheReadPricePerMTok:   cloneFloatPtr(in.CacheReadPricePerMTok),
+		CacheWritePricePerMTok:  cloneFloatPtr(in.CacheWritePricePerMTok),
+		ImageOutputPricePerMTok: cloneFloatPtr(in.ImageOutputPricePerMTok),
+		ImagePriceUSD:           cloneFloatPtr(in.ImagePriceUSD),
+	}
 }
