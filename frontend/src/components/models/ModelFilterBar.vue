@@ -43,17 +43,17 @@
         @click="clearAll"
         class="text-xs font-medium text-primary-600 underline-offset-2 hover:underline dark:text-primary-400"
       >
-        {{ t('modelSquare.clearFilters') }}
+        {{ t("modelSquare.clearFilters") }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import Icon from '@/components/icons/Icon.vue'
-import FilterChipGroup from './FilterChipGroup.vue'
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import Icon from "@/components/icons/Icon.vue";
+import FilterChipGroup from "./FilterChipGroup.vue";
 
 /**
  * 模型广场筛选状态：
@@ -65,44 +65,45 @@ import FilterChipGroup from './FilterChipGroup.vue'
  * 全部 multi-select；空集 = 不过滤。
  */
 export interface ModelFilterState {
-  search: string
-  categories: string[]
-  capabilities: string[]
-  priceRanges: string[]
+  search: string;
+  categories: string[];
+  capabilities: string[];
+  priceRanges: string[];
+  modelTypes: string[];
 }
 
 const props = defineProps<{
-  modelValue: ModelFilterState
+  modelValue: ModelFilterState;
   /** 可见的分类列表（来自实际数据，避免空选项；调用方计算）。 */
-  availableCategories: string[]
+  availableCategories: string[];
   /** 可见的能力标签列表（来自实际数据）。 */
-  availableCapabilities: string[]
-}>()
+  availableCapabilities: string[];
+}>();
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', v: ModelFilterState): void
-}>()
+  (e: "update:modelValue", v: ModelFilterState): void;
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 const categoryOptions = computed(() =>
   props.availableCategories.map((c) => ({
     value: c,
     label: t(`modelSquare.categories.${c}`, c),
   })),
-)
+);
 const capabilityOptions = computed(() =>
   props.availableCapabilities.map((c) => ({
     value: c,
-    label: t(`modelSquare.capabilities.${c}`, c),
+    label: t(`modelSquare.capabilities.${c}`, humanizeKey(c)),
   })),
-)
+);
 const priceRangeOptions = computed(() => [
-  { value: 'free', label: t('modelSquare.priceTier.free') },
-  { value: 'low', label: t('modelSquare.priceTier.low') },
-  { value: 'mid', label: t('modelSquare.priceTier.mid') },
-  { value: 'high', label: t('modelSquare.priceTier.high') },
-])
+  { value: "free", label: t("modelSquare.priceTier.free") },
+  { value: "low", label: t("modelSquare.priceTier.low") },
+  { value: "mid", label: t("modelSquare.priceTier.mid") },
+  { value: "high", label: t("modelSquare.priceTier.high") },
+]);
 
 const hasActiveFilter = computed(
   () =>
@@ -110,27 +111,41 @@ const hasActiveFilter = computed(
     props.modelValue.categories.length > 0 ||
     props.modelValue.capabilities.length > 0 ||
     props.modelValue.priceRanges.length > 0,
-)
+);
 
 function onSearchInput(e: Event) {
-  emit('update:modelValue', {
+  emit("update:modelValue", {
     ...props.modelValue,
     search: (e.target as HTMLInputElement).value,
-  })
+  });
 }
 
-function toggle(field: 'categories' | 'capabilities' | 'priceRanges', value: string) {
-  const list = props.modelValue[field]
-  const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
-  emit('update:modelValue', { ...props.modelValue, [field]: next })
+function toggle(
+  field: "categories" | "capabilities" | "priceRanges",
+  value: string,
+) {
+  const list = props.modelValue[field];
+  const next = list.includes(value)
+    ? list.filter((v) => v !== value)
+    : [...list, value];
+  emit("update:modelValue", { ...props.modelValue, [field]: next });
 }
 
 function clearAll() {
-  emit('update:modelValue', {
-    search: '',
+  emit("update:modelValue", {
+    search: "",
     categories: [],
     capabilities: [],
     priceRanges: [],
-  })
+    modelTypes: [],
+  });
+}
+
+function humanizeKey(key: string): string {
+  return key
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 </script>

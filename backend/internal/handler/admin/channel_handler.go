@@ -15,13 +15,25 @@ import (
 
 // ChannelHandler handles admin channel management
 type ChannelHandler struct {
-	channelService *service.ChannelService
-	billingService *service.BillingService
+	channelService        *service.ChannelService
+	billingService        *service.BillingService
+	endpointConfigService *service.ModelEndpointConfigService
+	modelSquareSvc        *service.ModelSquareService
 }
 
 // NewChannelHandler creates a new admin channel handler
-func NewChannelHandler(channelService *service.ChannelService, billingService *service.BillingService) *ChannelHandler {
-	return &ChannelHandler{channelService: channelService, billingService: billingService}
+func NewChannelHandler(
+	channelService *service.ChannelService,
+	billingService *service.BillingService,
+	endpointConfigService *service.ModelEndpointConfigService,
+	modelSquareSvc *service.ModelSquareService,
+) *ChannelHandler {
+	return &ChannelHandler{
+		channelService:        channelService,
+		billingService:        billingService,
+		endpointConfigService: endpointConfigService,
+		modelSquareSvc:        modelSquareSvc,
+	}
 }
 
 // --- Request / Response types ---
@@ -138,6 +150,14 @@ type accountStatsPricingRuleResponse struct {
 	GroupIDs   []int64                       `json:"group_ids"`
 	AccountIDs []int64                       `json:"account_ids"`
 	Pricing    []channelModelPricingResponse `json:"pricing"`
+}
+
+type channelPlatformsResponse struct {
+	Platforms []string `json:"platforms"`
+}
+
+type channelEndpointConfigRequest struct {
+	Platforms map[string]map[string][]service.ModelEndpoint `json:"platforms"`
 }
 
 func channelToResponse(ch *service.Channel) *channelResponse {
@@ -319,6 +339,49 @@ func (h *ChannelHandler) List(c *gin.Context) {
 	response.Paginated(c, out, pag.Total, page, pageSize)
 }
 
+// ListPlatforms handles listing configured platforms.
+// GET /api/v1/admin/channels/platforms
+func (h *ChannelHandler) ListPlatforms(c *gin.Context) {
+	platforms, err := h.channelService.ListConfiguredPlatforms(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, channelPlatformsResponse{Platforms: emptyStringSliceIfNil(platforms)})
+}
+
+// GetEndpointConfig handles getting global model endpoint config.
+// GET /api/v1/admin/channels/endpoint-config
+func (h *ChannelHandler) GetEndpointConfig(c *gin.Context) {
+	cfg, err := h.endpointConfigService.GetModelEndpointConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+// UpdateEndpointConfig handles replacing global model endpoint config.
+// PUT /api/v1/admin/channels/endpoint-config
+func (h *ChannelHandler) UpdateEndpointConfig(c *gin.Context) {
+	var req channelEndpointConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("VALIDATION_ERROR", err.Error()))
+		return
+	}
+	cfg, err := h.endpointConfigService.SetModelEndpointConfig(c.Request.Context(), &service.ModelEndpointConfig{
+		Platforms: req.Platforms,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if h.modelSquareSvc != nil {
+		h.modelSquareSvc.InvalidateAll()
+	}
+	response.Success(c, cfg)
+}
+
 // GetByID handles getting a channel by ID
 // GET /api/v1/admin/channels/:id
 func (h *ChannelHandler) GetByID(c *gin.Context) {
@@ -388,6 +451,9 @@ func (h *ChannelHandler) Create(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if h.modelSquareSvc != nil {
+		h.modelSquareSvc.InvalidateAll()
+	}
 
 	response.Success(c, channelToResponse(channel))
 }
@@ -453,6 +519,9 @@ func (h *ChannelHandler) Update(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if h.modelSquareSvc != nil {
+		h.modelSquareSvc.InvalidateAll()
+	}
 
 	response.Success(c, channelToResponse(channel))
 }
@@ -469,6 +538,9 @@ func (h *ChannelHandler) Delete(c *gin.Context) {
 	if err := h.channelService.Delete(c.Request.Context(), id); err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+	if h.modelSquareSvc != nil {
+		h.modelSquareSvc.InvalidateAll()
 	}
 
 	response.Success(c, gin.H{"message": "Channel deleted successfully"})

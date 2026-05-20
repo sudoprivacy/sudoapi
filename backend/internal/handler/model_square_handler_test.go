@@ -14,28 +14,44 @@ import (
 func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 	// 严格断言序列化结果只包含白名单 JSON key，不能漏暴露 channel_id / 调度元数据。
 	card := service.ModelSquareCard{
-		Name:          "claude-opus-4-7",
-		DisplayName:   "Claude Opus 4.7",
-		Category:      "claude",
-		Description:   "desc",
-		ContextWindow: 200000,
-		MaxOutput:     64000,
-		Capabilities:  []string{"vision", "reasoning"},
-		Featured:      true,
-		IconURL:       "https://cdn/icon.png",
+		Name:             "claude-opus-4-7",
+		DisplayName:      "Claude Opus 4.7",
+		Category:         "claude",
+		Description:      "desc",
+		ModelType:        "chat",
+		ContextWindow:    200000,
+		MaxOutput:        64000,
+		Capabilities:     []string{"vision", "reasoning"},
+		InputModalities:  []string{"text", "image"},
+		OutputModalities: []string{"text"},
+		SupportFlags:     []string{"vision", "reasoning", "web_search"},
+		Featured:         true,
+		IconURL:          "https://cdn/icon.png",
+		OfficialPrice: &service.ModelOfficialPrice{
+			InputPricePerMTok:      func() *float64 { v := 15.0; return &v }(),
+			OutputPricePerMTok:     func() *float64 { v := 75.0; return &v }(),
+			CacheReadPricePerMTok:  func() *float64 { v := 1.5; return &v }(),
+			CacheWritePricePerMTok: func() *float64 { v := 18.75; return &v }(),
+		},
 		Platforms: []service.ModelPlatformSection{
 			{
 				Platform:  "anthropic",
 				Endpoints: []service.ModelEndpoint{{Path: "/v1/messages", Method: "POST"}},
 				GroupPrices: []service.ModelGroupPrice{
 					{
-						GroupID:          1,
-						GroupName:        "auto",
-						SubscriptionType: "standard",
-						IsExclusive:      false,
-						BaseRateMult:     1.0,
-						BillingMode:      service.BillingModeToken,
+						GroupID:           1,
+						GroupName:         "auto",
+						SubscriptionType:  "standard",
+						IsExclusive:       false,
+						BaseRateMult:      1.0,
+						BillingMode:       service.BillingModeToken,
 						InputPricePerMTok: func() *float64 { v := 17.5; return &v }(),
+						Intervals: []service.ModelGroupPriceInterval{{
+							MinTokens:          0,
+							MaxTokens:          func() *int { v := 200000; return &v }(),
+							InputPricePerMTok:  func() *float64 { v := 3.0; return &v }(),
+							OutputPricePerMTok: func() *float64 { v := 15.0; return &v }(),
+						}},
 					},
 				},
 			},
@@ -52,8 +68,9 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 	// 白名单：必须存在的字段
 	for _, k := range []string{
 		"name", "display_name", "category", "description",
-		"context_window", "max_output", "capabilities",
-		"featured", "icon_url", "platforms",
+		"model_type", "context_window", "max_output", "capabilities",
+		"input_modalities", "output_modalities", "support_flags",
+		"featured", "icon_url", "official_price", "platforms",
 	} {
 		_, ok := m[k]
 		require.True(t, ok, "missing whitelisted field: %s", k)
@@ -66,6 +83,14 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 
 	platforms, _ := m["platforms"].([]any)
 	require.Len(t, platforms, 1)
+	officialPrice, _ := m["official_price"].(map[string]any)
+	require.Contains(t, officialPrice, "input_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "output_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "cache_read_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "cache_write_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "image_output_price_per_mtok_usd")
+	require.Contains(t, officialPrice, "image_price_usd")
+
 	platform := platforms[0].(map[string]any)
 	prices, _ := platform["group_prices"].([]any)
 	require.Len(t, prices, 1)
@@ -75,10 +100,19 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 	require.Contains(t, row, "output_price_per_mtok_usd")
 	require.Contains(t, row, "cache_read_price_per_mtok_usd")
 	require.Contains(t, row, "cache_write_price_per_mtok_usd")
+	require.Contains(t, row, "intervals")
 	require.Contains(t, row, "channel_chain")
 	require.Contains(t, row, "base_rate_multiplier")
 	// 未传 userRateMultipliers 时 user_rate_multiplier 必须是 null（json: null → nil 反序列化为 nil）
 	require.Nil(t, row["user_rate_multiplier"])
+
+	intervals, _ := row["intervals"].([]any)
+	require.Len(t, intervals, 1)
+	interval := intervals[0].(map[string]any)
+	require.Contains(t, interval, "min_tokens")
+	require.Contains(t, interval, "max_tokens")
+	require.Contains(t, interval, "input_price_per_mtok_usd")
+	require.Contains(t, interval, "output_price_per_mtok_usd")
 }
 
 func TestToCardDTOs_UserRateMultiplierJoinsByGroupID(t *testing.T) {

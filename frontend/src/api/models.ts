@@ -17,6 +17,18 @@ export interface ModelEndpoint {
   method: string
 }
 
+export interface ModelPriceInterval {
+  min_tokens: number
+  max_tokens: number | null
+  tier_label: string
+  input_price_per_mtok_usd: number | null
+  output_price_per_mtok_usd: number | null
+  cache_read_price_per_mtok_usd: number | null
+  cache_write_price_per_mtok_usd: number | null
+  per_request_price_usd: number | null
+  sort_order: number
+}
+
 /** 单个分组下的定价行。
  *
  *  调用方展示有效倍率：
@@ -40,6 +52,8 @@ export interface ModelGroupPrice {
   image_output_price_per_mtok_usd: number | null
   /** per_request / image 模式：每次调用价格（USD）。 */
   per_request_price_usd: number | null
+  /** 上下文区间定价；token 模式为 USD/MTok，按次/图片模式为 USD/call。 */
+  intervals: ModelPriceInterval[]
   /** 同模型同分组在多个渠道下都有定价时的渠道名链路（已按字典序去重排序）。 */
   channel_chain: string[]
 }
@@ -50,6 +64,15 @@ export interface ModelPlatformSection {
   group_prices: ModelGroupPrice[]
 }
 
+export interface ModelOfficialPrice {
+  input_price_per_mtok_usd: number | null
+  output_price_per_mtok_usd: number | null
+  cache_read_price_per_mtok_usd: number | null
+  cache_write_price_per_mtok_usd: number | null
+  image_output_price_per_mtok_usd: number | null
+  image_price_usd: number | null
+}
+
 /** 模型广场卡片。capabilities 是 i18n key（vision/function_calling/reasoning/...）。 */
 export interface ModelSquareCard {
   name: string
@@ -57,12 +80,48 @@ export interface ModelSquareCard {
   /** claude / gpt / gemini / image / embedding / audio / other */
   category: string
   description: string
+  /** LiteLLM mode, e.g. chat / responses / embedding / image_generation. */
+  model_type: string
   context_window: number
   max_output: number
+  input_modalities: string[]
+  output_modalities: string[]
+  support_flags: string[]
   capabilities: string[]
   featured: boolean
   icon_url: string | null
+  official_price: ModelOfficialPrice | null
   platforms: ModelPlatformSection[]
+}
+
+export interface LiteLLMModel {
+  name: string
+  provider: string
+  mode: string
+  category: string
+  max_tokens: number
+  max_input_tokens: number
+  max_output_tokens: number
+  input_price_per_mtok_usd: number | null
+  input_price_priority_per_mtok_usd: number | null
+  output_price_per_mtok_usd: number | null
+  output_price_priority_per_mtok_usd: number | null
+  cache_creation_price_per_mtok_usd: number | null
+  cache_creation_above_1h_price_per_mtok_usd: number | null
+  cache_read_price_per_mtok_usd: number | null
+  cache_read_priority_price_per_mtok_usd: number | null
+  output_price_per_image_usd: number | null
+  output_price_per_image_mtok_usd: number | null
+  long_context_input_token_threshold: number
+  long_context_input_cost_multiplier: number
+  long_context_output_cost_multiplier: number
+  supports_prompt_caching: boolean
+  supports_service_tier: boolean
+  supported_modalities: string[]
+  output_modalities: string[]
+  support_flags: string[]
+  capabilities: string[]
+  raw_fields: Record<string, unknown>
 }
 
 /** 公开入口：未登录也可调用。 */
@@ -85,9 +144,20 @@ export async function listMyModels(options?: {
   return data
 }
 
+/** LiteLLM 原始模型列表：未登录可见，不叠加渠道定价。 */
+export async function listLiteLLMModels(options?: {
+  signal?: AbortSignal
+}): Promise<LiteLLMModel[]> {
+  const { data } = await apiClient.get<LiteLLMModel[]>('/public/litellm-models', {
+    signal: options?.signal,
+  })
+  return data
+}
+
 export const modelSquareAPI = {
   listPublicModels,
   listMyModels,
+  listLiteLLMModels,
 }
 
 export default modelSquareAPI

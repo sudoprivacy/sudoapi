@@ -429,6 +429,19 @@ func ProvideAPIKeyService(
 	return svc
 }
 
+// ProvideModelSquareService wires /models with optional admin metadata overrides.
+func ProvideModelSquareService(
+	channelSvc *ChannelService,
+	pricingSvc *PricingService,
+	metadataSvc *ModelMetadataService,
+	endpointConfigSvc *ModelEndpointConfigService,
+) *ModelSquareService {
+	svc := NewModelSquareService(channelSvc, pricingSvc)
+	svc.SetModelMetadataReader(metadataSvc)
+	svc.SetModelEndpointConfigReader(endpointConfigSvc)
+	return svc
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -511,9 +524,11 @@ var ProviderSet = wire.NewSet(
 	ProvideScheduledTestRunnerService,
 	NewGroupCapacityService,
 	NewChannelService,
+	NewModelEndpointConfigService,
+	NewModelMetadataService,
 	NewAPIKeyModelRouteResolver,
 	NewModelPricingResolver,
-	NewModelSquareService,
+	ProvideModelSquareService,
 	NewContentModerationService,
 	NewAffiliateService,
 	ProvidePaymentConfigService,

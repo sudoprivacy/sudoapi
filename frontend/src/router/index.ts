@@ -1,5 +1,5 @@
 /**
- * Vue Router configuration for Sub2API frontend
+ * Vue Router configuration for SudoRouter frontend
  * Defines all application routes with lazy loading and navigation guards
  */
 
@@ -173,6 +173,26 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: false,
       title: 'Models',
       titleKey: 'modelSquare.title',
+    }
+  },
+  {
+    path: '/model',
+    name: 'ModelCatalog',
+    component: () => import('@/views/public/LiteLLMModelView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model Square',
+      titleKey: 'liteLLMModels.title',
+    }
+  },
+  {
+    path: '/models/quote',
+    name: 'ModelQuote',
+    component: () => import('@/views/public/ModelQuoteView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model Quote',
+      titleKey: 'modelQuote.title',
     }
   },
   {
@@ -464,6 +484,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/channels/model-metadata',
+    name: 'AdminModelMetadata',
+    component: () => import('@/views/admin/ModelMetadataView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Model Metadata',
+      titleKey: 'admin.modelMetadata.title',
+      descriptionKey: 'admin.modelMetadata.description'
+    }
+  },
+  {
     path: '/monitor',
     name: 'ChannelStatus',
     component: () => import('@/views/user/ChannelStatusView.vue'),
@@ -711,7 +743,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/models']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/models', '/model']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',
@@ -761,7 +793,7 @@ router.beforeEach(async (to, _from, next) => {
     const menuItem = publicItems.find((item) => item.id === id)
       ?? (authStore.isAdmin ? adminSettingsStore.customMenuItems.find((item) => item.id === id) : undefined)
     if (menuItem?.label) {
-      const siteName = appStore.siteName || 'Sub2API'
+      const siteName = appStore.siteName || 'SudoRouter'
       document.title = `${menuItem.label} - ${siteName}`
     } else {
       document.title = resolveDocumentTitle(to.meta.title, appStore.siteName, to.meta.titleKey as string)
