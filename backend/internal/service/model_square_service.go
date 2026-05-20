@@ -137,6 +137,39 @@ type ModelSquareCard struct {
 	Platforms        []ModelPlatformSection
 }
 
+// LiteLLMModelListItem is a read-only row from the loaded LiteLLM pricing data.
+// It intentionally exposes only display/pricing metadata used by the public
+// /model page.
+type LiteLLMModelListItem struct {
+	Name                            string
+	Provider                        string
+	Mode                            string
+	Category                        string
+	MaxTokens                       int
+	MaxInputTokens                  int
+	MaxOutputTokens                 int
+	InputCostPerToken               float64
+	InputCostPerTokenPriority       float64
+	OutputCostPerToken              float64
+	OutputCostPerTokenPriority      float64
+	CacheCreationCost               float64
+	CacheCreationCostAbove1h        float64
+	CacheReadCost                   float64
+	CacheReadCostPriority           float64
+	OutputCostPerImage              float64
+	OutputCostPerImageToken         float64
+	LongContextInputTokenThreshold  int
+	LongContextInputCostMultiplier  float64
+	LongContextOutputCostMultiplier float64
+	SupportsPromptCaching           bool
+	SupportsServiceTier             bool
+	SupportedModalities             []string
+	OutputModalities                []string
+	SupportFlags                    []string
+	Capabilities                    []string
+	RawFields                       map[string]any
+}
+
 // ModelSquareService 把 ChannelService.ListAvailable 的「渠道→模型」视图倒置为
 // 「模型→平台→分组定价」视图，并叠加 LiteLLM 元数据（描述/上下文/能力）。
 //
@@ -167,6 +200,73 @@ func NewModelSquareService(channelSvc *ChannelService, pricingSvc *PricingServic
 		pricingSvc:  pricingSvc,
 		userEntries: make(map[int64]*modelSquareCacheEntry),
 	}
+}
+
+// ListLiteLLMModels returns the current LiteLLM model pricing list as loaded by
+// PricingService. The list is sorted by model name for deterministic API output.
+func (s *ModelSquareService) ListLiteLLMModels() []LiteLLMModelListItem {
+	if s == nil || s.pricingSvc == nil {
+		return []LiteLLMModelListItem{}
+	}
+
+	s.pricingSvc.mu.RLock()
+	defer s.pricingSvc.mu.RUnlock()
+
+	items := make([]LiteLLMModelListItem, 0, len(s.pricingSvc.pricingData))
+	for name, p := range s.pricingSvc.pricingData {
+		if p == nil {
+			continue
+		}
+		category := inferCategoryFromName(name)
+		if cat := categoryFromMode(p.Mode); cat != "" && category == "other" {
+			category = cat
+		}
+		items = append(items, LiteLLMModelListItem{
+			Name:                            name,
+			Provider:                        strings.TrimSpace(p.LiteLLMProvider),
+			Mode:                            strings.TrimSpace(p.Mode),
+			Category:                        category,
+			MaxTokens:                       p.MaxTokens,
+			MaxInputTokens:                  p.MaxInputTokens,
+			MaxOutputTokens:                 p.MaxOutputTokens,
+			InputCostPerToken:               p.InputCostPerToken,
+			InputCostPerTokenPriority:       p.InputCostPerTokenPriority,
+			OutputCostPerToken:              p.OutputCostPerToken,
+			OutputCostPerTokenPriority:      p.OutputCostPerTokenPriority,
+			CacheCreationCost:               p.CacheCreationInputTokenCost,
+			CacheCreationCostAbove1h:        p.CacheCreationInputTokenCostAbove1hr,
+			CacheReadCost:                   p.CacheReadInputTokenCost,
+			CacheReadCostPriority:           p.CacheReadInputTokenCostPriority,
+			OutputCostPerImage:              p.OutputCostPerImage,
+			OutputCostPerImageToken:         p.OutputCostPerImageToken,
+			LongContextInputTokenThreshold:  p.LongContextInputTokenThreshold,
+			LongContextInputCostMultiplier:  p.LongContextInputCostMultiplier,
+			LongContextOutputCostMultiplier: p.LongContextOutputCostMultiplier,
+			SupportsPromptCaching:           p.SupportsPromptCaching,
+			SupportsServiceTier:             p.SupportsServiceTier,
+			SupportedModalities:             append([]string(nil), p.SupportedModalities...),
+			OutputModalities:                append([]string(nil), p.SupportedOutputModalities...),
+			SupportFlags:                    append([]string(nil), p.SupportFlags...),
+			Capabilities:                    deriveCapabilities(p),
+			RawFields:                       cloneRawFields(p.RawFields),
+		})
+	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
+	})
+	return items
+}
+
+func cloneRawFields(in map[string]any) map[string]any {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
 
 // SetModelMetadataReader injects optional admin-maintained metadata overrides.

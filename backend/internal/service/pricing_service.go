@@ -89,6 +89,7 @@ type LiteLLMModelPricing struct {
 	SupportsPDFInput          bool     `json:"supports_pdf_input"`
 	SupportsToolChoice        bool     `json:"supports_tool_choice"`
 	SupportsParallelTools     bool     `json:"supports_parallel_function_calling"`
+	RawFields                 map[string]any
 }
 
 // PricingRemoteClient 远程价格数据获取接口
@@ -107,6 +108,9 @@ type LiteLLMRawEntry struct {
 	CacheCreationInputTokenCostAbove1hr *float64 `json:"cache_creation_input_token_cost_above_1hr"`
 	CacheReadInputTokenCost             *float64 `json:"cache_read_input_token_cost"`
 	CacheReadInputTokenCostPriority     *float64 `json:"cache_read_input_token_cost_priority"`
+	LongContextInputTokenThreshold      *int     `json:"long_context_input_token_threshold"`
+	LongContextInputCostMultiplier      *float64 `json:"long_context_input_cost_multiplier"`
+	LongContextOutputCostMultiplier     *float64 `json:"long_context_output_cost_multiplier"`
 	SupportsServiceTier                 bool     `json:"supports_service_tier"`
 	LiteLLMProvider                     string   `json:"litellm_provider"`
 	Mode                                string   `json:"mode"`
@@ -403,6 +407,10 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			skipped++
 			continue
 		}
+		var rawFields map[string]any
+		if err := json.Unmarshal(rawEntry, &rawFields); err != nil {
+			rawFields = nil
+		}
 
 		// 只保留有有效价格的条目
 		if entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil {
@@ -417,6 +425,7 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			SupportFlags:              extractLiteLLMSupportFlags(rawEntry),
 			SupportsPromptCaching:     entry.SupportsPromptCaching,
 			SupportsServiceTier:       entry.SupportsServiceTier,
+			RawFields:                 rawFields,
 		}
 
 		if entry.InputCostPerToken != nil {
@@ -442,6 +451,15 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.CacheReadInputTokenCostPriority != nil {
 			pricing.CacheReadInputTokenCostPriority = *entry.CacheReadInputTokenCostPriority
+		}
+		if entry.LongContextInputTokenThreshold != nil {
+			pricing.LongContextInputTokenThreshold = *entry.LongContextInputTokenThreshold
+		}
+		if entry.LongContextInputCostMultiplier != nil {
+			pricing.LongContextInputCostMultiplier = *entry.LongContextInputCostMultiplier
+		}
+		if entry.LongContextOutputCostMultiplier != nil {
+			pricing.LongContextOutputCostMultiplier = *entry.LongContextOutputCostMultiplier
 		}
 		if entry.OutputCostPerImage != nil {
 			pricing.OutputCostPerImage = *entry.OutputCostPerImage
