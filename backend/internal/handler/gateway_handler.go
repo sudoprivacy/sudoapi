@@ -944,16 +944,18 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
 
 	var platform string
+	var modelsPlatform string
 
 	if apiKey != nil && apiKey.Group != nil {
 		platform = apiKey.Group.Platform
 	}
 	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
 		platform = forcedPlatform
+		modelsPlatform = forcedPlatform
 	}
 
 	// Get available models from account configurations across all groups bound to this key.
-	availableModels := h.gatewayService.GetAvailableModelsForGroups(c.Request.Context(), apiKeyModelGroupIDs(apiKey), platform)
+	availableModels := h.gatewayService.GetAvailableModelsForGroups(c.Request.Context(), apiKeyModelGroupIDs(apiKey), modelsPlatform)
 
 	if len(availableModels) > 0 {
 		// Build model list from whitelist

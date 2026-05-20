@@ -80,10 +80,61 @@ func TestGatewayModels_GeminiGroupFallsBackToGeminiModels(t *testing.T) {
 	require.NotContains(t, modelIDsForTest(got.Data), "claude-sonnet-4-6")
 }
 
-func TestGatewayModels_GeminiGroupFiltersMappedModelsByPlatform(t *testing.T) {
+func TestGatewayModels_GeminiGroupListsMappedModelsAcrossBoundGroups(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	groupID := int64(21)
+	otherGroupID := int64(22)
+	h := newGatewayModelsHandlerForTest(
+		&gatewayModelsAccountRepoStub{
+			byGroup: map[int64][]service.Account{
+				groupID: {
+					{
+						ID:       1,
+						Platform: service.PlatformAnthropic,
+						Credentials: map[string]any{
+							"model_mapping": map[string]any{
+								"claude-sonnet-4-6": "claude-sonnet-4-6",
+							},
+						},
+					},
+				},
+				otherGroupID: {
+					{
+						ID:       2,
+						Platform: service.PlatformGemini,
+						Credentials: map[string]any{
+							"model_mapping": map[string]any{
+								"gemini-2.5-flash": "gemini-2.5-flash",
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+		GroupIDs: []int64{groupID, otherGroupID},
+		Group:    &service.Group{ID: groupID, Platform: service.PlatformAnthropic},
+	})
+
+	h.Models(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var got gatewayModelsResponseForTest
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	require.Equal(t, []string{"claude-sonnet-4-6", "gemini-2.5-flash"}, modelIDsForTest(got.Data))
+}
+
+func TestGatewayModels_ForcePlatformFiltersMappedModelsByPlatform(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	groupID := int64(23)
 	h := newGatewayModelsHandlerForTest(
 		&gatewayModelsAccountRepoStub{
 			byGroup: map[int64][]service.Account{
@@ -114,8 +165,9 @@ func TestGatewayModels_GeminiGroupFiltersMappedModelsByPlatform(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	middleware2.ForcePlatform(service.PlatformGemini)(c)
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
-		Group: &service.Group{ID: groupID, Platform: service.PlatformGemini},
+		Group: &service.Group{ID: groupID, Platform: service.PlatformAnthropic},
 	})
 
 	h.Models(c)
