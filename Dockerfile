@@ -26,7 +26,7 @@ ENV PATH=${PNPM_HOME}:${PATH}
 
 WORKDIR /app/frontend
 
-# Install pnpm
+# Install pnpm (default pinned by PNPM_VERSION for reproducible builds)
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 # Install dependencies first (better caching)
