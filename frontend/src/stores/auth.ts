@@ -261,6 +261,28 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Account contributor login/register entry.
+   * @param credentials - Login credentials (email and password)
+   * @returns Promise resolving to the login response (may require 2FA)
+   */
+  async function contributorLogin(credentials: LoginRequest): Promise<LoginResponse> {
+    try {
+      const response = await authAPI.contributorLogin(credentials)
+
+      if (isTotp2FARequired(response)) {
+        return response
+      }
+
+      setAuthFromResponse(response)
+
+      return response
+    } catch (error) {
+      clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      throw error
+    }
+  }
+
+  /**
    * Complete login with 2FA code
    * @param tempToken - Temporary token from initial login
    * @param totpCode - 6-digit TOTP code
@@ -485,6 +507,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Actions
     login,
+    contributorLogin,
     login2FA,
     register,
     setToken,

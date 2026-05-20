@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 
 // Mock authAPI
 const mockLogin = vi.fn()
+const mockContributorLogin = vi.fn()
 const mockLogin2FA = vi.fn()
 const mockLogout = vi.fn()
 const mockGetCurrentUser = vi.fn()
@@ -13,6 +14,7 @@ const mockRefreshToken = vi.fn()
 vi.mock('@/api', () => ({
   authAPI: {
     login: (...args: any[]) => mockLogin(...args),
+    contributorLogin: (...args: any[]) => mockContributorLogin(...args),
     login2FA: (...args: any[]) => mockLogin2FA(...args),
     logout: (...args: any[]) => mockLogout(...args),
     getCurrentUser: (...args: any[]) => mockGetCurrentUser(...args),
@@ -98,6 +100,37 @@ describe('useAuthStore', () => {
       const store = useAuthStore()
 
       const result = await store.login({ email: 'test@example.com', password: '123456' })
+
+      expect(result).toEqual(twoFAResponse)
+      expect(store.token).toBeNull()
+      expect(store.isAuthenticated).toBe(false)
+    })
+  })
+
+  describe('contributorLogin', () => {
+    it('成功登录后设置贡献者 token 和 user', async () => {
+      const contributorResponse = {
+        ...fakeAuthResponse,
+        user: { ...fakeUser, role: 'account_contributor' as const }
+      }
+      mockContributorLogin.mockResolvedValue(contributorResponse)
+      const store = useAuthStore()
+
+      await store.contributorLogin({ email: 'contributor@example.com', password: '123456' })
+
+      expect(store.token).toBe('test-token-123')
+      expect(store.user).toEqual(contributorResponse.user)
+      expect(store.isAuthenticated).toBe(true)
+      expect(store.isAccountContributor).toBe(true)
+      expect(localStorage.getItem('auth_token')).toBe('test-token-123')
+    })
+
+    it('需要 2FA 时返回响应但不设置认证状态', async () => {
+      const twoFAResponse = { requires_2fa: true, temp_token: 'temp-123' }
+      mockContributorLogin.mockResolvedValue(twoFAResponse)
+      const store = useAuthStore()
+
+      const result = await store.contributorLogin({ email: 'contributor@example.com', password: '123456' })
 
       expect(result).toEqual(twoFAResponse)
       expect(store.token).toBeNull()

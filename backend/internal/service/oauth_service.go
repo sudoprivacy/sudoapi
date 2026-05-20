@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/oauth"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 )
@@ -131,7 +132,10 @@ func (s *OAuthService) ExchangeCode(ctx context.Context, input *ExchangeCodeInpu
 	// Get session
 	session, ok := s.sessionStore.Get(input.SessionID)
 	if !ok {
-		return nil, fmt.Errorf("session not found or expired")
+		return nil, infraerrors.BadRequest(
+			"OAUTH_SESSION_EXPIRED",
+			"授权会话已过期，请重新获取授权链接后再试",
+		)
 	}
 
 	// Get proxy URL
@@ -149,7 +153,10 @@ func (s *OAuthService) ExchangeCode(ctx context.Context, input *ExchangeCodeInpu
 	// Exchange code for token
 	tokenInfo, err := s.exchangeCodeForToken(ctx, input.Code, session.CodeVerifier, session.State, proxyURL, isSetupToken)
 	if err != nil {
-		return nil, err
+		return nil, infraerrors.BadRequest(
+			"OAUTH_CODE_INVALID",
+			"授权码无效或已过期，请重新获取授权链接后再试",
+		).WithCause(err)
 	}
 
 	// Delete session after successful exchange

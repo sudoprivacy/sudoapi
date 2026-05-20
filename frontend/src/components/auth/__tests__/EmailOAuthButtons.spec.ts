@@ -60,6 +60,30 @@ describe('EmailOAuthButtons', () => {
     expect(window.sessionStorage.getItem('email_oauth_pending_provider')).toBe('github')
   })
 
+  it('can start a contributor OAuth flow with an explicit redirect', async () => {
+    const wrapper = mount(EmailOAuthButtons, {
+      props: {
+        githubEnabled: false,
+        googleEnabled: true,
+        redirectTo: '/contributor/claude-auth',
+        contributor: true,
+      },
+      global: {
+        stubs: {
+          GitHubMark: true,
+          GoogleMark: true,
+        },
+      },
+    })
+
+    await wrapper.get('button').trigger('click')
+
+    expect(locationState.current.href).toBe(
+      '/api/v1/auth/oauth/google/start?redirect=%2Fcontributor%2Fclaude-auth&aff_code=AFF123&contributor=1'
+    )
+    expect(window.sessionStorage.getItem('email_oauth_pending_provider')).toBe('google')
+  })
+
   it('uses a full-width descriptive button when only GitHub is enabled', () => {
     const wrapper = mount(EmailOAuthButtons, {
       props: {

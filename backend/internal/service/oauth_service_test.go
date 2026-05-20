@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/oauth"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
@@ -223,8 +224,8 @@ func TestOAuthService_ExchangeCode_SessionNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("ExchangeCode 应返回错误（session 不存在）")
 	}
-	if err.Error() != "session not found or expired" {
-		t.Fatalf("错误信息不匹配: got=%q", err.Error())
+	if infraerrors.Code(err) != 400 || infraerrors.Reason(err) != "OAUTH_SESSION_EXPIRED" {
+		t.Fatalf("错误类型不匹配: code=%d reason=%q err=%v", infraerrors.Code(err), infraerrors.Reason(err), err)
 	}
 }
 
@@ -364,8 +365,8 @@ func TestOAuthService_ExchangeCode_ClientError(t *testing.T) {
 	if err == nil {
 		t.Fatal("ExchangeCode 应返回错误")
 	}
-	if err.Error() != "upstream error: invalid code" {
-		t.Fatalf("错误信息不匹配: got=%q", err.Error())
+	if infraerrors.Code(err) != 400 || infraerrors.Reason(err) != "OAUTH_CODE_INVALID" {
+		t.Fatalf("错误类型不匹配: code=%d reason=%q err=%v", infraerrors.Code(err), infraerrors.Reason(err), err)
 	}
 }
 

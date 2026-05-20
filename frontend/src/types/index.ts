@@ -1003,6 +1003,7 @@ export interface CreateAccountRequest {
   notes?: string | null
   platform: AccountPlatform
   type: AccountType
+  add_method?: OAuthAddMethod
   credentials: Record<string, unknown>
   extra?: Record<string, unknown>
   proxy_id?: number | null

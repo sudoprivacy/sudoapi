@@ -99,6 +99,7 @@ type CreateAccountRequest struct {
 	Notes                   *string        `json:"notes"`
 	Platform                string         `json:"platform" binding:"required"`
 	Type                    string         `json:"type" binding:"required,oneof=oauth setup-token apikey upstream bedrock service_account"`
+	AddMethod               string         `json:"add_method" binding:"omitempty,oneof=oauth setup-token"`
 	Credentials             map[string]any `json:"credentials" binding:"required"`
 	Extra                   map[string]any `json:"extra"`
 	ProxyID                 *int64         `json:"proxy_id"`

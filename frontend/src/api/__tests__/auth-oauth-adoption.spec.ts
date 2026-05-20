@@ -30,6 +30,44 @@ describe('oauth adoption auth api', () => {
     })
   })
 
+  it('posts contributor login and persists returned auth state', async () => {
+    const user = {
+      id: 1,
+      username: '',
+      email: 'contributor@example.com',
+      role: 'account_contributor',
+      balance: 0,
+      concurrency: 1,
+      status: 'active',
+      allowed_groups: null,
+      balance_notify_enabled: true,
+      balance_notify_threshold: null,
+      balance_notify_extra_emails: [],
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z'
+    }
+    post.mockResolvedValueOnce({
+      data: {
+        access_token: 'access-token',
+        refresh_token: 'refresh-token',
+        expires_in: 3600,
+        token_type: 'Bearer',
+        user
+      }
+    })
+    const { contributorLogin } = await import('@/api/auth')
+
+    await contributorLogin({ email: 'contributor@example.com', password: 'password' })
+
+    expect(post).toHaveBeenCalledWith('/auth/contributor/login', {
+      email: 'contributor@example.com',
+      password: 'password'
+    })
+    expect(localStorage.getItem('auth_token')).toBe('access-token')
+    expect(localStorage.getItem('refresh_token')).toBe('refresh-token')
+    expect(localStorage.getItem('auth_user')).toBe(JSON.stringify(user))
+  })
+
   it('posts bind-login decisions when finalizing pending oauth bind flow', async () => {
     const { completePendingOAuthBindLogin } = await import('@/api/auth')
 

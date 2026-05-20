@@ -19,6 +19,8 @@ func RegisterContributorRoutes(
 	{
 		accounts.GET("", h.ContributorAccount.List)
 		accounts.POST("", h.ContributorAccount.Create)
+		accounts.POST("/generate-auth-url", h.ContributorAccount.GenerateAuthURL)
+		accounts.POST("/exchange-code", h.ContributorAccount.ExchangeCode)
 		accounts.GET("/:id", h.ContributorAccount.GetByID)
 		accounts.PUT("/:id", h.ContributorAccount.Update)
 		accounts.POST("/:id/test", h.ContributorAccount.Test)

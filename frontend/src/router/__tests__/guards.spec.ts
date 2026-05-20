@@ -51,6 +51,7 @@ vi.mock('@/api/auth', () => ({
 interface MockAuthState {
   isAuthenticated: boolean
   isAdmin: boolean
+  isAccountContributor?: boolean
   isSimpleMode: boolean
   backendModeEnabled: boolean
   hasPendingAuthSession: boolean
@@ -67,6 +68,7 @@ function simulateGuard(
 ): string | null {
   const requiresAuth = toMeta.requiresAuth !== false
   const requiresAdmin = toMeta.requiresAdmin === true
+  const requiresAccountContributor = toMeta.requiresAccountContributor === true
 
   if (toPath === '/setup' && authState.setupNeedsSetup === false) {
     return resolveCompletedSetupRedirectPath(authState.isAuthenticated, authState.isAdmin)
@@ -74,6 +76,12 @@ function simulateGuard(
 
   // 不需要认证的路由
   if (!requiresAuth) {
+    if (authState.isAuthenticated && toPath === '/contributor/login') {
+      if (authState.isAccountContributor) {
+        return '/contributor/claude-auth'
+      }
+      return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
+    }
     if (
       authState.isAuthenticated &&
       (toPath === '/login' || toPath === '/register')
@@ -84,7 +92,7 @@ function simulateGuard(
       return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
     }
     if (authState.backendModeEnabled && !authState.isAuthenticated) {
-      const allowed = ['/login', '/key-usage', '/setup', '/payment/result']
+      const allowed = ['/login', '/contributor/login', '/key-usage', '/setup', '/payment/result']
       const callbackPaths = [
         '/auth/callback',
         '/auth/linuxdo/callback',
@@ -106,12 +114,16 @@ function simulateGuard(
 
   // 需要认证但未登录
   if (!authState.isAuthenticated) {
-    return '/login'
+    return toPath.startsWith('/contributor/') ? '/contributor/login' : '/login'
   }
 
   // 需要管理员但不是管理员
   if (requiresAdmin && !authState.isAdmin) {
     return '/dashboard'
+  }
+
+  if (requiresAccountContributor && !authState.isAccountContributor) {
+    return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
   }
 
   // 简易模式限制
@@ -133,7 +145,10 @@ function simulateGuard(
     if (authState.isAuthenticated && authState.isAdmin) {
       return null
     }
-    const allowed = ['/login', '/key-usage', '/setup', '/payment/result']
+    if (authState.isAuthenticated && authState.isAccountContributor && toPath.startsWith('/contributor/')) {
+      return null
+    }
+    const allowed = ['/login', '/contributor/login', '/key-usage', '/setup', '/payment/result']
     const callbackPaths = [
       '/auth/callback',
       '/auth/linuxdo/callback',
@@ -189,6 +204,11 @@ describe('路由守卫逻辑', () => {
       const redirect = simulateGuard('/home', { requiresAuth: false }, authState)
       expect(redirect).toBeNull()
     })
+
+    it('访问贡献者 Claude 授权页重定向到贡献者登录页', () => {
+      const redirect = simulateGuard('/contributor/claude-auth', { requiresAccountContributor: true }, authState)
+      expect(redirect).toBe('/contributor/login')
+    })
   })
 
   // --- 已认证普通用户 ---
@@ -225,6 +245,32 @@ describe('路由守卫逻辑', () => {
     it('访问 /admin/users 被拒绝', () => {
       const redirect = simulateGuard('/admin/users', { requiresAdmin: true }, authState)
       expect(redirect).toBe('/dashboard')
+    })
+
+    it('访问贡献者 Claude 授权页被拒绝', () => {
+      const redirect = simulateGuard('/contributor/claude-auth', { requiresAccountContributor: true }, authState)
+      expect(redirect).toBe('/dashboard')
+    })
+  })
+
+  describe('已认证贡献者', () => {
+    const authState: MockAuthState = {
+      isAuthenticated: true,
+      isAdmin: false,
+      isAccountContributor: true,
+      isSimpleMode: false,
+      backendModeEnabled: false,
+      hasPendingAuthSession: false,
+    }
+
+    it('访问贡献者登录页重定向到 Claude 授权页', () => {
+      const redirect = simulateGuard('/contributor/login', { requiresAuth: false }, authState)
+      expect(redirect).toBe('/contributor/claude-auth')
+    })
+
+    it('访问贡献者 Claude 授权页允许通过', () => {
+      const redirect = simulateGuard('/contributor/claude-auth', { requiresAccountContributor: true }, authState)
+      expect(redirect).toBeNull()
     })
   })
 

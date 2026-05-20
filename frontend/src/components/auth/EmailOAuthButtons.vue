@@ -39,6 +39,8 @@ const EMAIL_OAUTH_PENDING_PROVIDER_KEY = 'email_oauth_pending_provider'
 const props = withDefaults(defineProps<{
   disabled?: boolean
   affCode?: string
+  redirectTo?: string
+  contributor?: boolean
   githubEnabled?: boolean
   googleEnabled?: boolean
   showDivider?: boolean
@@ -71,7 +73,7 @@ function providerLabel(provider: EmailOAuthProvider): string {
 }
 
 function startLogin(provider: EmailOAuthProvider): void {
-  const redirectTo = (route.query.redirect as string) || '/dashboard'
+  const redirectTo = props.redirectTo || (route.query.redirect as string) || '/dashboard'
   const affiliateCode = resolveAffiliateReferralCode(props.affCode, route.query.aff, route.query.aff_code)
   storeOAuthAffiliateCode(affiliateCode)
   window.sessionStorage.setItem(EMAIL_OAUTH_PENDING_PROVIDER_KEY, provider)
@@ -80,6 +82,9 @@ function startLogin(provider: EmailOAuthProvider): void {
   const params = new URLSearchParams({ redirect: redirectTo })
   if (affiliateCode) {
     params.set('aff_code', affiliateCode)
+  }
+  if (props.contributor) {
+    params.set('contributor', '1')
   }
   const startURL = `${normalized}/auth/oauth/${provider}/start?${params.toString()}`
   window.location.href = startURL

@@ -17,10 +17,11 @@ import (
 type ContributorAccountHandler struct {
 	adminService       service.AdminService
 	accountTestService *service.AccountTestService
+	oauthService       *service.OAuthService
 }
 
-func NewContributorAccountHandler(adminService service.AdminService, accountTestService *service.AccountTestService) *ContributorAccountHandler {
-	return &ContributorAccountHandler{adminService: adminService, accountTestService: accountTestService}
+func NewContributorAccountHandler(adminService service.AdminService, accountTestService *service.AccountTestService, oauthService *service.OAuthService) *ContributorAccountHandler {
+	return &ContributorAccountHandler{adminService: adminService, accountTestService: accountTestService, oauthService: oauthService}
 }
 
 func (h *ContributorAccountHandler) List(c *gin.Context) {
@@ -179,4 +180,39 @@ func (h *ContributorAccountHandler) ListProxies(c *gin.Context) {
 		out = append(out, *dto.ProxyFromService(&proxies[i]))
 	}
 	response.Success(c, out)
+}
+
+func (h *ContributorAccountHandler) GenerateAuthURL(c *gin.Context) {
+	var req admin.GenerateAuthURLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req = admin.GenerateAuthURLRequest{}
+	}
+
+	result, err := h.oauthService.GenerateAuthURL(c.Request.Context(), req.ProxyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, result)
+}
+
+func (h *ContributorAccountHandler) ExchangeCode(c *gin.Context) {
+	var req admin.ExchangeCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	tokenInfo, err := h.oauthService.ExchangeCode(c.Request.Context(), &service.ExchangeCodeInput{
+		SessionID: req.SessionID,
+		Code:      req.Code,
+		ProxyID:   req.ProxyID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, tokenInfo)
 }
