@@ -64,6 +64,36 @@ func TestParsePricingData_CollectsModalitiesAndTrueSupportFlags(t *testing.T) {
 	require.Equal(t, []string{"vision", "web_search"}, pricing.SupportFlags)
 }
 
+func TestParsePricingData_PreservesRawAndExtendedPricingFields(t *testing.T) {
+	svc := &PricingService{}
+	body := []byte(`{
+		"claude-test": {
+			"input_cost_per_token": 0.000003,
+			"output_cost_per_token": 0.000015,
+			"cache_creation_input_token_cost": 0.00000375,
+			"cache_creation_input_token_cost_above_1hr": 0.000006,
+			"long_context_input_token_threshold": 200000,
+			"long_context_input_cost_multiplier": 2,
+			"long_context_output_cost_multiplier": 1.5,
+			"litellm_provider": "anthropic",
+			"mode": "chat",
+			"supports_prompt_caching": true,
+			"custom_litellm_field": {"nested": true}
+		}
+	}`)
+
+	data, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+	pricing := data["claude-test"]
+	require.NotNil(t, pricing)
+	require.InDelta(t, 0.000006, pricing.CacheCreationInputTokenCostAbove1hr, 1e-12)
+	require.Equal(t, 200000, pricing.LongContextInputTokenThreshold)
+	require.InDelta(t, 2.0, pricing.LongContextInputCostMultiplier, 1e-12)
+	require.InDelta(t, 1.5, pricing.LongContextOutputCostMultiplier, 1e-12)
+	require.Contains(t, pricing.RawFields, "custom_litellm_field")
+	require.Contains(t, pricing.RawFields, "cache_creation_input_token_cost_above_1hr")
+}
+
 func TestGetModelPricing_Gpt53CodexSparkUsesGpt51CodexPricing(t *testing.T) {
 	sparkPricing := &LiteLLMModelPricing{InputCostPerToken: 1}
 	gpt53Pricing := &LiteLLMModelPricing{InputCostPerToken: 9}

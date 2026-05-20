@@ -94,6 +94,36 @@ export interface ModelSquareCard {
   platforms: ModelPlatformSection[]
 }
 
+export interface LiteLLMModel {
+  name: string
+  provider: string
+  mode: string
+  category: string
+  max_tokens: number
+  max_input_tokens: number
+  max_output_tokens: number
+  input_price_per_mtok_usd: number | null
+  input_price_priority_per_mtok_usd: number | null
+  output_price_per_mtok_usd: number | null
+  output_price_priority_per_mtok_usd: number | null
+  cache_creation_price_per_mtok_usd: number | null
+  cache_creation_above_1h_price_per_mtok_usd: number | null
+  cache_read_price_per_mtok_usd: number | null
+  cache_read_priority_price_per_mtok_usd: number | null
+  output_price_per_image_usd: number | null
+  output_price_per_image_mtok_usd: number | null
+  long_context_input_token_threshold: number
+  long_context_input_cost_multiplier: number
+  long_context_output_cost_multiplier: number
+  supports_prompt_caching: boolean
+  supports_service_tier: boolean
+  supported_modalities: string[]
+  output_modalities: string[]
+  support_flags: string[]
+  capabilities: string[]
+  raw_fields: Record<string, unknown>
+}
+
 /** 公开入口：未登录也可调用。 */
 export async function listPublicModels(options?: {
   signal?: AbortSignal
@@ -114,9 +144,20 @@ export async function listMyModels(options?: {
   return data
 }
 
+/** LiteLLM 原始模型列表：未登录可见，不叠加渠道定价。 */
+export async function listLiteLLMModels(options?: {
+  signal?: AbortSignal
+}): Promise<LiteLLMModel[]> {
+  const { data } = await apiClient.get<LiteLLMModel[]>('/public/litellm-models', {
+    signal: options?.signal,
+  })
+  return data
+}
+
 export const modelSquareAPI = {
   listPublicModels,
   listMyModels,
+  listLiteLLMModels,
 }
 
 export default modelSquareAPI

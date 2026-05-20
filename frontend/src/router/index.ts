@@ -176,6 +176,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/model',
+    name: 'ModelCatalog',
+    component: () => import('@/views/public/LiteLLMModelView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model Square',
+      titleKey: 'liteLLMModels.title',
+    }
+  },
+  {
     path: '/models/quote',
     name: 'ModelQuote',
     component: () => import('@/views/public/ModelQuoteView.vue'),
@@ -733,7 +743,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/models']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/models', '/model']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',

@@ -107,6 +107,36 @@ type modelSquareCardDTO struct {
 	Platforms        []modelPlatformSectionDTO `json:"platforms"`
 }
 
+type liteLLMModelDTO struct {
+	Name                            string         `json:"name"`
+	Provider                        string         `json:"provider"`
+	Mode                            string         `json:"mode"`
+	Category                        string         `json:"category"`
+	MaxTokens                       int            `json:"max_tokens"`
+	MaxInputTokens                  int            `json:"max_input_tokens"`
+	MaxOutputTokens                 int            `json:"max_output_tokens"`
+	InputPricePerMTok               *float64       `json:"input_price_per_mtok_usd"`
+	InputPricePriorityPerMTok       *float64       `json:"input_price_priority_per_mtok_usd"`
+	OutputPricePerMTok              *float64       `json:"output_price_per_mtok_usd"`
+	OutputPricePriorityPerMTok      *float64       `json:"output_price_priority_per_mtok_usd"`
+	CacheCreationPerMTok            *float64       `json:"cache_creation_price_per_mtok_usd"`
+	CacheCreationAbove1hPerMTok     *float64       `json:"cache_creation_above_1h_price_per_mtok_usd"`
+	CacheReadPerMTok                *float64       `json:"cache_read_price_per_mtok_usd"`
+	CacheReadPriorityPerMTok        *float64       `json:"cache_read_priority_price_per_mtok_usd"`
+	OutputPricePerImage             *float64       `json:"output_price_per_image_usd"`
+	OutputPricePerImageMTok         *float64       `json:"output_price_per_image_mtok_usd"`
+	LongContextInputTokenThreshold  int            `json:"long_context_input_token_threshold"`
+	LongContextInputCostMultiplier  float64        `json:"long_context_input_cost_multiplier"`
+	LongContextOutputCostMultiplier float64        `json:"long_context_output_cost_multiplier"`
+	SupportsPromptCaching           bool           `json:"supports_prompt_caching"`
+	SupportsServiceTier             bool           `json:"supports_service_tier"`
+	SupportedModalities             []string       `json:"supported_modalities"`
+	OutputModalities                []string       `json:"output_modalities"`
+	SupportFlags                    []string       `json:"support_flags"`
+	Capabilities                    []string       `json:"capabilities"`
+	RawFields                       map[string]any `json:"raw_fields"`
+}
+
 // ListPublic 处理 GET /api/v1/public/models。
 // 不需要 JWT；仅返回 standard 非专属分组的定价。
 func (h *ModelSquareHandler) ListPublic(c *gin.Context) {
@@ -116,6 +146,45 @@ func (h *ModelSquareHandler) ListPublic(c *gin.Context) {
 		return
 	}
 	response.Success(c, toCardDTOs(cards, nil))
+}
+
+// ListLiteLLM handles GET /api/v1/public/litellm-models.
+// It returns the loaded LiteLLM model list directly, without channel filtering.
+func (h *ModelSquareHandler) ListLiteLLM(c *gin.Context) {
+	items := h.modelSquareSvc.ListLiteLLMModels()
+	out := make([]liteLLMModelDTO, 0, len(items))
+	for _, item := range items {
+		out = append(out, liteLLMModelDTO{
+			Name:                            item.Name,
+			Provider:                        item.Provider,
+			Mode:                            item.Mode,
+			Category:                        item.Category,
+			MaxTokens:                       item.MaxTokens,
+			MaxInputTokens:                  item.MaxInputTokens,
+			MaxOutputTokens:                 item.MaxOutputTokens,
+			InputPricePerMTok:               positivePerMTokPtr(item.InputCostPerToken),
+			InputPricePriorityPerMTok:       positivePerMTokPtr(item.InputCostPerTokenPriority),
+			OutputPricePerMTok:              positivePerMTokPtr(item.OutputCostPerToken),
+			OutputPricePriorityPerMTok:      positivePerMTokPtr(item.OutputCostPerTokenPriority),
+			CacheCreationPerMTok:            positivePerMTokPtr(item.CacheCreationCost),
+			CacheCreationAbove1hPerMTok:     positivePerMTokPtr(item.CacheCreationCostAbove1h),
+			CacheReadPerMTok:                positivePerMTokPtr(item.CacheReadCost),
+			CacheReadPriorityPerMTok:        positivePerMTokPtr(item.CacheReadCostPriority),
+			OutputPricePerImage:             positivePtr(item.OutputCostPerImage),
+			OutputPricePerImageMTok:         positivePerMTokPtr(item.OutputCostPerImageToken),
+			LongContextInputTokenThreshold:  item.LongContextInputTokenThreshold,
+			LongContextInputCostMultiplier:  item.LongContextInputCostMultiplier,
+			LongContextOutputCostMultiplier: item.LongContextOutputCostMultiplier,
+			SupportsPromptCaching:           item.SupportsPromptCaching,
+			SupportsServiceTier:             item.SupportsServiceTier,
+			SupportedModalities:             emptyStrings(item.SupportedModalities),
+			OutputModalities:                emptyStrings(item.OutputModalities),
+			SupportFlags:                    emptyStrings(item.SupportFlags),
+			Capabilities:                    emptyStrings(item.Capabilities),
+			RawFields:                       item.RawFields,
+		})
+	}
+	response.Success(c, out)
 }
 
 // ListAuthenticated 处理 GET /api/v1/models。
@@ -193,6 +262,22 @@ func emptyStrings(in []string) []string {
 		return []string{}
 	}
 	return in
+}
+
+func positivePtr(v float64) *float64 {
+	if v <= 0 {
+		return nil
+	}
+	vv := v
+	return &vv
+}
+
+func positivePerMTokPtr(v float64) *float64 {
+	if v <= 0 {
+		return nil
+	}
+	vv := v * 1e6
+	return &vv
 }
 
 func toPlatformDTOs(in []service.ModelPlatformSection, rates map[int64]float64) []modelPlatformSectionDTO {
