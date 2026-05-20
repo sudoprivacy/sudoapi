@@ -11,7 +11,63 @@
         </div>
       </div>
 
+      <div
+        class="mb-5 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-700 dark:bg-blue-900/30"
+      >
+        <div class="space-y-4">
+          <div>
+            <label class="input-label">选择代理</label>
+            <select
+              v-model="selectedProxyId"
+              class="input w-full"
+              :disabled="proxyLoading || !hasAvailableProxies || loading"
+              @change="handleProxyChange"
+            >
+              <option v-if="proxyLoading" :value="null">正在加载代理...</option>
+              <option
+                v-for="proxy in proxies"
+                :key="proxy.id"
+                :value="proxy.id"
+              >
+                {{ formatProxyLabel(proxy) }}
+              </option>
+            </select>
+          </div>
+
+          <div
+            v-if="proxyUnavailableMessage"
+            class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
+          >
+            {{ proxyUnavailableMessage }}
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-testid="generate-auth-url"
+            :disabled="!canGenerateAuthUrl"
+            @click="generateAuthUrl"
+          >
+            <svg
+              v-if="loading"
+              class="-ml-1 mr-2 h-4 w-4 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            {{ loading ? t('common.loading') : '生成授权链接' }}
+          </button>
+        </div>
+      </div>
+
       <OAuthAuthorizationFlow
+        v-if="authUrl && sessionId"
         ref="oauthFlowRef"
         add-method="setup-token"
         :auth-url="authUrl"
@@ -32,8 +88,14 @@
         @generate-url="generateAuthUrl"
       />
 
-      <div class="mt-5 flex justify-end">
-        <button type="button" class="btn btn-primary" :disabled="!canSubmit" @click="submitAuthCode">
+      <div v-if="authUrl && sessionId" class="mt-5 flex justify-end">
+        <button
+          type="button"
+          class="btn btn-primary"
+          data-testid="submit-auth-code"
+          :disabled="!canSubmit"
+          @click="submitAuthCode"
+        >
           <svg
             v-if="loading"
             class="-ml-1 mr-2 h-4 w-4 animate-spin"
@@ -61,6 +123,7 @@ import OAuthAuthorizationFlow from '@/components/account/OAuthAuthorizationFlow.
 import { contributorAPI } from '@/api/contributor'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
+import type { Proxy } from '@/types'
 
 type OAuthFlowExposed = {
   authCode: string
@@ -76,16 +139,77 @@ const authUrl = ref('')
 const sessionId = ref('')
 const accountName = ref(resolveAccountName())
 const loading = ref(false)
+const proxyLoading = ref(false)
 const error = ref('')
 const created = ref(false)
+const proxies = ref<Proxy[]>([])
+const selectedProxyId = ref<number | null>(null)
+const proxyLoadFailed = ref(false)
+
+const hasAvailableProxies = computed(() => proxies.value.length > 0)
+
+const proxyUnavailableMessage = computed(() => {
+  if (proxyLoading.value) return ''
+  if (proxyLoadFailed.value || !hasAvailableProxies.value) {
+    return '暂时没有可选代理，无法继续授权。'
+  }
+  return ''
+})
+
+const canGenerateAuthUrl = computed(() => {
+  return !loading.value && !proxyLoading.value && hasAvailableProxies.value && selectedProxyId.value !== null
+})
 
 const canSubmit = computed(() => {
-  return !loading.value && !!sessionId.value && !!oauthFlowRef.value?.authCode?.trim()
+  return (
+    !loading.value &&
+    hasAvailableProxies.value &&
+    selectedProxyId.value !== null &&
+    !!sessionId.value &&
+    !!oauthFlowRef.value?.authCode?.trim()
+  )
 })
 
 onMounted(() => {
-  generateAuthUrl()
+  loadProxies()
 })
+
+function formatProxyLabel(proxy: Proxy): string {
+  return `${proxy.name} (${proxy.protocol}://${proxy.host}:${proxy.port})`
+}
+
+async function loadProxies(): Promise<void> {
+  proxyLoading.value = true
+  proxyLoadFailed.value = false
+  error.value = ''
+  try {
+    const result = await contributorAPI.accounts.getProxies()
+    proxies.value = result
+    selectedProxyId.value = result[0]?.id ?? null
+    if (result.length === 1) {
+      await generateAuthUrl()
+    }
+  } catch (err: any) {
+    proxies.value = []
+    selectedProxyId.value = null
+    proxyLoadFailed.value = true
+    error.value = err.response?.data?.detail || err.message || 'Failed to load proxies'
+    appStore.showError(error.value)
+  } finally {
+    proxyLoading.value = false
+  }
+}
+
+function resetAuthorizationState(): void {
+  authUrl.value = ''
+  sessionId.value = ''
+  oauthFlowRef.value?.reset()
+}
+
+function handleProxyChange(): void {
+  selectedProxyId.value = selectedProxyId.value === null ? null : Number(selectedProxyId.value)
+  resetAuthorizationState()
+}
 
 function resolveAccountName(): string {
   const username = authStore.user?.username?.trim()
@@ -106,12 +230,19 @@ function buildExtra(tokenInfo: Record<string, unknown>): Record<string, unknown>
 }
 
 async function generateAuthUrl(): Promise<void> {
+  if (selectedProxyId.value === null || !hasAvailableProxies.value) {
+    error.value = '暂时没有可选代理，无法继续授权。'
+    return
+  }
+
   loading.value = true
   error.value = ''
   authUrl.value = ''
   sessionId.value = ''
   try {
-    const result = await contributorAPI.accounts.generateClaudeSetupTokenUrl({ proxy_id: null })
+    const result = await contributorAPI.accounts.generateClaudeSetupTokenUrl({
+      proxy_id: selectedProxyId.value
+    })
     authUrl.value = result.auth_url
     sessionId.value = result.session_id
   } catch (err: any) {
@@ -134,7 +265,7 @@ async function submitAuthCode(): Promise<void> {
     const tokenInfo = await contributorAPI.accounts.exchangeClaudeSetupTokenCode({
       session_id: sessionId.value,
       code,
-      proxy_id: null
+      proxy_id: selectedProxyId.value
     })
     await contributorAPI.accounts.create({
       name: accountName.value || resolveAccountName(),
@@ -144,7 +275,7 @@ async function submitAuthCode(): Promise<void> {
       add_method: 'setup-token',
       credentials: tokenInfo,
       extra: buildExtra(tokenInfo),
-      proxy_id: null,
+      proxy_id: selectedProxyId.value,
       concurrency: 10,
       priority: 1,
       rate_multiplier: 1,
@@ -165,7 +296,9 @@ async function submitAuthCode(): Promise<void> {
 function resetFlow(): void {
   created.value = false
   accountName.value = resolveAccountName()
-  oauthFlowRef.value?.reset()
-  generateAuthUrl()
+  resetAuthorizationState()
+  if (proxies.value.length === 1) {
+    generateAuthUrl()
+  }
 }
 </script>

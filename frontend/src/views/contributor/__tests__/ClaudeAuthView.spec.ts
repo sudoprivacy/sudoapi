@@ -8,6 +8,7 @@ const generateClaudeSetupTokenUrl = vi.fn()
 const exchangeClaudeCode = vi.fn()
 const exchangeClaudeSetupTokenCode = vi.fn()
 const create = vi.fn()
+const getProxies = vi.fn()
 const showSuccess = vi.fn()
 const showError = vi.fn()
 
@@ -18,7 +19,8 @@ vi.mock('@/api/contributor', () => ({
       generateClaudeSetupTokenUrl: (...args: any[]) => generateClaudeSetupTokenUrl(...args),
       exchangeClaudeCode: (...args: any[]) => exchangeClaudeCode(...args),
       exchangeClaudeSetupTokenCode: (...args: any[]) => exchangeClaudeSetupTokenCode(...args),
-      create: (...args: any[]) => create(...args)
+      create: (...args: any[]) => create(...args),
+      getProxies: (...args: any[]) => getProxies(...args)
     }
   }
 }))
@@ -77,9 +79,29 @@ vi.mock('@/components/account/OAuthAuthorizationFlow.vue', () => ({
   })
 }))
 
+const proxyA = {
+  id: 10,
+  name: 'proxy-a',
+  protocol: 'http',
+  host: 'proxy-a.example.com',
+  port: 8080,
+  username: null,
+  status: 'active',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z'
+}
+
+const proxyB = {
+  ...proxyA,
+  id: 11,
+  name: 'proxy-b',
+  host: 'proxy-b.example.com'
+}
+
 describe('ClaudeAuthView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    getProxies.mockResolvedValue([proxyA])
     generateClaudeSetupTokenUrl.mockResolvedValue({
       auth_url: 'https://claude.example/oauth',
       session_id: 'session-123'
@@ -94,12 +116,37 @@ describe('ClaudeAuthView', () => {
     create.mockResolvedValue({ id: 1 })
   })
 
-  it('auto-generates auth URL on mount', async () => {
+  it('loads one proxy and auto-generates setup token auth URL', async () => {
     mount(ClaudeAuthView)
     await flushPromises()
 
-    expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: null })
+    expect(getProxies).toHaveBeenCalled()
+    expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: 10 })
     expect(generateClaudeAuthUrl).not.toHaveBeenCalled()
+  })
+
+  it('waits for manual generation when multiple proxies are available', async () => {
+    getProxies.mockResolvedValue([proxyA, proxyB])
+    const wrapper = mount(ClaudeAuthView)
+    await flushPromises()
+
+    expect(generateClaudeSetupTokenUrl).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="generate-auth-url"]').trigger('click')
+    await flushPromises()
+
+    expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: 10 })
+  })
+
+  it('disables authorization flow when no proxies are available', async () => {
+    getProxies.mockResolvedValue([])
+    const wrapper = mount(ClaudeAuthView)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('暂时没有可选代理，无法继续授权。')
+    expect(wrapper.find('[data-testid="generate-auth-url"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.findComponent({ name: 'OAuthAuthorizationFlow' }).exists()).toBe(false)
+    expect(generateClaudeSetupTokenUrl).not.toHaveBeenCalled()
   })
 
   it('defaults Claude authorization add method to setup token', async () => {
@@ -113,13 +160,13 @@ describe('ClaudeAuthView', () => {
     const wrapper = mount(ClaudeAuthView)
     await flushPromises()
 
-    await wrapper.find('.btn-primary').trigger('click')
+    await wrapper.find('[data-testid="submit-auth-code"]').trigger('click')
     await flushPromises()
 
     expect(exchangeClaudeSetupTokenCode).toHaveBeenCalledWith({
       session_id: 'session-123',
       code: 'claude-auth-code',
-      proxy_id: null
+      proxy_id: 10
     })
     expect(exchangeClaudeCode).not.toHaveBeenCalled()
     expect(create).toHaveBeenCalledWith(expect.objectContaining({
@@ -135,7 +182,7 @@ describe('ClaudeAuthView', () => {
         account_uuid: 'account-123',
         email_address: 'claude@example.com'
       },
-      proxy_id: null,
+      proxy_id: 10,
       concurrency: 10,
       priority: 1,
       rate_multiplier: 1,
