@@ -42,8 +42,8 @@ const (
 
 // ModelEndpoint 模型在某平台对外暴露的入站端点（用户实际请求的路径）。
 type ModelEndpoint struct {
-	Path   string
-	Method string
+	Path   string `json:"path"`
+	Method string `json:"method"`
 }
 
 // ModelGroupPrice 单个分组下的定价行。
@@ -70,8 +70,43 @@ type ModelGroupPrice struct {
 	// per_request / image：USD per call
 	PerRequestPrice *float64
 
+	// 上下文区间定价。token 模式价格统一为 USD per 1M tokens；
+	// per_request / image 模式价格保持 USD per call。
+	Intervals []ModelGroupPriceInterval
+
 	// 同模型在多渠道提供时记录调用链路（按渠道名稳定排序），仅展示用。
 	ChannelChain []string
+}
+
+// ModelGroupPriceInterval 单个分组价格下的上下文区间。
+type ModelGroupPriceInterval struct {
+	MinTokens int
+	MaxTokens *int
+	TierLabel string
+
+	// USD per 1M tokens
+	InputPricePerMTok      *float64
+	OutputPricePerMTok     *float64
+	CacheReadPricePerMTok  *float64
+	CacheWritePricePerMTok *float64
+
+	// per_request / image：USD per call
+	PerRequestPrice *float64
+
+	SortOrder int
+}
+
+// ModelOfficialPrice is the LiteLLM reference price for a model.
+//
+// Token prices are normalized to USD per 1M tokens for display. ImagePriceUSD
+// keeps LiteLLM's per-image unit where available.
+type ModelOfficialPrice struct {
+	InputPricePerMTok       *float64
+	OutputPricePerMTok      *float64
+	CacheReadPricePerMTok   *float64
+	CacheWritePricePerMTok  *float64
+	ImageOutputPricePerMTok *float64
+	ImagePriceUSD           *float64
 }
 
 // ModelPlatformSection 单个模型在某平台下的完整切片。
@@ -97,6 +132,12 @@ type ModelSquareCard struct {
 	Featured      bool
 	IconURL       string
 	Platforms     []ModelPlatformSection
+
+	ModelType        string
+	InputModalities  []string
+	OutputModalities []string
+	SupportFlags     []string
+	OfficialPrice    *ModelOfficialPrice
 }
 
 // ModelSquareService 把 ChannelService.ListAvailable 的「渠道→模型」视图倒置为
@@ -107,6 +148,9 @@ type ModelSquareCard struct {
 type ModelSquareService struct {
 	channelSvc *ChannelService
 	pricingSvc *PricingService
+
+	metadata       ModelMetadataOverrideReader
+	endpointConfig ModelEndpointConfigReader
 
 	mu sync.Mutex
 	// publicEntry 全局共享；userEntries 按 userID 索引。
@@ -127,6 +171,21 @@ func NewModelSquareService(channelSvc *ChannelService, pricingSvc *PricingServic
 		pricingSvc:  pricingSvc,
 		userEntries: make(map[int64]*modelSquareCacheEntry),
 	}
+}
+
+// SetModelMetadataReader injects optional admin-maintained metadata overrides.
+func (s *ModelSquareService) SetModelMetadataReader(reader ModelMetadataOverrideReader) {
+	if s == nil {
+		return
+	}
+	s.metadata = reader
+}
+
+func (s *ModelSquareService) SetModelEndpointConfigReader(reader ModelEndpointConfigReader) {
+	if s == nil {
+		return
+	}
+	s.endpointConfig = reader
 }
 
 // InvalidateAll 清空所有 scope 的缓存。
@@ -252,8 +311,7 @@ func (s *ModelSquareService) build(
 				cardByModel[modelKey] = cb
 			}
 
-			endpoints := InboundEndpointsForPlatform(m.Platform, modeFromPricing(s.pricingSvc, m.Name))
-			section := cb.ensurePlatform(m.Platform, endpoints)
+			section := cb.ensurePlatform(m.Platform, nil)
 
 			for _, g := range groups {
 				existingIdx := section.findPriceIdx(g.ID)
@@ -270,10 +328,21 @@ func (s *ModelSquareService) build(
 		}
 	}
 
-	// 收尾：把元数据（描述/上下文/能力/category）补齐 + 排序输出。
+	overrides, err := s.loadMetadataOverrides(ctx, cardByModel)
+	if err != nil {
+		return nil, err
+	}
+	endpointConfig, err := s.loadEndpointConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 收尾：把元数据（描述/上下文/能力/category）补齐 + 管理员覆盖 + 排序输出。
 	cards := make([]ModelSquareCard, 0, len(cardByModel))
 	for _, cb := range cardByModel {
 		s.fillMetadata(cb)
+		applyModelMetadataOverride(cb, overrides[normalizeMetadataModelKey(cb.Name)])
+		cb.applyEndpointConfig(endpointConfig)
 		cb.sortPlatforms()
 		cards = append(cards, cb.toCard())
 	}
@@ -287,6 +356,35 @@ func (s *ModelSquareService) build(
 		return cards[i].Name < cards[j].Name
 	})
 	return cards, nil
+}
+
+func (s *ModelSquareService) loadEndpointConfig(ctx context.Context) (*ModelEndpointConfig, error) {
+	if s == nil || s.endpointConfig == nil {
+		return DefaultModelEndpointConfig(), nil
+	}
+	cfg, err := s.endpointConfig.GetModelEndpointConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("model square: load endpoint config: %w", err)
+	}
+	if cfg == nil {
+		return &ModelEndpointConfig{Platforms: map[string]map[string][]ModelEndpoint{}}, nil
+	}
+	return cfg, nil
+}
+
+func (s *ModelSquareService) loadMetadataOverrides(ctx context.Context, cards map[string]*modelSquareCardBuilder) (map[string]*ModelMetadataOverride, error) {
+	if s == nil || s.metadata == nil || len(cards) == 0 {
+		return map[string]*ModelMetadataOverride{}, nil
+	}
+	names := make([]string, 0, len(cards))
+	for _, cb := range cards {
+		names = append(names, cb.Name)
+	}
+	overrides, err := s.metadata.GetOverridesByModelNames(ctx, names)
+	if err != nil {
+		return nil, fmt.Errorf("model square: load metadata overrides: %w", err)
+	}
+	return overrides, nil
 }
 
 // appendUniqueSorted 把 name 加入 list 并按字典序去重稳定排序（不区分大小写比较，保留原大小写）。
@@ -314,6 +412,12 @@ type modelSquareCardBuilder struct {
 	IconURL        string
 	platformOrder  []string
 	platformByName map[string]*ModelPlatformSection
+
+	ModelType        string
+	InputModalities  []string
+	OutputModalities []string
+	SupportFlags     []string
+	OfficialPrice    *ModelOfficialPrice
 }
 
 func newCardBuilder(modelName string) *modelSquareCardBuilder {
@@ -346,6 +450,17 @@ func (b *modelSquareCardBuilder) sortPlatforms() {
 	}
 }
 
+func (b *modelSquareCardBuilder) applyEndpointConfig(cfg *ModelEndpointConfig) {
+	if b == nil {
+		return
+	}
+	for _, platform := range b.platformOrder {
+		if sec := b.platformByName[platform]; sec != nil {
+			sec.Endpoints = ResolveModelEndpoints(cfg, platform, b.ModelType)
+		}
+	}
+}
+
 func (b *modelSquareCardBuilder) toCard() ModelSquareCard {
 	platforms := make([]ModelPlatformSection, 0, len(b.platformOrder))
 	for _, p := range b.platformOrder {
@@ -362,6 +477,12 @@ func (b *modelSquareCardBuilder) toCard() ModelSquareCard {
 		Featured:      b.Featured,
 		IconURL:       b.IconURL,
 		Platforms:     platforms,
+
+		ModelType:        b.ModelType,
+		InputModalities:  b.InputModalities,
+		OutputModalities: b.OutputModalities,
+		SupportFlags:     b.SupportFlags,
+		OfficialPrice:    cloneOfficialPrice(b.OfficialPrice),
 	}
 }
 
@@ -378,13 +499,34 @@ func (sec *ModelPlatformSection) findPriceIdx(groupID int64) int {
 // fillMetadata 根据 LiteLLM 全局数据填充描述、上下文、能力、分类。
 // pricingSvc 为 nil 时只做模型名前缀的 category 推断。
 func (s *ModelSquareService) fillMetadata(cb *modelSquareCardBuilder) {
-	cb.Category = inferCategoryFromName(cb.Name)
-	if s == nil || s.pricingSvc == nil {
+	if s == nil {
+		fillModelSquareMetadata(nil, cb)
 		return
 	}
-	lp := s.pricingSvc.GetModelPricing(cb.Name)
+	fillModelSquareMetadata(s.pricingSvc, cb)
+}
+
+func fillModelSquareMetadata(pricingSvc *PricingService, cb *modelSquareCardBuilder) {
+	if cb == nil {
+		return
+	}
+	cb.Category = inferCategoryFromName(cb.Name)
+	if pricingSvc == nil {
+		return
+	}
+	lp := pricingSvc.GetModelPricing(cb.Name)
 	if lp == nil {
 		return
+	}
+	cb.OfficialPrice = officialPriceFromLiteLLM(lp)
+	if cb.ModelType == "" {
+		cb.ModelType = strings.TrimSpace(lp.Mode)
+	}
+	if len(cb.InputModalities) == 0 {
+		cb.InputModalities = append([]string(nil), lp.SupportedModalities...)
+	}
+	if len(cb.OutputModalities) == 0 {
+		cb.OutputModalities = append([]string(nil), lp.SupportedOutputModalities...)
 	}
 	if cb.ContextWindow == 0 {
 		cb.ContextWindow = lp.MaxInputTokens
@@ -397,9 +539,50 @@ func (s *ModelSquareService) fillMetadata(cb *modelSquareCardBuilder) {
 	}
 	caps := deriveCapabilities(lp)
 	cb.Capabilities = mergeUniqueStrings(cb.Capabilities, caps)
+	cb.SupportFlags = mergeUniqueStrings(cb.SupportFlags, lp.SupportFlags)
 	// Mode 进一步细化 category（image_generation / embedding 等）。
 	if cat := categoryFromMode(lp.Mode); cat != "" && cb.Category == "other" {
 		cb.Category = cat
+	}
+}
+
+func applyModelMetadataOverride(cb *modelSquareCardBuilder, override *ModelMetadataOverride) {
+	if cb == nil || override == nil {
+		return
+	}
+	if v := strings.TrimSpace(override.DisplayName); v != "" {
+		cb.DisplayName = v
+	}
+	if v := strings.TrimSpace(override.Description); v != "" {
+		cb.Description = v
+	}
+	if v := strings.TrimSpace(override.ModelType); v != "" {
+		cb.ModelType = v
+	}
+	if v := strings.TrimSpace(override.Category); v != "" {
+		cb.Category = v
+	}
+	if override.ContextWindow > 0 {
+		cb.ContextWindow = override.ContextWindow
+	}
+	if override.MaxOutput > 0 {
+		cb.MaxOutput = override.MaxOutput
+	}
+	if len(override.Capabilities) > 0 {
+		cb.Capabilities = append([]string(nil), override.Capabilities...)
+	}
+	if len(override.InputModalities) > 0 {
+		cb.InputModalities = append([]string(nil), override.InputModalities...)
+	}
+	if len(override.OutputModalities) > 0 {
+		cb.OutputModalities = append([]string(nil), override.OutputModalities...)
+	}
+	if len(override.SupportFlags) > 0 {
+		cb.SupportFlags = append([]string(nil), override.SupportFlags...)
+	}
+	cb.Featured = override.Featured
+	if v := strings.TrimSpace(override.IconURL); v != "" {
+		cb.IconURL = v
 	}
 }
 
@@ -439,18 +622,6 @@ func InboundEndpointsForPlatform(platform, mode string) []ModelEndpoint {
 func isImageMode(mode string) bool {
 	m := strings.ToLower(strings.TrimSpace(mode))
 	return m == "image_generation" || m == "image"
-}
-
-// modeFromPricing 查模型 mode；pricingSvc 为 nil 或查不到时返回空串。
-func modeFromPricing(pricingSvc *PricingService, modelName string) string {
-	if pricingSvc == nil {
-		return ""
-	}
-	lp := pricingSvc.GetModelPricing(modelName)
-	if lp == nil {
-		return ""
-	}
-	return lp.Mode
 }
 
 // filterGroupsForScope 根据 scope 过滤可见分组。
@@ -511,7 +682,84 @@ func buildGroupPrice(g AvailableGroupRef, p *ChannelModelPricing) ModelGroupPric
 		v := *p.PerRequestPrice
 		row.PerRequestPrice = &v
 	}
+	row.Intervals = buildGroupPriceIntervals(p.Intervals)
 	return row
+}
+
+func buildGroupPriceIntervals(intervals []PricingInterval) []ModelGroupPriceInterval {
+	if len(intervals) == 0 {
+		return nil
+	}
+	out := make([]ModelGroupPriceInterval, 0, len(intervals))
+	for _, iv := range intervals {
+		if !pricingIntervalHasPrice(iv) {
+			continue
+		}
+		out = append(out, ModelGroupPriceInterval{
+			MinTokens:              iv.MinTokens,
+			MaxTokens:              iv.MaxTokens,
+			TierLabel:              iv.TierLabel,
+			InputPricePerMTok:      scaleIntervalPtrPerMillion(iv.InputPrice),
+			OutputPricePerMTok:     scaleIntervalPtrPerMillion(iv.OutputPrice),
+			CacheReadPricePerMTok:  scaleIntervalPtrPerMillion(iv.CacheReadPrice),
+			CacheWritePricePerMTok: scaleIntervalPtrPerMillion(iv.CacheWritePrice),
+			PerRequestPrice:        cloneFloatPtr(iv.PerRequestPrice),
+			SortOrder:              iv.SortOrder,
+		})
+	}
+	return out
+}
+
+func pricingIntervalHasPrice(iv PricingInterval) bool {
+	return iv.InputPrice != nil || iv.OutputPrice != nil ||
+		iv.CacheWritePrice != nil || iv.CacheReadPrice != nil ||
+		iv.PerRequestPrice != nil
+}
+
+func cloneFloatPtr(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	vv := *v
+	return &vv
+}
+
+func officialPriceFromLiteLLM(lp *LiteLLMModelPricing) *ModelOfficialPrice {
+	if lp == nil {
+		return nil
+	}
+	return &ModelOfficialPrice{
+		InputPricePerMTok:       scaleFloatPerMillion(lp.InputCostPerToken),
+		OutputPricePerMTok:      scaleFloatPerMillion(lp.OutputCostPerToken),
+		CacheReadPricePerMTok:   scaleFloatPerMillion(lp.CacheReadInputTokenCost),
+		CacheWritePricePerMTok:  scaleFloatPerMillion(lp.CacheCreationInputTokenCost),
+		ImageOutputPricePerMTok: scaleFloatPerMillion(lp.OutputCostPerImageToken),
+		ImagePriceUSD:           nonZeroFloatPtr(lp.OutputCostPerImage),
+	}
+}
+
+func scaleFloatPerMillion(v float64) *float64 {
+	if v == 0 {
+		return nil
+	}
+	scaled := v * 1_000_000
+	return &scaled
+}
+
+func nonZeroFloatPtr(v float64) *float64 {
+	if v == 0 {
+		return nil
+	}
+	return &v
+}
+
+// scaleIntervalPtrPerMillion 用于区间展示，保留显式 0 价格以表达免费区间。
+func scaleIntervalPtrPerMillion(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	scaled := *v * 1_000_000
+	return &scaled
 }
 
 // scalePtrPerMillion 把每 token 价格乘 1e6 转为「USD per 1M tokens」。
@@ -618,8 +866,18 @@ func cloneCards(in []ModelSquareCard) []ModelSquareCard {
 	out := make([]ModelSquareCard, len(in))
 	for i, c := range in {
 		out[i] = c
+		out[i].OfficialPrice = cloneOfficialPrice(c.OfficialPrice)
 		if c.Capabilities != nil {
 			out[i].Capabilities = append([]string(nil), c.Capabilities...)
+		}
+		if c.InputModalities != nil {
+			out[i].InputModalities = append([]string(nil), c.InputModalities...)
+		}
+		if c.OutputModalities != nil {
+			out[i].OutputModalities = append([]string(nil), c.OutputModalities...)
+		}
+		if c.SupportFlags != nil {
+			out[i].SupportFlags = append([]string(nil), c.SupportFlags...)
 		}
 		if c.Platforms != nil {
 			out[i].Platforms = make([]ModelPlatformSection, len(c.Platforms))
@@ -632,6 +890,9 @@ func cloneCards(in []ModelSquareCard) []ModelSquareCard {
 					out[i].Platforms[j].GroupPrices = make([]ModelGroupPrice, len(p.GroupPrices))
 					for k, gp := range p.GroupPrices {
 						out[i].Platforms[j].GroupPrices[k] = gp
+						if gp.Intervals != nil {
+							out[i].Platforms[j].GroupPrices[k].Intervals = append([]ModelGroupPriceInterval(nil), gp.Intervals...)
+						}
 						if gp.ChannelChain != nil {
 							out[i].Platforms[j].GroupPrices[k].ChannelChain = append([]string(nil), gp.ChannelChain...)
 						}
@@ -641,4 +902,18 @@ func cloneCards(in []ModelSquareCard) []ModelSquareCard {
 		}
 	}
 	return out
+}
+
+func cloneOfficialPrice(in *ModelOfficialPrice) *ModelOfficialPrice {
+	if in == nil {
+		return nil
+	}
+	return &ModelOfficialPrice{
+		InputPricePerMTok:       cloneFloatPtr(in.InputPricePerMTok),
+		OutputPricePerMTok:      cloneFloatPtr(in.OutputPricePerMTok),
+		CacheReadPricePerMTok:   cloneFloatPtr(in.CacheReadPricePerMTok),
+		CacheWritePricePerMTok:  cloneFloatPtr(in.CacheWritePricePerMTok),
+		ImageOutputPricePerMTok: cloneFloatPtr(in.ImageOutputPricePerMTok),
+		ImagePriceUSD:           cloneFloatPtr(in.ImagePriceUSD),
+	}
 }

@@ -606,6 +606,13 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		channels.POST("", h.Admin.Channel.Create)
 		channels.PUT("/:id", h.Admin.Channel.Update)
 		channels.DELETE("/:id", h.Admin.Channel.Delete)
+		// sudoapi: Model market.
+		channels.GET("/platforms", h.Admin.Channel.ListPlatforms)
+		channels.GET("/endpoint-config", h.Admin.Channel.GetEndpointConfig)
+		channels.PUT("/endpoint-config", h.Admin.Channel.UpdateEndpointConfig)
+		channels.GET("/model-metadata", h.Admin.ModelMetadata.List)
+		channels.POST("/model-metadata", h.Admin.ModelMetadata.Upsert)
+		channels.DELETE("/model-metadata", h.Admin.ModelMetadata.Delete)
 	}
 }
 

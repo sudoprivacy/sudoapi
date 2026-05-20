@@ -393,6 +393,7 @@ export default {
     paymentPlans: 'Plans',
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
+    modelMetadata: 'Model Metadata',
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
@@ -1057,12 +1058,12 @@ export default {
     }
   },
 
-  // sudoapi: Model Square model catalog.
+  // sudoapi: Model market.
   // Model Square
   modelSquare: {
     title: 'Model Square',
     subtitle: 'Browse every available model, API endpoint, and group pricing',
-    searchPlaceholder: 'Search by model name, description, or platform...',
+    searchPlaceholder: 'Search by model name, description, or vendor...',
     empty: 'No models match your filters',
     fromPrice: 'From',
     featured: 'Featured',
@@ -1088,6 +1089,9 @@ export default {
       priceRange: 'Price'
     },
     categories: {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI',
+      antigravity: 'Antigravity',
       claude: 'Claude',
       gpt: 'GPT / o-series',
       gemini: 'Gemini',
@@ -1104,7 +1108,33 @@ export default {
       audio_output: 'Audio output',
       pdf_input: 'PDF',
       prompt_caching: 'Prompt caching',
-      parallel_tools: 'Parallel tools'
+      parallel_tools: 'Parallel tools',
+      assistant_prefill: 'Assistant prefill',
+      computer_use: 'Computer use',
+      native_streaming: 'Native streaming',
+      parallel_function_calling: 'Parallel function calling',
+      response_schema: 'Response schema',
+      service_tier: 'Service tier',
+      system_messages: 'System messages',
+      tool_choice: 'Tool choice',
+      url_context: 'URL context',
+      video_input: 'Video input',
+      web_search: 'Web search'
+    },
+    modalities: {
+      text: 'Text',
+      image: 'Image',
+      audio: 'Audio',
+      video: 'Video'
+    },
+    modelTypes: {
+      chat: 'Chat',
+      responses: 'Responses',
+      completion: 'Completion',
+      embedding: 'Embedding',
+      image_generation: 'Image generation',
+      audio_speech: 'Audio speech',
+      audio_transcription: 'Audio transcription'
     },
     priceTier: {
       free: 'Free',
@@ -1117,7 +1147,10 @@ export default {
       noDescription: 'No description available',
       contextWindow: 'Context window',
       maxOutput: 'Max output',
-      category: 'Category',
+      category: 'Vendor',
+      modelType: 'Model type',
+      inputModalities: 'Input support',
+      outputModalities: 'Output support',
       endpoints: 'API endpoints',
       endpointsHint: 'Inbound paths and HTTP methods this model accepts.',
       groupPrices: 'Group pricing',
@@ -1134,7 +1167,59 @@ export default {
       cacheWritePrice: 'Cache write',
       imageOutputPrice: 'Image output',
       perRequestPrice: 'Per request',
+      intervalPrices: 'Context interval pricing',
+      contextRange: 'Context range',
+      tier: 'Tier',
       callChain: '{group} call chain'
+    }
+  },
+
+  modelQuote: {
+    title: 'Model Quote',
+    subtitle: 'Public model prices compared with LiteLLM reference pricing',
+    searchPlaceholder: 'Search models, vendors, or types...',
+    empty: 'No quote rows match your filters',
+    resultCount: 'Showing {count} of {total} quote rows',
+    loadFailed: 'Failed to load quote: {msg}',
+    unmatchedOfficial: '-',
+    discountValue: '{fold} off',
+    filters: {
+      allPlatforms: 'All vendors',
+      allTypes: 'All types'
+    },
+    sort: {
+      modelAsc: 'Model A-Z',
+      modelDesc: 'Model Z-A',
+      platformAsc: 'Vendor A-Z',
+      priceAsc: 'Platform price low-high',
+      priceDesc: 'Platform price high-low',
+      discountAsc: 'Best discount',
+      discountDesc: 'Smallest discount',
+      contextDesc: 'Context long-short'
+    },
+    columns: {
+      model: 'Model',
+      platform: 'Vendor',
+      type: 'Type',
+      context: 'Context',
+      officialInput: 'Official input',
+      officialOutput: 'Official output',
+      officialCacheRead: 'Official cache read',
+      officialCacheWrite: 'Official cache write',
+      officialImageOrRequest: 'Official image/request',
+      platformInput: 'Platform input',
+      platformOutput: 'Platform output',
+      platformCacheRead: 'Platform cache read',
+      platformCacheWrite: 'Platform cache write',
+      platformImageOrRequest: 'Platform image/request',
+      discount: 'Discount'
+    },
+    price: {
+      officialShort: 'Official',
+      platformShort: 'Platform'
+    },
+    units: {
+      perMTok: '/M'
     }
   },
 
@@ -2504,6 +2589,21 @@ export default {
         perRequest: 'Per Request',
         image: 'Image (Per Request)'
       },
+      endpointConfig: {
+        title: 'Endpoint Config',
+        platformRules: 'Model type endpoint rules',
+        description: 'Rules are global per platform. Unmatched model types show no endpoints.',
+        addModelType: 'Add model type',
+        noRules: 'No endpoint rules. Unmatched models will not show endpoints.',
+        modelTypePlaceholder: 'model_type, e.g. chat',
+        addEndpoint: 'Add endpoint',
+        loadError: 'Failed to load endpoint config',
+        saveSuccess: 'Endpoint config saved',
+        saveError: 'Failed to save endpoint config',
+        invalidKey: 'Platform and model type may only contain lowercase letters, numbers, underscores, and hyphens.',
+        invalidMethod: 'Endpoint method must be GET or POST.',
+        invalidPath: 'Endpoint path must start with / and contain no spaces.'
+      },
       form: {
         name: 'Name',
         namePlaceholder: 'Enter channel name',
@@ -2586,8 +2686,73 @@ export default {
          syncModelsSuccess: 'Synced {count} new model(s)',
          syncModelsAlreadyUpToDate: 'Models already up to date',
          syncModelsError: 'Failed to sync models'
-       }
-     },
+      }
+    },
+
+    modelMetadata: {
+      title: 'Model Metadata',
+      description: 'Fill missing display metadata used by the /models page',
+      searchPlaceholder: 'Search models, platforms, or descriptions...',
+      missingOnly: 'Missing only',
+      refresh: 'Refresh',
+      edit: 'Edit metadata',
+      clear: 'Clear override',
+      clearConfirm: 'Clear metadata override for "{name}"?',
+      loadError: 'Failed to load model metadata',
+      saveSuccess: 'Model metadata saved',
+      saveError: 'Failed to save model metadata',
+      deleteSuccess: 'Model metadata override cleared',
+      deleteError: 'Failed to clear model metadata',
+      noModels: 'No maintainable models',
+      noModelsDesc: 'No displayable models are currently available from active channels',
+      noResults: 'No matching models',
+      overrideActive: 'Overridden',
+      missingCount: '{count} missing',
+      fields: {
+        modelName: 'Model',
+        displayName: 'Display name',
+        description: 'Description',
+        category: 'Vendor',
+        modelType: 'Model type',
+        contextWindow: 'Context',
+        maxOutput: 'Max output',
+        capabilities: 'Capabilities',
+        inputModalities: 'Input support',
+        outputModalities: 'Output support',
+        supportFlags: 'Model tags',
+        featured: 'Featured',
+        iconUrl: 'Icon URL',
+        platforms: 'Platforms',
+        missing: 'Missing',
+        actions: 'Actions'
+      },
+      missingFields: {
+        display_name: 'Display name',
+        description: 'Description',
+        category: 'Vendor',
+        model_type: 'Model type',
+        context_window: 'Context',
+        max_output: 'Max output',
+        capabilities: 'Capabilities',
+        input_modalities: 'Input support',
+        output_modalities: 'Output support',
+        support_flags: 'Model tags',
+        icon_url: 'Icon'
+      },
+      form: {
+        displayNamePlaceholder: 'Defaults to model name',
+        descriptionPlaceholder: 'Shown on /models cards and detail drawer',
+        categoryPlaceholder: 'Enter or select vendor',
+        modelTypePlaceholder: 'e.g. chat / image_generation',
+        contextWindowPlaceholder: 'e.g. 200000',
+        maxOutputPlaceholder: 'e.g. 8192',
+        iconUrlPlaceholder: 'https://...',
+        capabilitiesHint: 'Selected capabilities override automatic inference. Leave empty to keep automatic data.',
+        modalitiesHint: 'Leave empty to keep LiteLLM automatic data.',
+        supportFlagsHint: 'Model tags come from all true LiteLLM supports_* fields. Leave empty to keep automatic data.',
+        featuredHint: 'Featured models are sorted first on /models.'
+      }
+    },
 
     riskControl: {
       title: 'Risk Control',
@@ -3425,7 +3590,9 @@ export default {
       resetStatus: 'Reset Status',
       statusReset: 'Account status reset successfully',
       failedToResetStatus: 'Failed to reset account status',
+      testSuccess: 'Account tested successfully',
       failedToLoad: 'Failed to load accounts',
+      failedToSave: 'Failed to save account',
       failedToRefresh: 'Failed to refresh token',
       failedToDelete: 'Failed to delete account',
       failedToClearRateLimit: 'Failed to clear rate limit',
@@ -3834,6 +4001,8 @@ export default {
               'No proxy is configured and this server could not reach OpenAI directly, so the OpenAI OAuth request failed. Select a proxy that can access OpenAI and retry; if the authorization code has expired, regenerate the authorization URL.'
           },
           // Refresh Token auth
+          accessTokenAuth: 'Manual AT Input',
+          mobileRefreshTokenAuth: 'Manual Mobile RT Input',
           refreshTokenAuth: 'Manual RT Input',
           refreshTokenDesc: 'Enter your existing OpenAI Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
           refreshTokenPlaceholder: 'Paste your OpenAI Refresh Token...\nSupports multiple, one per line',
@@ -4806,6 +4975,10 @@ export default {
           avgDurationMs: 'Avg Duration (ms)',
           requestsWithFirstToken: 'Requests With First Token'
         }
+      },
+      customTimeRange: {
+        startTime: 'Start time',
+        endTime: 'End time'
       },
       fullscreen: {
         enter: 'Enter Fullscreen'

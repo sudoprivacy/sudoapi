@@ -49,7 +49,6 @@
         <!-- Nav Actions -->
         <div class="flex items-center gap-3">
           <!-- sudoapi: Model Square model catalog. -->
-          <!-- 模型广场入口（公开可见，未登录也能浏览） -->
           <router-link
             to="/models"
             class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex dark:text-dark-200 dark:hover:bg-dark-800 dark:hover:text-white"
@@ -381,7 +380,6 @@
         </div>
 
         <!-- sudoapi: Model Square model catalog. -->
-        <!-- 模型广场入口 CTA：列出所有模型 / 端点 / 价格的完整页面在 /models -->
         <div class="mb-16 text-center">
           <router-link
             to="/models"

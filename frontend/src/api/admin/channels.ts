@@ -92,6 +92,20 @@ interface PaginatedResponse<T> {
   total: number
 }
 
+// sudoapi: Model market.
+export interface PlatformsResponse {
+  platforms: string[]
+}
+
+export interface ModelEndpoint {
+  path: string
+  method: 'GET' | 'POST' | string
+}
+
+export interface ModelEndpointConfig {
+  platforms: Record<string, Record<string, ModelEndpoint[]>>
+}
+
 /**
  * List channels with pagination
  */
@@ -114,6 +128,21 @@ export async function list(
     },
     signal: options?.signal
   })
+  return data
+}
+
+export async function listPlatforms(): Promise<PlatformsResponse> {
+  const { data } = await apiClient.get<PlatformsResponse>('/admin/channels/platforms')
+  return data
+}
+
+export async function getEndpointConfig(): Promise<ModelEndpointConfig> {
+  const { data } = await apiClient.get<ModelEndpointConfig>('/admin/channels/endpoint-config')
+  return data
+}
+
+export async function updateEndpointConfig(config: ModelEndpointConfig): Promise<ModelEndpointConfig> {
+  const { data } = await apiClient.put<ModelEndpointConfig>('/admin/channels/endpoint-config', config)
   return data
 }
 
@@ -178,5 +207,16 @@ export async function syncPricingModels(platform: string): Promise<SyncPricingMo
   return data
 }
 
-const channelsAPI = { list, getById, create, update, remove, getModelDefaultPricing, syncPricingModels }
+const channelsAPI = {
+  list,
+  listPlatforms,
+  getEndpointConfig,
+  updateEndpointConfig,
+  getById,
+  create,
+  update,
+  remove,
+  getModelDefaultPricing,
+  syncPricingModels,
+}
 export default channelsAPI

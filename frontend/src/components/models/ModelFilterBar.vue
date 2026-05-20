@@ -71,6 +71,7 @@ export interface ModelFilterState {
   categories: string[]
   capabilities: string[]
   priceRanges: string[]
+  modelTypes: string[]
 }
 
 const props = defineProps<{
@@ -96,7 +97,7 @@ const categoryOptions = computed(() =>
 const capabilityOptions = computed(() =>
   props.availableCapabilities.map((c) => ({
     value: c,
-    label: t(`modelSquare.capabilities.${c}`, c),
+    label: t(`modelSquare.capabilities.${c}`, humanizeKey(c)),
   })),
 )
 const priceRangeOptions = computed(() => [
@@ -133,6 +134,15 @@ function clearAll() {
     categories: [],
     capabilities: [],
     priceRanges: [],
+    modelTypes: [],
   })
+}
+
+function humanizeKey(key: string): string {
+  return key
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 </script>

@@ -177,6 +177,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/models/quote',
+    name: 'ModelQuote',
+    component: () => import('@/views/public/ModelQuoteView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model Quote',
+      titleKey: 'modelQuote.title',
+    }
+  },
+  {
     path: '/legal/:documentId',
     name: 'LegalDocument',
     component: () => import('@/views/public/LegalDocumentView.vue'),
@@ -462,6 +472,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Channel Monitor',
       titleKey: 'admin.channelMonitor.title',
       descriptionKey: 'admin.channelMonitor.description'
+    }
+  },
+  {
+    path: '/admin/channels/model-metadata',
+    name: 'AdminModelMetadata',
+    component: () => import('@/views/admin/ModelMetadataView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Model Metadata',
+      titleKey: 'admin.modelMetadata.title',
+      descriptionKey: 'admin.modelMetadata.description'
     }
   },
   {

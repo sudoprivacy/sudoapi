@@ -47,20 +47,42 @@ type modelEndpointDTO struct {
 }
 
 type modelGroupPriceDTO struct {
-	GroupID              int64    `json:"group_id"`
-	GroupName            string   `json:"group_name"`
-	SubscriptionType     string   `json:"subscription_type"`
-	IsExclusive          bool     `json:"is_exclusive"`
-	BaseRateMultiplier   float64  `json:"base_rate_multiplier"`
-	UserRateMultiplier   *float64 `json:"user_rate_multiplier"`
-	BillingMode          string   `json:"billing_mode"`
+	GroupID              int64                   `json:"group_id"`
+	GroupName            string                  `json:"group_name"`
+	SubscriptionType     string                  `json:"subscription_type"`
+	IsExclusive          bool                    `json:"is_exclusive"`
+	BaseRateMultiplier   float64                 `json:"base_rate_multiplier"`
+	UserRateMultiplier   *float64                `json:"user_rate_multiplier"`
+	BillingMode          string                  `json:"billing_mode"`
+	InputPricePerMTok    *float64                `json:"input_price_per_mtok_usd"`
+	OutputPricePerMTok   *float64                `json:"output_price_per_mtok_usd"`
+	CacheReadPricePerMT  *float64                `json:"cache_read_price_per_mtok_usd"`
+	CacheWritePricePerMT *float64                `json:"cache_write_price_per_mtok_usd"`
+	ImageOutputPricePM   *float64                `json:"image_output_price_per_mtok_usd"`
+	PerRequestPriceUSD   *float64                `json:"per_request_price_usd"`
+	ChannelChain         []string                `json:"channel_chain"`
+	Intervals            []modelPriceIntervalDTO `json:"intervals"`
+}
+
+type modelPriceIntervalDTO struct {
+	MinTokens            int      `json:"min_tokens"`
+	MaxTokens            *int     `json:"max_tokens"`
+	TierLabel            string   `json:"tier_label"`
 	InputPricePerMTok    *float64 `json:"input_price_per_mtok_usd"`
 	OutputPricePerMTok   *float64 `json:"output_price_per_mtok_usd"`
 	CacheReadPricePerMT  *float64 `json:"cache_read_price_per_mtok_usd"`
 	CacheWritePricePerMT *float64 `json:"cache_write_price_per_mtok_usd"`
-	ImageOutputPricePM   *float64 `json:"image_output_price_per_mtok_usd"`
 	PerRequestPriceUSD   *float64 `json:"per_request_price_usd"`
-	ChannelChain         []string `json:"channel_chain"`
+	SortOrder            int      `json:"sort_order"`
+}
+
+type modelOfficialPriceDTO struct {
+	InputPricePerMTok       *float64 `json:"input_price_per_mtok_usd"`
+	OutputPricePerMTok      *float64 `json:"output_price_per_mtok_usd"`
+	CacheReadPricePerMTok   *float64 `json:"cache_read_price_per_mtok_usd"`
+	CacheWritePricePerMTok  *float64 `json:"cache_write_price_per_mtok_usd"`
+	ImageOutputPricePerMTok *float64 `json:"image_output_price_per_mtok_usd"`
+	ImagePriceUSD           *float64 `json:"image_price_usd"`
 }
 
 type modelPlatformSectionDTO struct {
@@ -70,16 +92,21 @@ type modelPlatformSectionDTO struct {
 }
 
 type modelSquareCardDTO struct {
-	Name          string                    `json:"name"`
-	DisplayName   string                    `json:"display_name"`
-	Category      string                    `json:"category"`
-	Description   string                    `json:"description"`
-	ContextWindow int                       `json:"context_window"`
-	MaxOutput     int                       `json:"max_output"`
-	Capabilities  []string                  `json:"capabilities"`
-	Featured      bool                      `json:"featured"`
-	IconURL       string                    `json:"icon_url"`
-	Platforms     []modelPlatformSectionDTO `json:"platforms"`
+	Name             string                    `json:"name"`
+	DisplayName      string                    `json:"display_name"`
+	Category         string                    `json:"category"`
+	Description      string                    `json:"description"`
+	ContextWindow    int                       `json:"context_window"`
+	MaxOutput        int                       `json:"max_output"`
+	Capabilities     []string                  `json:"capabilities"`
+	Featured         bool                      `json:"featured"`
+	IconURL          string                    `json:"icon_url"`
+	Platforms        []modelPlatformSectionDTO `json:"platforms"`
+	ModelType        string                    `json:"model_type"`
+	InputModalities  []string                  `json:"input_modalities"`
+	OutputModalities []string                  `json:"output_modalities"`
+	SupportFlags     []string                  `json:"support_flags"`
+	OfficialPrice    *modelOfficialPriceDTO    `json:"official_price"`
 }
 
 // ListPublic 处理 GET /api/v1/public/models。
@@ -129,19 +156,45 @@ func toCardDTOs(cards []service.ModelSquareCard, userRateMultipliers map[int64]f
 	out := make([]modelSquareCardDTO, 0, len(cards))
 	for _, c := range cards {
 		out = append(out, modelSquareCardDTO{
-			Name:          c.Name,
-			DisplayName:   c.DisplayName,
-			Category:      c.Category,
-			Description:   c.Description,
-			ContextWindow: c.ContextWindow,
-			MaxOutput:     c.MaxOutput,
-			Capabilities:  c.Capabilities,
-			Featured:      c.Featured,
-			IconURL:       c.IconURL,
-			Platforms:     toPlatformDTOs(c.Platforms, userRateMultipliers),
+			Name:             c.Name,
+			DisplayName:      c.DisplayName,
+			Category:         c.Category,
+			Description:      c.Description,
+			ContextWindow:    c.ContextWindow,
+			MaxOutput:        c.MaxOutput,
+			Capabilities:     c.Capabilities,
+			Featured:         c.Featured,
+			IconURL:          c.IconURL,
+			Platforms:        toPlatformDTOs(c.Platforms, userRateMultipliers),
+			ModelType:        c.ModelType,
+			InputModalities:  emptyStrings(c.InputModalities),
+			OutputModalities: emptyStrings(c.OutputModalities),
+			SupportFlags:     emptyStrings(c.SupportFlags),
+			OfficialPrice:    toOfficialPriceDTO(c.OfficialPrice),
 		})
 	}
 	return out
+}
+
+func toOfficialPriceDTO(in *service.ModelOfficialPrice) *modelOfficialPriceDTO {
+	if in == nil {
+		return nil
+	}
+	return &modelOfficialPriceDTO{
+		InputPricePerMTok:       in.InputPricePerMTok,
+		OutputPricePerMTok:      in.OutputPricePerMTok,
+		CacheReadPricePerMTok:   in.CacheReadPricePerMTok,
+		CacheWritePricePerMTok:  in.CacheWritePricePerMTok,
+		ImageOutputPricePerMTok: in.ImageOutputPricePerMTok,
+		ImagePriceUSD:           in.ImagePriceUSD,
+	}
+}
+
+func emptyStrings(in []string) []string {
+	if in == nil {
+		return []string{}
+	}
+	return in
 }
 
 func toPlatformDTOs(in []service.ModelPlatformSection, rates map[int64]float64) []modelPlatformSectionDTO {
@@ -175,12 +228,34 @@ func toPlatformDTOs(in []service.ModelPlatformSection, rates map[int64]float64) 
 				ImageOutputPricePM:   gp.ImageOutputPricePerMTok,
 				PerRequestPriceUSD:   gp.PerRequestPrice,
 				ChannelChain:         gp.ChannelChain,
+				Intervals:            toPriceIntervalDTOs(gp.Intervals),
 			})
 		}
 		out = append(out, modelPlatformSectionDTO{
 			Platform:    p.Platform,
 			Endpoints:   endpoints,
 			GroupPrices: prices,
+		})
+	}
+	return out
+}
+
+func toPriceIntervalDTOs(in []service.ModelGroupPriceInterval) []modelPriceIntervalDTO {
+	if in == nil {
+		return []modelPriceIntervalDTO{}
+	}
+	out := make([]modelPriceIntervalDTO, 0, len(in))
+	for _, iv := range in {
+		out = append(out, modelPriceIntervalDTO{
+			MinTokens:            iv.MinTokens,
+			MaxTokens:            iv.MaxTokens,
+			TierLabel:            iv.TierLabel,
+			InputPricePerMTok:    iv.InputPricePerMTok,
+			OutputPricePerMTok:   iv.OutputPricePerMTok,
+			CacheReadPricePerMT:  iv.CacheReadPricePerMTok,
+			CacheWritePricePerMT: iv.CacheWritePricePerMTok,
+			PerRequestPriceUSD:   iv.PerRequestPrice,
+			SortOrder:            iv.SortOrder,
 		})
 	}
 	return out

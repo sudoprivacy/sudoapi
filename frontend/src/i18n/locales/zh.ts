@@ -393,6 +393,7 @@ export default {
     paymentPlans: '订阅套餐',
     channelManagement: '渠道管理',
     channelPricing: '渠道定价',
+    modelMetadata: '模型元数据',
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
     riskControl: '风控中心',
@@ -1061,12 +1062,12 @@ export default {
     }
   },
 
-  // sudoapi: Model Square model catalog.
+  // sudoapi: Model market.
   // Model Square (模型广场)
   modelSquare: {
     title: '模型广场',
     subtitle: '浏览所有可用模型、API 端点和分组定价',
-    searchPlaceholder: '搜索模型名称、描述或平台...',
+    searchPlaceholder: '搜索模型名称、描述或厂商...',
     empty: '没有符合条件的模型',
     fromPrice: '起步价',
     featured: '推荐',
@@ -1092,6 +1093,9 @@ export default {
       priceRange: '价格区间'
     },
     categories: {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI',
+      antigravity: 'Antigravity',
       claude: 'Claude',
       gpt: 'GPT / o-series',
       gemini: 'Gemini',
@@ -1108,7 +1112,33 @@ export default {
       audio_output: '音频输出',
       pdf_input: 'PDF',
       prompt_caching: '提示缓存',
-      parallel_tools: '并行工具'
+      parallel_tools: '并行工具',
+      assistant_prefill: '助手预填',
+      computer_use: '电脑使用',
+      native_streaming: '原生流式',
+      parallel_function_calling: '并行函数调用',
+      response_schema: '响应 Schema',
+      service_tier: '服务层级',
+      system_messages: '系统消息',
+      tool_choice: '工具选择',
+      url_context: 'URL 上下文',
+      video_input: '视频输入',
+      web_search: '联网搜索'
+    },
+    modalities: {
+      text: '文本',
+      image: '图像',
+      audio: '音频',
+      video: '视频'
+    },
+    modelTypes: {
+      chat: '聊天',
+      responses: 'Responses',
+      completion: '补全',
+      embedding: '向量嵌入',
+      image_generation: '图像生成',
+      audio_speech: '语音生成',
+      audio_transcription: '语音转写'
     },
     priceTier: {
       free: '免费',
@@ -1121,7 +1151,10 @@ export default {
       noDescription: '暂无模型描述',
       contextWindow: '上下文窗口',
       maxOutput: '最大输出',
-      category: '类别',
+      category: '厂商',
+      modelType: '模型类型',
+      inputModalities: '输入支持',
+      outputModalities: '输出支持',
       endpoints: 'API 端点',
       endpointsHint: '该模型支持的入站接口与方法。',
       groupPrices: '分组价格',
@@ -1138,7 +1171,59 @@ export default {
       cacheWritePrice: '缓存创建',
       imageOutputPrice: '图片输出',
       perRequestPrice: '每次请求',
+      intervalPrices: '上下文区间定价',
+      contextRange: '上下文区间',
+      tier: '层级',
       callChain: '{group} 分组调用链路'
+    }
+  },
+
+  modelQuote: {
+    title: '模型报价单',
+    subtitle: '公开模型价格与 LiteLLM 官方原价对比',
+    searchPlaceholder: '搜索模型、厂商或类型...',
+    empty: '没有符合条件的报价行',
+    resultCount: '显示 {count} / {total} 条报价',
+    loadFailed: '报价加载失败：{msg}',
+    unmatchedOfficial: '-',
+    discountValue: '{fold} 折',
+    filters: {
+      allPlatforms: '全部厂商',
+      allTypes: '全部类型'
+    },
+    sort: {
+      modelAsc: '模型 A-Z',
+      modelDesc: '模型 Z-A',
+      platformAsc: '厂商 A-Z',
+      priceAsc: '平台价 低→高',
+      priceDesc: '平台价 高→低',
+      discountAsc: '折扣最优',
+      discountDesc: '折扣最小',
+      contextDesc: '上下文 长→短'
+    },
+    columns: {
+      model: '模型',
+      platform: '厂商',
+      type: '类型',
+      context: '上下文',
+      officialInput: '官方输入价',
+      officialOutput: '官方输出价',
+      officialCacheRead: '官方缓存读取',
+      officialCacheWrite: '官方缓存写入',
+      officialImageOrRequest: '官方图片/按次',
+      platformInput: '平台输入价',
+      platformOutput: '平台输出价',
+      platformCacheRead: '平台缓存读取',
+      platformCacheWrite: '平台缓存写入',
+      platformImageOrRequest: '平台图片/按次',
+      discount: '平台折扣'
+    },
+    price: {
+      officialShort: '官方',
+      platformShort: '平台'
+    },
+    units: {
+      perMTok: '/M'
     }
   },
 
@@ -2581,6 +2666,21 @@ export default {
         perRequest: '按次',
         image: '图片（按次）'
       },
+      endpointConfig: {
+        title: '端点配置',
+        platformRules: '模型类型端点规则',
+        description: '规则按平台全局生效。未匹配的模型类型不会展示端点。',
+        addModelType: '添加模型类型',
+        noRules: '暂无端点规则。未匹配模型不会展示端点。',
+        modelTypePlaceholder: '模型类型，例如 chat',
+        addEndpoint: '添加端点',
+        loadError: '加载端点配置失败',
+        saveSuccess: '端点配置已保存',
+        saveError: '保存端点配置失败',
+        invalidKey: '平台和模型类型只能包含小写字母、数字、下划线和连字符。',
+        invalidMethod: '端点方法必须是 GET 或 POST。',
+        invalidPath: '端点路径必须以 / 开头且不能包含空格。'
+      },
       form: {
         name: '名称',
         namePlaceholder: '输入渠道名称',
@@ -2663,6 +2763,71 @@ export default {
         syncModelsSuccess: '已同步 {count} 个新模型',
         syncModelsAlreadyUpToDate: '模型列表已是最新',
         syncModelsError: '同步模型失败'
+      }
+    },
+
+    modelMetadata: {
+      title: '模型元数据',
+      description: '补齐 /models 页面缺失的模型展示信息',
+      searchPlaceholder: '搜索模型、平台或描述...',
+      missingOnly: '仅看缺失',
+      refresh: '刷新',
+      edit: '编辑元数据',
+      clear: '清除覆盖',
+      clearConfirm: '确定要清除「{name}」的模型元数据覆盖吗？',
+      loadError: '加载模型元数据失败',
+      saveSuccess: '模型元数据已保存',
+      saveError: '保存模型元数据失败',
+      deleteSuccess: '模型元数据覆盖已清除',
+      deleteError: '清除模型元数据失败',
+      noModels: '暂无可维护模型',
+      noModelsDesc: '当前没有来自活跃渠道的可展示模型',
+      noResults: '没有匹配的模型',
+      overrideActive: '已覆盖',
+      missingCount: '缺 {count} 项',
+      fields: {
+        modelName: '模型名',
+        displayName: '显示名',
+        description: '描述',
+        category: '厂商',
+        modelType: '模型类型',
+        contextWindow: '上下文',
+        maxOutput: '最大输出',
+        capabilities: '能力',
+        inputModalities: '输入支持',
+        outputModalities: '输出支持',
+        supportFlags: '模型标签',
+        featured: '推荐',
+        iconUrl: '图标 URL',
+        platforms: '平台',
+        missing: '缺失项',
+        actions: '操作'
+      },
+      missingFields: {
+        display_name: '显示名',
+        description: '描述',
+        category: '厂商',
+        model_type: '模型类型',
+        context_window: '上下文',
+        max_output: '最大输出',
+        capabilities: '能力',
+        input_modalities: '输入支持',
+        output_modalities: '输出支持',
+        support_flags: '模型标签',
+        icon_url: '图标'
+      },
+      form: {
+        displayNamePlaceholder: '不填则使用模型名',
+        descriptionPlaceholder: '用于 /models 卡片和详情页展示',
+        categoryPlaceholder: '输入或选择厂商',
+        modelTypePlaceholder: '例如 chat / image_generation',
+        contextWindowPlaceholder: '例如 200000',
+        maxOutputPlaceholder: '例如 8192',
+        iconUrlPlaceholder: 'https://...',
+        capabilitiesHint: '能力标签会覆盖自动推断结果；不选则沿用自动数据。',
+        modalitiesHint: '不选则沿用 LiteLLM 自动数据。',
+        supportFlagsHint: '模型标签来自 LiteLLM 中所有为 true 的 supports_* 字段；不选则沿用自动数据。',
+        featuredHint: '推荐模型会在 /models 排序中靠前。'
       }
     },
 
@@ -3968,6 +4133,8 @@ export default {
               '未设置代理，当前服务器无法直连 OpenAI，导致 OpenAI OAuth 请求失败。请先选择可访问 OpenAI 的代理后重试；如果授权码已失效，请重新生成授权链接。'
           },
           // Refresh Token auth
+          accessTokenAuth: 'Manual AT Input',
+          mobileRefreshTokenAuth: 'Manual Mobile RT Input',
           refreshTokenAuth: '手动输入 RT',
           refreshTokenDesc: '输入您已有的 OpenAI Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
           refreshTokenPlaceholder: '粘贴您的 OpenAI Refresh Token...\n支持多个，每行一个',

@@ -2,28 +2,30 @@
 
 <template>
   <div class="space-y-5">
-    <!-- 分类 tabs（仅 full 模式且数据已加载时显示，给用户一个不需展开完整 filter 的快捷入口） -->
+    <!-- 模型类型 tabs（仅 full 模式且数据已加载时显示，给用户一个不需展开完整 filter 的快捷入口） -->
     <div
-      v-if="!compact && availableCategories.length > 1"
+      v-if="!compact && availableModelTypes.length > 1"
       class="-mx-1 flex flex-wrap items-center gap-1 overflow-x-auto"
     >
       <button
         type="button"
-        @click="setCategoryTab('')"
-        :class="categoryTabClass('')"
+        @click="setModelTypeTab('')"
+        :class="modelTypeTabClass('')"
       >
         {{ t('modelSquare.tabs.all') }}
         <span class="ml-1 text-[10px] opacity-60">{{ allCards.length }}</span>
       </button>
       <button
-        v-for="cat in availableCategories"
-        :key="cat"
+        v-for="type in availableModelTypes"
+        :key="type"
         type="button"
-        @click="setCategoryTab(cat)"
-        :class="categoryTabClass(cat)"
+        @click="setModelTypeTab(type)"
+        :class="modelTypeTabClass(type)"
       >
-        {{ t(`modelSquare.categories.${cat}`, cat) }}
-        <span class="ml-1 text-[10px] opacity-60">{{ countByCategory[cat] ?? 0 }}</span>
+        {{ t(`modelSquare.modelTypes.${type}`, type) }}
+        <span class="ml-1 text-[10px] opacity-60">{{
+          countByModelType[type] ?? 0
+        }}</span>
       </button>
     </div>
 
@@ -55,7 +57,7 @@
       </span>
       <div class="flex items-center gap-2">
         <label v-if="!compact" class="flex items-center gap-1.5">
-          <span>{{ t('modelSquare.sort.label') }}</span>
+          <span class="text-nowrap">{{ t('modelSquare.sort.label') }}</span>
           <select v-model="sortKey" class="input h-7 py-0 pl-2 pr-7 text-xs">
             <option value="featured">{{ t('modelSquare.sort.featured') }}</option>
             <option value="nameAsc">{{ t('modelSquare.sort.nameAsc') }}</option>
@@ -163,6 +165,7 @@ const filterState = ref<ModelFilterState>({
   categories: [],
   capabilities: [],
   priceRanges: [],
+  modelTypes: [],
 })
 
 /** 排序键：featured = 后端默认（featured → category → name）。 */
@@ -207,14 +210,26 @@ const availableCategories = computed(() => {
 })
 const availableCapabilities = computed(() => {
   const set = new Set<string>()
-  for (const c of allCards.value) (c.capabilities ?? []).forEach((cap) => set.add(cap))
+  for (const c of allCards.value) cardSupportFlags(c).forEach((cap) => set.add(cap))
   return Array.from(set).sort()
 })
 
-/** 按 category 统计计数，给分类 tab 显示数量。 */
-const countByCategory = computed(() => {
+const availableModelTypes = computed(() => {
+  const set = new Set<string>()
+  for (const c of allCards.value) {
+    if (c.model_type) set.add(c.model_type)
+  }
+  return Array.from(set).sort()
+})
+
+/** 按 model_type 统计计数，给分类 tab 显示数量。 */
+const countByModelType = computed(() => {
   const m: Record<string, number> = {}
-  for (const c of allCards.value) m[c.category] = (m[c.category] ?? 0) + 1
+  for (const c of allCards.value) {
+    if (c.model_type) {
+      m[c.model_type] = (m[c.model_type] ?? 0) + 1
+    }
+  }
   return m
 })
 
@@ -230,6 +245,13 @@ function minInputPrice(card: ModelSquareCard): number {
         const v =
           row.input_price_per_mtok_usd * row.base_rate_multiplier * (row.user_rate_multiplier ?? 1)
         if (min == null || v < min) min = v
+      }
+      for (const iv of row.intervals ?? []) {
+        if (iv.input_price_per_mtok_usd != null) {
+          const v =
+            iv.input_price_per_mtok_usd * row.base_rate_multiplier * (row.user_rate_multiplier ?? 1)
+          if (min == null || v < min) min = v
+        }
       }
     }
   }
@@ -254,17 +276,28 @@ const filteredCards = computed(() => {
         c.display_name,
         c.description,
         c.category,
-        ...(c.capabilities ?? []),
+        c.model_type,
+        ...(c.input_modalities ?? []),
+        ...(c.output_modalities ?? []),
+        ...cardSupportFlags(c),
         ...c.platforms.map((p) => p.platform),
       ]
         .join(' ')
         .toLowerCase()
       if (!hay.includes(q)) return false
     }
-    if (filterState.value.categories.length && !filterState.value.categories.includes(c.category))
+    if (
+      filterState.value.categories.length &&
+      !filterState.value.categories.includes(c.category)
+    )
+      return false
+    if (
+      filterState.value.modelTypes.length &&
+      (!c.model_type || !filterState.value.modelTypes.includes(c.model_type))
+    )
       return false
     if (filterState.value.capabilities.length) {
-      const caps = new Set(c.capabilities ?? [])
+      const caps = new Set(cardSupportFlags(c))
       if (!filterState.value.capabilities.every((cap) => caps.has(cap))) return false
     }
     if (filterState.value.priceRanges.length) {
@@ -304,19 +337,21 @@ const displayedCards = computed(() =>
   props.compact ? visibleCards.value.slice(0, props.maxItems) : visibleCards.value,
 )
 
-// ── Category tabs (单选语义，复用 filterState.categories) ────────────
+// ── Model Type tabs (单选语义，复用 filterState.modelTypes) ────────────
 
-function setCategoryTab(cat: string) {
+function setModelTypeTab(type: string) {
   filterState.value = {
     ...filterState.value,
-    categories: cat ? [cat] : [],
+    modelTypes: type ? [type] : [],
   }
 }
 
-function categoryTabClass(cat: string): string {
+function modelTypeTabClass(type: string): string {
   const active =
-    (cat === '' && filterState.value.categories.length === 0) ||
-    (cat !== '' && filterState.value.categories.length === 1 && filterState.value.categories[0] === cat)
+    (type === '' && filterState.value.modelTypes.length === 0) ||
+    (type !== '' &&
+      filterState.value.modelTypes.length === 1 &&
+      filterState.value.modelTypes[0] === type)
   return active
     ? 'rounded-full bg-primary-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm'
     : 'rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-gray-300 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-300'
@@ -328,5 +363,11 @@ function openDetail(card: ModelSquareCard) {
 }
 function closeDetail() {
   detailOpen.value = false
+}
+
+function cardSupportFlags(card: ModelSquareCard): string[] {
+  return card.support_flags?.length
+    ? card.support_flags
+    : (card.capabilities ?? [])
 }
 </script>

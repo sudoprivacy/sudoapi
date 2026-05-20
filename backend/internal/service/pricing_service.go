@@ -87,6 +87,11 @@ type LiteLLMModelPricing struct {
 	SupportsPDFInput        bool `json:"supports_pdf_input"`
 	SupportsToolChoice      bool `json:"supports_tool_choice"`
 	SupportsParallelTools   bool `json:"supports_parallel_function_calling"`
+	// sudoapi: Model market.
+	SupportedModalities       []string `json:"supported_modalities,omitempty"`
+	SupportedOutputModalities []string `json:"supported_output_modalities,omitempty"`
+	SupportFlags              []string `json:"support_flags,omitempty"`
+	RawFields                 map[string]any
 }
 
 // PricingRemoteClient 远程价格数据获取接口
@@ -126,6 +131,12 @@ type LiteLLMRawEntry struct {
 	SupportsPDFInput        *bool `json:"supports_pdf_input"`
 	SupportsToolChoice      *bool `json:"supports_tool_choice"`
 	SupportsParallelTools   *bool `json:"supports_parallel_function_calling"`
+	// sudoapi: Model market.
+	LongContextInputTokenThreshold  *int     `json:"long_context_input_token_threshold"`
+	LongContextInputCostMultiplier  *float64 `json:"long_context_input_cost_multiplier"`
+	LongContextOutputCostMultiplier *float64 `json:"long_context_output_cost_multiplier"`
+	SupportedModalities             []string `json:"supported_modalities"`
+	SupportedOutputModalities       []string `json:"supported_output_modalities"`
 }
 
 // PricingService 动态价格服务
@@ -400,6 +411,10 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			skipped++
 			continue
 		}
+		var rawFields map[string]any
+		if err := json.Unmarshal(rawEntry, &rawFields); err != nil {
+			rawFields = nil
+		}
 
 		// 只保留有有效价格的条目
 		if entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil {
@@ -411,6 +426,11 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			Mode:                  entry.Mode,
 			SupportsPromptCaching: entry.SupportsPromptCaching,
 			SupportsServiceTier:   entry.SupportsServiceTier,
+
+			SupportedModalities:       cleanLiteLLMStringList(entry.SupportedModalities),
+			SupportedOutputModalities: cleanLiteLLMStringList(entry.SupportedOutputModalities),
+			SupportFlags:              extractLiteLLMSupportFlags(rawEntry),
+			RawFields:                 rawFields,
 		}
 
 		if entry.InputCostPerToken != nil {
@@ -436,6 +456,15 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.CacheReadInputTokenCostPriority != nil {
 			pricing.CacheReadInputTokenCostPriority = *entry.CacheReadInputTokenCostPriority
+		}
+		if entry.LongContextInputTokenThreshold != nil {
+			pricing.LongContextInputTokenThreshold = *entry.LongContextInputTokenThreshold
+		}
+		if entry.LongContextInputCostMultiplier != nil {
+			pricing.LongContextInputCostMultiplier = *entry.LongContextInputCostMultiplier
+		}
+		if entry.LongContextOutputCostMultiplier != nil {
+			pricing.LongContextOutputCostMultiplier = *entry.LongContextOutputCostMultiplier
 		}
 		if entry.OutputCostPerImage != nil {
 			pricing.OutputCostPerImage = *entry.OutputCostPerImage
@@ -492,6 +521,49 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 	}
 
 	return result, nil
+}
+
+func extractLiteLLMSupportFlags(rawEntry json.RawMessage) []string {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(rawEntry, &fields); err != nil {
+		return nil
+	}
+	flags := make([]string, 0)
+	for key, raw := range fields {
+		if !strings.HasPrefix(key, "supports_") {
+			continue
+		}
+		var enabled bool
+		if err := json.Unmarshal(raw, &enabled); err != nil || !enabled {
+			continue
+		}
+		flag := strings.TrimSpace(strings.TrimPrefix(key, "supports_"))
+		if flag != "" {
+			flags = append(flags, flag)
+		}
+	}
+	sort.Strings(flags)
+	return flags
+}
+
+func cleanLiteLLMStringList(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, v := range in {
+		v = strings.TrimSpace(strings.ToLower(v))
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out
 }
 
 // loadPricingData 从本地文件加载价格数据

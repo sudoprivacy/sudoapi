@@ -468,6 +468,9 @@ const (
 
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
+
+	// Model Endpoint Config
+	SettingKeyModelEndpointConfig = "model_endpoint_config" // JSON 配置：platform -> model_type -> endpoints
 )
 
 // SettingKeyDefaultPlatformQuotas —— 系统全局：每用户 × 平台日/周/月 USD 上限（JSON）。

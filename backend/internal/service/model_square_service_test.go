@@ -37,6 +37,28 @@ func stubChannelServiceProvider(t *testing.T, channels []Channel, groups []Group
 }
 
 func msPtrFloat(v float64) *float64 { return &v }
+func msPtrInt(v int) *int           { return &v }
+
+type stubModelMetadataReader map[string]*ModelMetadataOverride
+
+func (s stubModelMetadataReader) GetOverridesByModelNames(_ context.Context, modelNames []string) (map[string]*ModelMetadataOverride, error) {
+	out := make(map[string]*ModelMetadataOverride, len(modelNames))
+	for _, name := range modelNames {
+		key := normalizeMetadataModelKey(name)
+		if override, ok := s[key]; ok {
+			out[key] = override
+		}
+	}
+	return out, nil
+}
+
+type stubModelEndpointConfigReader struct {
+	cfg *ModelEndpointConfig
+}
+
+func (s stubModelEndpointConfigReader) GetModelEndpointConfig(context.Context) (*ModelEndpointConfig, error) {
+	return s.cfg, nil
+}
 
 func TestModelSquareService_PublicScopeExcludesExclusiveAndSubscriptionGroups(t *testing.T) {
 	// 三个分组：一个标准公开、一个专属、一个订阅。public scope 只应保留标准公开。
@@ -147,6 +169,116 @@ func TestModelSquareService_PricePerMillionConversion(t *testing.T) {
 	require.InDelta(t, 21.875, *p.CacheWritePricePerMTok, 1e-6)
 }
 
+func TestModelSquareService_OfficialPriceFromLiteLLM(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 0.5, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformOpenAI, Models: []string{"gpt-quote-test"},
+			BillingMode: BillingModeToken,
+			InputPrice:  msPtrFloat(1e-6),
+			OutputPrice: msPtrFloat(5e-6),
+		}},
+	}}
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-quote-test": {
+			InputCostPerToken:           2e-6,
+			OutputCostPerToken:          10e-6,
+			CacheReadInputTokenCost:     0.2e-6,
+			CacheCreationInputTokenCost: 2.5e-6,
+			OutputCostPerImageToken:     3e-6,
+			OutputCostPerImage:          0.04,
+			LiteLLMProvider:             "openai",
+			Mode:                        "chat",
+		},
+	}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), pricingSvc)
+
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	require.NotNil(t, cards[0].OfficialPrice)
+	require.InDelta(t, 2.0, *cards[0].OfficialPrice.InputPricePerMTok, 1e-9)
+	require.InDelta(t, 10.0, *cards[0].OfficialPrice.OutputPricePerMTok, 1e-9)
+	require.InDelta(t, 0.2, *cards[0].OfficialPrice.CacheReadPricePerMTok, 1e-9)
+	require.InDelta(t, 2.5, *cards[0].OfficialPrice.CacheWritePricePerMTok, 1e-9)
+	require.InDelta(t, 3.0, *cards[0].OfficialPrice.ImageOutputPricePerMTok, 1e-9)
+	require.InDelta(t, 0.04, *cards[0].OfficialPrice.ImagePriceUSD, 1e-12)
+}
+
+func TestModelSquareService_OfficialPriceMissingWhenLiteLLMUnmatched(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformAnthropic, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformAnthropic, Models: []string{"private-model"},
+			BillingMode: BillingModeToken,
+			InputPrice:  msPtrFloat(1e-6),
+		}},
+	}}
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), pricingSvc)
+
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	require.Nil(t, cards[0].OfficialPrice)
+}
+
+func TestModelSquareService_ContextIntervalsConversion(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformAnthropic, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformAnthropic, Models: []string{"claude-opus-4-7"},
+			BillingMode: BillingModeToken,
+			InputPrice:  msPtrFloat(1e-6),
+			OutputPrice: msPtrFloat(2e-6),
+			Intervals: []PricingInterval{
+				{
+					MinTokens:       0,
+					MaxTokens:       msPtrInt(200000),
+					InputPrice:      msPtrFloat(3e-6),
+					OutputPrice:     msPtrFloat(1.5e-5),
+					CacheReadPrice:  msPtrFloat(3e-7),
+					CacheWritePrice: msPtrFloat(3.75e-6),
+					SortOrder:       0,
+				},
+				{
+					MinTokens:  200000,
+					MaxTokens:  nil,
+					InputPrice: msPtrFloat(6e-6),
+					SortOrder:  1,
+				},
+				{
+					MinTokens: 400000,
+					MaxTokens: nil,
+					SortOrder: 2,
+				},
+			},
+		}},
+	}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), nil)
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	intervals := cards[0].Platforms[0].GroupPrices[0].Intervals
+	require.Len(t, intervals, 2, "empty intervals are not shown")
+	require.Equal(t, 0, intervals[0].MinTokens)
+	require.NotNil(t, intervals[0].MaxTokens)
+	require.Equal(t, 200000, *intervals[0].MaxTokens)
+	require.InDelta(t, 3, *intervals[0].InputPricePerMTok, 1e-9)
+	require.InDelta(t, 15, *intervals[0].OutputPricePerMTok, 1e-9)
+	require.InDelta(t, 0.3, *intervals[0].CacheReadPricePerMTok, 1e-9)
+	require.InDelta(t, 3.75, *intervals[0].CacheWritePricePerMTok, 1e-9)
+	require.Equal(t, 200000, intervals[1].MinTokens)
+	require.Nil(t, intervals[1].MaxTokens)
+	require.InDelta(t, 6, *intervals[1].InputPricePerMTok, 1e-9)
+}
+
 func TestModelSquareService_ZeroPriceTreatedAsUnconfigured(t *testing.T) {
 	g := Group{ID: 1, Name: "auto", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
 	channels := []Channel{{
@@ -204,6 +336,143 @@ func TestModelSquareService_PivotAggregatesAcrossPlatformsAndChannels(t *testing
 	antig := card.Platforms[1]
 	require.Len(t, antig.GroupPrices, 1)
 	require.ElementsMatch(t, []string{"primary-pool", "fallback-pool"}, antig.GroupPrices[0].ChannelChain)
+}
+
+func TestModelSquareService_AppliesModelMetadataOverrides(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformOpenAI, Models: []string{"custom-model"},
+			BillingMode: BillingModeToken, InputPrice: msPtrFloat(1e-6),
+		}},
+	}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), nil)
+	svc.SetModelMetadataReader(stubModelMetadataReader{
+		"custom-model": {
+			ModelName:     "custom-model",
+			DisplayName:   "Custom Model",
+			Description:   "Admin maintained description",
+			Category:      "gpt",
+			ContextWindow: 128000,
+			MaxOutput:     8192,
+			Capabilities:  []string{"reasoning", "function_calling"},
+			Featured:      true,
+			IconURL:       "https://example.com/icon.png",
+		},
+	})
+
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	card := cards[0]
+	require.Equal(t, "Custom Model", card.DisplayName)
+	require.Equal(t, "Admin maintained description", card.Description)
+	require.Equal(t, "gpt", card.Category)
+	require.Equal(t, 128000, card.ContextWindow)
+	require.Equal(t, 8192, card.MaxOutput)
+	require.Equal(t, []string{"reasoning", "function_calling"}, card.Capabilities)
+	require.True(t, card.Featured)
+	require.Equal(t, "https://example.com/icon.png", card.IconURL)
+	require.Len(t, card.Platforms[0].GroupPrices, 1, "pricing remains sourced from channel config")
+}
+
+func TestModelSquareService_FillsLiteLLMTypeModalitiesAndSupportFlags(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformGemini, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformGemini, Models: []string{"gemini-test"},
+			BillingMode: BillingModeToken, InputPrice: msPtrFloat(1e-6),
+		}},
+	}}
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gemini-test": {
+			Mode:                      "chat",
+			MaxInputTokens:            1000000,
+			MaxOutputTokens:           8192,
+			SupportedModalities:       []string{"text", "image", "audio", "video"},
+			SupportedOutputModalities: []string{"text", "image"},
+			SupportFlags:              []string{"vision", "web_search", "response_schema"},
+			SupportsVision:            true,
+			SupportsFunctionCalling:   true,
+		},
+	}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), pricingSvc)
+
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	card := cards[0]
+	require.Equal(t, "chat", card.ModelType)
+	require.Equal(t, []string{"text", "image", "audio", "video"}, card.InputModalities)
+	require.Equal(t, []string{"text", "image"}, card.OutputModalities)
+	require.Equal(t, []string{"vision", "web_search", "response_schema"}, card.SupportFlags)
+	require.Equal(t, []string{"vision", "function_calling"}, card.Capabilities)
+}
+
+func TestModelSquareService_EndpointsUseOverriddenModelType(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformOpenAI, Models: []string{"custom-image-model"},
+			BillingMode: BillingModeToken, InputPrice: msPtrFloat(1e-6),
+		}},
+	}}
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"custom-image-model": {Mode: "chat"},
+	}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), pricingSvc)
+	svc.SetModelMetadataReader(stubModelMetadataReader{
+		"custom-image-model": {ModelName: "custom-image-model", ModelType: "image_generation"},
+	})
+	svc.SetModelEndpointConfigReader(stubModelEndpointConfigReader{cfg: &ModelEndpointConfig{
+		Platforms: map[string]map[string][]ModelEndpoint{
+			PlatformOpenAI: {
+				"chat":             {{Method: "POST", Path: "/v1/chat/completions"}},
+				"image_generation": {{Method: "POST", Path: "/v1/images/generations"}},
+			},
+		},
+	}})
+
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	require.Equal(t, "image_generation", cards[0].ModelType)
+	require.Equal(t, []ModelEndpoint{{Method: "POST", Path: "/v1/images/generations"}}, cards[0].Platforms[0].Endpoints)
+}
+
+func TestModelSquareService_UnconfiguredModelTypeEndpointsEmptyWithExplicitConfig(t *testing.T) {
+	g := Group{ID: 1, Name: "auto", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
+	channels := []Channel{{
+		ID: 10, Name: "ch", Status: StatusActive,
+		GroupIDs: []int64{1},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformOpenAI, Models: []string{"text-embedding-custom"},
+			BillingMode: BillingModeToken, InputPrice: msPtrFloat(1e-6),
+		}},
+	}}
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"text-embedding-custom": {Mode: "embedding"},
+	}}
+	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), pricingSvc)
+	svc.SetModelEndpointConfigReader(stubModelEndpointConfigReader{cfg: &ModelEndpointConfig{
+		Platforms: map[string]map[string][]ModelEndpoint{
+			PlatformOpenAI: {
+				"chat": {{Method: "POST", Path: "/v1/chat/completions"}},
+			},
+		},
+	}})
+
+	cards, err := svc.ListPublic(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	require.Equal(t, "embedding", cards[0].ModelType)
+	require.Empty(t, cards[0].Platforms[0].Endpoints)
 }
 
 func TestInboundEndpointsForPlatform_RoundTripWithNormalize(t *testing.T) {
