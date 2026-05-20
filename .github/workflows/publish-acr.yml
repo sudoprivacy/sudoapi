@@ -10,11 +10,14 @@ on:
 
   workflow_dispatch:
     inputs:
+      image_tag:
+        description: 'Image tag to push instead of latest; leave empty to use latest'
+        required: false
+        type: string
       deploy_host:
         description: 'Azure VM IP to deploy to; Use "default" for DEPLOY_HOST variable, leave empty to skip deployment'
         required: false
         type: string
-        default: 'default'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
@@ -53,15 +56,31 @@ jobs:
         id: date
         run: echo "DATE=$(TZ='Asia/Shanghai' date +'%Y_%m%d_%H%M')" >>$GITHUB_OUTPUT
 
+      - name: Resolve image tags
+        id: image_tags
+        env:
+          INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "$INPUT_IMAGE_TAG" ]; then
+            primary_tag="$INPUT_IMAGE_TAG"
+          else
+            primary_tag="latest"
+          fi
+
+          {
+            echo "tags<<EOF"
+            echo "$REGISTRY/$IMAGE_NAME:$primary_tag"
+            echo "$REGISTRY/$IMAGE_NAME:${{ steps.date.outputs.DATE }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.date.outputs.DATE }}
+          tags: ${{ steps.image_tags.outputs.tags }}
           build-args: |
             COMMIT=${{ github.sha }}
           cache-from: type=gha
