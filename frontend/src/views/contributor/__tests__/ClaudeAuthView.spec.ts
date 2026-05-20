@@ -4,7 +4,9 @@ import { mount, flushPromises } from '@vue/test-utils'
 import ClaudeAuthView from '../ClaudeAuthView.vue'
 
 const generateClaudeAuthUrl = vi.fn()
+const generateClaudeSetupTokenUrl = vi.fn()
 const exchangeClaudeCode = vi.fn()
+const exchangeClaudeSetupTokenCode = vi.fn()
 const create = vi.fn()
 const showSuccess = vi.fn()
 const showError = vi.fn()
@@ -13,7 +15,9 @@ vi.mock('@/api/contributor', () => ({
   contributorAPI: {
     accounts: {
       generateClaudeAuthUrl: (...args: any[]) => generateClaudeAuthUrl(...args),
+      generateClaudeSetupTokenUrl: (...args: any[]) => generateClaudeSetupTokenUrl(...args),
       exchangeClaudeCode: (...args: any[]) => exchangeClaudeCode(...args),
+      exchangeClaudeSetupTokenCode: (...args: any[]) => exchangeClaudeSetupTokenCode(...args),
       create: (...args: any[]) => create(...args)
     }
   }
@@ -26,7 +30,20 @@ vi.mock('@/stores/app', () => ({
   })
 }))
 
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => ({
+    user: null
+  })
+}))
+
 vi.mock('vue-i18n', () => ({
+  createI18n: () => ({
+    global: {
+      t: (key: string) => key,
+      locale: { value: 'en' },
+      setLocaleMessage: vi.fn()
+    }
+  }),
   useI18n: () => ({
     t: (key: string) => key
   })
@@ -35,8 +52,14 @@ vi.mock('vue-i18n', () => ({
 vi.mock('@/components/account/OAuthAuthorizationFlow.vue', () => ({
   default: defineComponent({
     name: 'OAuthAuthorizationFlow',
+    props: {
+      addMethod: {
+        type: String,
+        required: true
+      }
+    },
     emits: ['generate-url'],
-    setup(_props, { expose, emit }) {
+    setup(props, { expose, emit }) {
       const authCode = ref('claude-auth-code')
       expose({
         authCode,
@@ -44,7 +67,12 @@ vi.mock('@/components/account/OAuthAuthorizationFlow.vue', () => ({
           authCode.value = ''
         })
       })
-      return () => h('button', { class: 'generate-url', onClick: () => emit('generate-url') }, 'generate')
+      return () =>
+        h(
+          'button',
+          { class: 'generate-url', 'data-add-method': props.addMethod, onClick: () => emit('generate-url') },
+          'generate'
+        )
     }
   })
 }))
@@ -52,11 +80,11 @@ vi.mock('@/components/account/OAuthAuthorizationFlow.vue', () => ({
 describe('ClaudeAuthView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    generateClaudeAuthUrl.mockResolvedValue({
+    generateClaudeSetupTokenUrl.mockResolvedValue({
       auth_url: 'https://claude.example/oauth',
       session_id: 'session-123'
     })
-    exchangeClaudeCode.mockResolvedValue({
+    exchangeClaudeSetupTokenCode.mockResolvedValue({
       access_token: 'access-token',
       refresh_token: 'refresh-token',
       org_uuid: 'org-123',
@@ -70,24 +98,34 @@ describe('ClaudeAuthView', () => {
     mount(ClaudeAuthView)
     await flushPromises()
 
-    expect(generateClaudeAuthUrl).toHaveBeenCalledWith({ proxy_id: null })
+    expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: null })
+    expect(generateClaudeAuthUrl).not.toHaveBeenCalled()
   })
 
-  it('exchanges auth code and creates contributor Anthropic OAuth account', async () => {
+  it('defaults Claude authorization add method to setup token', async () => {
+    const wrapper = mount(ClaudeAuthView)
+    await flushPromises()
+
+    expect(wrapper.find('.generate-url').attributes('data-add-method')).toBe('setup-token')
+  })
+
+  it('exchanges auth code and creates contributor Anthropic setup token account', async () => {
     const wrapper = mount(ClaudeAuthView)
     await flushPromises()
 
     await wrapper.find('.btn-primary').trigger('click')
     await flushPromises()
 
-    expect(exchangeClaudeCode).toHaveBeenCalledWith({
+    expect(exchangeClaudeSetupTokenCode).toHaveBeenCalledWith({
       session_id: 'session-123',
       code: 'claude-auth-code',
       proxy_id: null
     })
+    expect(exchangeClaudeCode).not.toHaveBeenCalled()
     expect(create).toHaveBeenCalledWith(expect.objectContaining({
       platform: 'anthropic',
-      type: 'oauth',
+      type: 'setup-token',
+      add_method: 'setup-token',
       credentials: expect.objectContaining({
         access_token: 'access-token',
         refresh_token: 'refresh-token'
@@ -104,7 +142,7 @@ describe('ClaudeAuthView', () => {
       group_ids: [],
       auto_pause_on_expired: true
     }))
-    expect(create.mock.calls[0][0].name).toMatch(/^claude-\d+-[a-z0-9]+$/)
+    expect(create.mock.calls[0][0].name).toBe('Claude OAuth')
     expect(showSuccess).toHaveBeenCalledWith('Claude 账号授权已提交')
   })
 })

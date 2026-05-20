@@ -13,7 +13,7 @@
 
       <OAuthAuthorizationFlow
         ref="oauthFlowRef"
-        add-method="oauth"
+        add-method="setup-token"
         :auth-url="authUrl"
         :session-id="sessionId"
         :loading="loading"
@@ -111,7 +111,7 @@ async function generateAuthUrl(): Promise<void> {
   authUrl.value = ''
   sessionId.value = ''
   try {
-    const result = await contributorAPI.accounts.generateClaudeAuthUrl({ proxy_id: null })
+    const result = await contributorAPI.accounts.generateClaudeSetupTokenUrl({ proxy_id: null })
     authUrl.value = result.auth_url
     sessionId.value = result.session_id
   } catch (err: any) {
@@ -131,7 +131,7 @@ async function submitAuthCode(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const tokenInfo = await contributorAPI.accounts.exchangeClaudeCode({
+    const tokenInfo = await contributorAPI.accounts.exchangeClaudeSetupTokenCode({
       session_id: sessionId.value,
       code,
       proxy_id: null
@@ -140,8 +140,8 @@ async function submitAuthCode(): Promise<void> {
       name: accountName.value || resolveAccountName(),
       notes: null,
       platform: 'anthropic',
-      type: 'oauth',
-      add_method: 'oauth',
+      type: 'setup-token',
+      add_method: 'setup-token',
       credentials: tokenInfo,
       extra: buildExtra(tokenInfo),
       proxy_id: null,

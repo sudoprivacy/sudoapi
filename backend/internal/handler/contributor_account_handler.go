@@ -197,7 +197,42 @@ func (h *ContributorAccountHandler) GenerateAuthURL(c *gin.Context) {
 	response.Success(c, result)
 }
 
+func (h *ContributorAccountHandler) GenerateSetupTokenURL(c *gin.Context) {
+	var req admin.GenerateAuthURLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req = admin.GenerateAuthURLRequest{}
+	}
+
+	result, err := h.oauthService.GenerateSetupTokenURL(c.Request.Context(), req.ProxyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, result)
+}
+
 func (h *ContributorAccountHandler) ExchangeCode(c *gin.Context) {
+	var req admin.ExchangeCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	tokenInfo, err := h.oauthService.ExchangeCode(c.Request.Context(), &service.ExchangeCodeInput{
+		SessionID: req.SessionID,
+		Code:      req.Code,
+		ProxyID:   req.ProxyID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, tokenInfo)
+}
+
+func (h *ContributorAccountHandler) ExchangeSetupTokenCode(c *gin.Context) {
 	var req admin.ExchangeCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())

@@ -54,11 +54,31 @@ export async function generateClaudeAuthUrl(
   return data
 }
 
+export async function generateClaudeSetupTokenUrl(
+  payload: ContributorClaudeAuthURLRequest = {}
+): Promise<ContributorClaudeAuthURLResponse> {
+  const { data } = await apiClient.post<ContributorClaudeAuthURLResponse>(
+    '/contributor/accounts/generate-setup-token-url',
+    payload
+  )
+  return data
+}
+
 export async function exchangeClaudeCode(
   payload: ContributorClaudeExchangeCodeRequest
 ): Promise<Record<string, unknown>> {
   const { data } = await apiClient.post<Record<string, unknown>>(
     '/contributor/accounts/exchange-code',
+    payload
+  )
+  return data
+}
+
+export async function exchangeClaudeSetupTokenCode(
+  payload: ContributorClaudeExchangeCodeRequest
+): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    '/contributor/accounts/exchange-setup-token-code',
     payload
   )
   return data
@@ -83,7 +103,9 @@ export const contributorAccountsAPI = {
   getById,
   create,
   generateClaudeAuthUrl,
+  generateClaudeSetupTokenUrl,
   exchangeClaudeCode,
+  exchangeClaudeSetupTokenCode,
   update,
   testAccount,
   getProxies
