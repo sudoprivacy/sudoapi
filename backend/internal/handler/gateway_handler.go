@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -944,18 +945,17 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
 
 	var platform string
-	var modelsPlatform string
-
 	if apiKey != nil && apiKey.Group != nil {
 		platform = apiKey.Group.Platform
 	}
-	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
+	forcedPlatform, _ := middleware2.GetForcePlatformFromContext(c)
+	forcedPlatform = strings.TrimSpace(forcedPlatform)
+	if forcedPlatform != "" {
 		platform = forcedPlatform
-		modelsPlatform = forcedPlatform
 	}
 
 	// Get available models from account configurations across all groups bound to this key.
-	availableModels := h.gatewayService.GetAvailableModelsForGroups(c.Request.Context(), apiKeyModelGroupIDs(apiKey), modelsPlatform)
+	availableModels := h.availableModelsForAPIKey(c.Request.Context(), apiKey, forcedPlatform)
 
 	if len(availableModels) > 0 {
 		// Build model list from whitelist
@@ -996,6 +996,82 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		"object": "list",
 		"data":   claude.DefaultModels,
 	})
+}
+
+func (h *GatewayHandler) availableModelsForAPIKey(ctx context.Context, apiKey *service.APIKey, forcedPlatform string) []string {
+	groupIDs := apiKeyModelGroupIDs(apiKey)
+	if len(groupIDs) == 0 {
+		return h.gatewayService.GetAvailableModelsForGroups(ctx, nil, forcedPlatform)
+	}
+	if strings.TrimSpace(forcedPlatform) != "" || len(groupIDs) == 1 {
+		return h.gatewayService.GetAvailableModelsForGroups(ctx, groupIDs, forcedPlatform)
+	}
+
+	groupsByID := make(map[int64]*service.Group, len(apiKey.Groups)+1)
+	for _, group := range apiKey.Groups {
+		if group != nil && group.ID > 0 {
+			groupsByID[group.ID] = group
+		}
+	}
+	if apiKey.Group != nil && apiKey.Group.ID > 0 {
+		groupsByID[apiKey.Group.ID] = apiKey.Group
+	}
+
+	modelSet := make(map[string]struct{})
+	for _, groupID := range groupIDs {
+		group := groupsByID[groupID]
+		groupPlatform := ""
+		if group != nil {
+			groupPlatform = strings.TrimSpace(group.Platform)
+		}
+
+		models := h.gatewayService.GetAvailableModels(ctx, &groupID, groupPlatform)
+		if len(models) == 0 {
+			models = defaultModelIDsForPlatform(groupPlatform)
+		}
+		for _, model := range models {
+			if model = strings.TrimSpace(model); model != "" {
+				modelSet[model] = struct{}{}
+			}
+		}
+	}
+	if len(modelSet) == 0 {
+		return nil
+	}
+	models := make([]string, 0, len(modelSet))
+	for model := range modelSet {
+		models = append(models, model)
+	}
+	sort.Strings(models)
+	return models
+}
+
+func defaultModelIDsForPlatform(platform string) []string {
+	switch platform {
+	case service.PlatformOpenAI:
+		return openai.DefaultModelIDs()
+	case service.PlatformGemini:
+		ids := make([]string, 0, len(geminicli.DefaultModels))
+		for _, model := range geminicli.DefaultModels {
+			if strings.TrimSpace(model.ID) != "" {
+				ids = append(ids, model.ID)
+			}
+		}
+		return ids
+	case service.PlatformAnthropic:
+		return claude.DefaultModelIDs()
+	case service.PlatformAntigravity:
+		models := antigravity.DefaultModels()
+		ids := make([]string, 0, len(models))
+		for _, model := range models {
+			if strings.TrimSpace(model.ID) != "" {
+				ids = append(ids, model.ID)
+			}
+		}
+		return ids
+	default:
+		return nil
+	}
 }
 
 func apiKeyModelGroupIDs(apiKey *service.APIKey) []int64 {

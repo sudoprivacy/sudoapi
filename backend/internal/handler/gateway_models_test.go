@@ -131,6 +131,58 @@ func TestGatewayModels_GeminiGroupListsMappedModelsAcrossBoundGroups(t *testing.
 	require.Equal(t, []string{"claude-sonnet-4-6", "gemini-2.5-flash"}, modelIDsForTest(got.Data))
 }
 
+func TestGatewayModels_MultiGroupKeepsDefaultModelsForGroupsWithoutMappings(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	openAIGroupID := int64(24)
+	geminiGroupID := int64(25)
+	h := newGatewayModelsHandlerForTest(
+		&gatewayModelsAccountRepoStub{
+			byGroup: map[int64][]service.Account{
+				openAIGroupID: {
+					{
+						ID:       1,
+						Platform: service.PlatformOpenAI,
+						Credentials: map[string]any{
+							"model_mapping": map[string]any{
+								"gpt-5.4": "gpt-5.4",
+							},
+						},
+					},
+				},
+				geminiGroupID: {
+					{
+						ID:       2,
+						Platform: service.PlatformGemini,
+					},
+				},
+			},
+		},
+	)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	openAIGroup := &service.Group{ID: openAIGroupID, Platform: service.PlatformOpenAI}
+	geminiGroup := &service.Group{ID: geminiGroupID, Platform: service.PlatformGemini}
+	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+		GroupIDs: []int64{openAIGroupID, geminiGroupID},
+		Groups:   []*service.Group{openAIGroup, geminiGroup},
+		Group:    openAIGroup,
+	})
+
+	h.Models(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var got gatewayModelsResponseForTest
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	ids := modelIDsForTest(got.Data)
+	require.Contains(t, ids, "gpt-5.4")
+	require.Contains(t, ids, "gemini-2.5-flash")
+	require.NotContains(t, ids, "gpt-5.5")
+}
+
 func TestGatewayModels_ForcePlatformFiltersMappedModelsByPlatform(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
