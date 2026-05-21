@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/oauth"
@@ -96,6 +97,24 @@ func (m *mockProxyRepoForOAuth) CountAccountsByProxyID(ctx context.Context, prox
 }
 func (m *mockProxyRepoForOAuth) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
 	panic("ListAccountSummariesByProxyID not implemented")
+}
+func (m *mockProxyRepoForOAuth) ExpireContributorProxyReservations(ctx context.Context, now time.Time) error {
+	panic("ExpireContributorProxyReservations not implemented")
+}
+func (m *mockProxyRepoForOAuth) GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*ContributorProxyReservation, error) {
+	panic("GetActiveContributorProxyReservation not implemented")
+}
+func (m *mockProxyRepoForOAuth) ListActiveContributorProxyReservationProxyIDs(ctx context.Context, now time.Time) (map[int64]struct{}, error) {
+	panic("ListActiveContributorProxyReservationProxyIDs not implemented")
+}
+func (m *mockProxyRepoForOAuth) CreateContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64, country string, expiresAt time.Time) (*ContributorProxyReservation, error) {
+	panic("CreateContributorProxyReservation not implemented")
+}
+func (m *mockProxyRepoForOAuth) ConsumeContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64) error {
+	panic("ConsumeContributorProxyReservation not implemented")
+}
+func (m *mockProxyRepoForOAuth) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
+	panic("ReleaseContributorProxyReservations not implemented")
 }
 
 // =====================

@@ -10,6 +10,7 @@ const mockLogout = vi.fn()
 const mockGetCurrentUser = vi.fn()
 const mockRegister = vi.fn()
 const mockRefreshToken = vi.fn()
+const mockReleaseProxyReservation = vi.fn()
 
 vi.mock('@/api', () => ({
   authAPI: {
@@ -22,6 +23,14 @@ vi.mock('@/api', () => ({
     refreshToken: (...args: any[]) => mockRefreshToken(...args),
   },
   isTotp2FARequired: (response: any) => response?.requires_2fa === true,
+}))
+
+vi.mock('@/api/contributor', () => ({
+  contributorAPI: {
+    accounts: {
+      releaseProxyReservation: (...args: any[]) => mockReleaseProxyReservation(...args),
+    },
+  },
 }))
 
 const fakeUser = {
@@ -188,6 +197,24 @@ describe('useAuthStore', () => {
       expect(localStorage.getItem('auth_user')).toBeNull()
       expect(localStorage.getItem('refresh_token')).toBeNull()
       expect(localStorage.getItem('token_expires_at')).toBeNull()
+    })
+
+    it('贡献者注销时尽量释放代理预占', async () => {
+      const contributorResponse = {
+        ...fakeAuthResponse,
+        user: { ...fakeUser, role: 'account_contributor' as const },
+      }
+      mockContributorLogin.mockResolvedValue(contributorResponse)
+      mockReleaseProxyReservation.mockResolvedValue(undefined)
+      mockLogout.mockResolvedValue(undefined)
+      const store = useAuthStore()
+
+      await store.contributorLogin({ email: 'contributor@example.com', password: '123456' })
+      await store.logout()
+
+      expect(mockReleaseProxyReservation).toHaveBeenCalledTimes(1)
+      expect(mockLogout).toHaveBeenCalled()
+      expect(store.isAuthenticated).toBe(false)
     })
   })
 

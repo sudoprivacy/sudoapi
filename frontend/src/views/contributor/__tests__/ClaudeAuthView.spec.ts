@@ -9,8 +9,14 @@ const exchangeClaudeCode = vi.fn()
 const exchangeClaudeSetupTokenCode = vi.fn()
 const create = vi.fn()
 const getProxies = vi.fn()
+const getProxiesForCountry = vi.fn()
+const releaseProxyReservation = vi.fn()
 const showSuccess = vi.fn()
 const showError = vi.fn()
+
+const routeState = vi.hoisted(() => ({
+  query: {} as Record<string, unknown>
+}))
 
 vi.mock('@/api/contributor', () => ({
   contributorAPI: {
@@ -20,9 +26,15 @@ vi.mock('@/api/contributor', () => ({
       exchangeClaudeCode: (...args: any[]) => exchangeClaudeCode(...args),
       exchangeClaudeSetupTokenCode: (...args: any[]) => exchangeClaudeSetupTokenCode(...args),
       create: (...args: any[]) => create(...args),
-      getProxies: (...args: any[]) => getProxies(...args)
+      getProxies: (...args: any[]) => getProxies(...args),
+      getProxiesForCountry: (...args: any[]) => getProxiesForCountry(...args),
+      releaseProxyReservation: (...args: any[]) => releaseProxyReservation(...args)
     }
   }
+}))
+
+vi.mock('vue-router', () => ({
+  useRoute: () => routeState
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -101,7 +113,10 @@ const proxyB = {
 describe('ClaudeAuthView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    routeState.query = {}
     getProxies.mockResolvedValue([proxyA])
+    getProxiesForCountry.mockResolvedValue([proxyA])
+    releaseProxyReservation.mockResolvedValue(undefined)
     generateClaudeSetupTokenUrl.mockResolvedValue({
       auth_url: 'https://claude.example/oauth',
       session_id: 'session-123'
@@ -120,17 +135,18 @@ describe('ClaudeAuthView', () => {
     mount(ClaudeAuthView)
     await flushPromises()
 
-    expect(getProxies).toHaveBeenCalled()
+    expect(getProxiesForCountry).toHaveBeenCalledWith('')
     expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: 10 })
     expect(generateClaudeAuthUrl).not.toHaveBeenCalled()
   })
 
   it('waits for manual generation when multiple proxies are available', async () => {
     getProxies.mockResolvedValue([proxyA, proxyB])
+    getProxiesForCountry.mockResolvedValue([proxyA, proxyB])
     const wrapper = mount(ClaudeAuthView)
     await flushPromises()
 
-    expect(generateClaudeSetupTokenUrl).not.toHaveBeenCalled()
+    expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: 10 })
 
     await wrapper.find('[data-testid="generate-auth-url"]').trigger('click')
     await flushPromises()
@@ -140,6 +156,7 @@ describe('ClaudeAuthView', () => {
 
   it('disables authorization flow when no proxies are available', async () => {
     getProxies.mockResolvedValue([])
+    getProxiesForCountry.mockResolvedValue([])
     const wrapper = mount(ClaudeAuthView)
     await flushPromises()
 
@@ -191,5 +208,43 @@ describe('ClaudeAuthView', () => {
     }))
     expect(create.mock.calls[0][0].name).toBe('Claude OAuth')
     expect(showSuccess).toHaveBeenCalledWith('Claude 账号授权已提交')
+  })
+
+  it('loads the country-selected proxy and includes country when creating the account', async () => {
+    routeState.query = { country: ' us ' }
+    const wrapper = mount(ClaudeAuthView)
+    await flushPromises()
+
+    expect(getProxiesForCountry).toHaveBeenCalledWith('US')
+    expect(wrapper.find('select').attributes('disabled')).toBeDefined()
+
+    await wrapper.find('[data-testid="submit-auth-code"]').trigger('click')
+    await flushPromises()
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      proxy_id: 10,
+      country: 'US'
+    }))
+  })
+
+  it('releases the current reservation before restarting authorization', async () => {
+    routeState.query = { country: 'US' }
+    const wrapper = mount(ClaudeAuthView)
+    await flushPromises()
+
+    await wrapper.find('[data-testid="submit-auth-code"]').trigger('click')
+    await flushPromises()
+
+    getProxiesForCountry.mockClear()
+    generateClaudeSetupTokenUrl.mockClear()
+
+    const resetButton = wrapper.findAll('button').find((button) => button.text() === '重新授权')
+    expect(resetButton).toBeTruthy()
+    await resetButton!.trigger('click')
+    await flushPromises()
+
+    expect(releaseProxyReservation).toHaveBeenCalledTimes(1)
+    expect(getProxiesForCountry).toHaveBeenCalledWith('US')
+    expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: 10 })
   })
 })

@@ -74,6 +74,7 @@ type LoginRequest struct {
 	Email          string `json:"email" binding:"required,email"`
 	Password       string `json:"password" binding:"required"`
 	TurnstileToken string `json:"turnstile_token"`
+	Country        string `json:"country"`
 }
 
 // AuthResponse 认证响应格式（匹配前端期望）

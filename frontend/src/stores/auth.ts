@@ -6,6 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api'
+import { contributorAPI } from '@/api/contributor'
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'
 
 const AUTH_TOKEN_KEY = 'auth_token'
@@ -422,6 +423,13 @@ export const useAuthStore = defineStore('auth', () => {
    * Clears all authentication state and persisted data
    */
   async function logout(): Promise<void> {
+    if (user.value?.role === 'account_contributor') {
+      try {
+        await contributorAPI.accounts.releaseProxyReservation()
+      } catch {
+        // Logout can continue; stale reservations are cleared by TTL.
+      }
+    }
     // Call API logout (revokes refresh token on server)
     await authAPI.logout()
 

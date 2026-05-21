@@ -98,6 +98,18 @@ export async function getProxies(): Promise<Proxy[]> {
   return data
 }
 
+export async function getProxiesForCountry(country?: string): Promise<Proxy[]> {
+  const normalized = country?.trim().toUpperCase()
+  const { data } = await apiClient.get<Proxy[]>('/contributor/proxies/all', {
+    params: normalized ? { country: normalized } : undefined
+  })
+  return data
+}
+
+export async function releaseProxyReservation(): Promise<void> {
+  await apiClient.post('/contributor/proxies/reservation/release')
+}
+
 export const contributorAccountsAPI = {
   list,
   getById,
@@ -108,7 +120,9 @@ export const contributorAccountsAPI = {
   exchangeClaudeSetupTokenCode,
   update,
   testAccount,
-  getProxies
+  getProxies,
+  getProxiesForCountry,
+  releaseProxyReservation
 }
 
 export default contributorAccountsAPI

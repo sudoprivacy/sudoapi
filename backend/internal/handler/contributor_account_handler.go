@@ -24,6 +24,20 @@ func NewContributorAccountHandler(adminService service.AdminService, accountTest
 	return &ContributorAccountHandler{adminService: adminService, accountTestService: accountTestService, oauthService: oauthService}
 }
 
+func normalizeCountryParam(country string) string {
+	return strings.ToUpper(strings.TrimSpace(country))
+}
+
+func countryFromRequest(c *gin.Context) string {
+	if c == nil {
+		return ""
+	}
+	if country := normalizeCountryParam(c.Query("country")); country != "" {
+		return country
+	}
+	return normalizeCountryParam(c.Query("country_code"))
+}
+
 func (h *ContributorAccountHandler) List(c *gin.Context) {
 	subject, ok := servermiddleware.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -102,6 +116,7 @@ func (h *ContributorAccountHandler) Create(c *gin.Context) {
 		LoadFactor:         req.LoadFactor,
 		ExpiresAt:          req.ExpiresAt,
 		AutoPauseOnExpired: req.AutoPauseOnExpired,
+		ContributorCountry: normalizeCountryParam(req.ContributorCountry),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -170,16 +185,34 @@ func (h *ContributorAccountHandler) Test(c *gin.Context) {
 }
 
 func (h *ContributorAccountHandler) ListProxies(c *gin.Context) {
-	proxies, err := h.adminService.GetAllProxies(c.Request.Context())
+	subject, ok := servermiddleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found")
+		return
+	}
+	proxy, err := h.adminService.SelectContributorProxy(c.Request.Context(), subject.UserID, countryFromRequest(c))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	out := make([]dto.Proxy, 0, len(proxies))
-	for i := range proxies {
-		out = append(out, *dto.ProxyFromService(&proxies[i]))
+	out := make([]dto.Proxy, 0, 1)
+	if proxy != nil {
+		out = append(out, *dto.ProxyFromService(proxy))
 	}
 	response.Success(c, out)
+}
+
+func (h *ContributorAccountHandler) ReleaseProxyReservation(c *gin.Context) {
+	subject, ok := servermiddleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found")
+		return
+	}
+	if err := h.adminService.ReleaseContributorProxyReservations(c.Request.Context(), subject.UserID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "proxy reservation released"})
 }
 
 func (h *ContributorAccountHandler) GenerateAuthURL(c *gin.Context) {

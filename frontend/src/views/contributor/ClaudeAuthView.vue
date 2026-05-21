@@ -20,7 +20,7 @@
             <select
               v-model="selectedProxyId"
               class="input w-full"
-              :disabled="proxyLoading || !hasAvailableProxies || loading"
+              :disabled="true"
               @change="handleProxyChange"
             >
               <option v-if="proxyLoading" :value="null">正在加载代理...</option>
@@ -119,6 +119,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import OAuthAuthorizationFlow from '@/components/account/OAuthAuthorizationFlow.vue'
 import { contributorAPI } from '@/api/contributor'
 import { useAuthStore } from '@/stores/auth'
@@ -131,6 +132,7 @@ type OAuthFlowExposed = {
 }
 
 const { t } = useI18n()
+const route = useRoute()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
@@ -145,6 +147,7 @@ const created = ref(false)
 const proxies = ref<Proxy[]>([])
 const selectedProxyId = ref<number | null>(null)
 const proxyLoadFailed = ref(false)
+const contributorCountry = computed(() => normalizeCountryParam(route.query.country ?? route.query.country_code))
 
 const hasAvailableProxies = computed(() => proxies.value.length > 0)
 
@@ -178,15 +181,20 @@ function formatProxyLabel(proxy: Proxy): string {
   return `${proxy.name} (${proxy.protocol}://${proxy.host}:${proxy.port})`
 }
 
+function normalizeCountryParam(value: unknown): string {
+  const raw = Array.isArray(value) ? value[0] : value
+  return typeof raw === 'string' ? raw.trim().toUpperCase() : ''
+}
+
 async function loadProxies(): Promise<void> {
   proxyLoading.value = true
   proxyLoadFailed.value = false
   error.value = ''
   try {
-    const result = await contributorAPI.accounts.getProxies()
+    const result = await contributorAPI.accounts.getProxiesForCountry(contributorCountry.value)
     proxies.value = result
     selectedProxyId.value = result[0]?.id ?? null
-    if (result.length === 1) {
+    if (result.length > 0) {
       await generateAuthUrl()
     }
   } catch (err: any) {
@@ -280,7 +288,8 @@ async function submitAuthCode(): Promise<void> {
       priority: 1,
       rate_multiplier: 1,
       group_ids: [],
-      auto_pause_on_expired: true
+      auto_pause_on_expired: true,
+      country: contributorCountry.value || undefined
     })
 
     created.value = true
@@ -293,12 +302,19 @@ async function submitAuthCode(): Promise<void> {
   }
 }
 
-function resetFlow(): void {
+async function resetFlow(): Promise<void> {
   created.value = false
   accountName.value = resolveAccountName()
   resetAuthorizationState()
-  if (proxies.value.length === 1) {
-    generateAuthUrl()
+  loading.value = true
+  try {
+    await contributorAPI.accounts.releaseProxyReservation()
+    await loadProxies()
+  } catch (err: any) {
+    error.value = err.response?.data?.detail || err.message || 'Failed to reset proxy reservation'
+    appStore.showError(error.value)
+  } finally {
+    loading.value = false
   }
 }
 </script>

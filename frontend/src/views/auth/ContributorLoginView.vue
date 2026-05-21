@@ -141,7 +141,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { AuthLayout } from '@/components/layout'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/TurnstileWidget.vue'
@@ -153,6 +153,7 @@ import { extractI18nErrorMessage } from '@/utils/apiError'
 import type { TotpLoginResponse } from '@/types'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
@@ -168,7 +169,11 @@ const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
 const backendModeEnabled = ref(false)
 const registrationEnabled = ref(false)
 const googleOAuthEnabled = ref(false)
-const contributorRedirect = '/contributor/claude-auth'
+const contributorCountry = computed(() => normalizeCountryParam(route.query.country ?? route.query.country_code))
+const contributorRedirect = computed(() => {
+  const country = contributorCountry.value
+  return country ? `/contributor/claude-auth?country=${encodeURIComponent(country)}` : '/contributor/claude-auth'
+})
 
 const show2FAModal = ref(false)
 const totpTempToken = ref('')
@@ -264,6 +269,18 @@ function validateForm(): boolean {
   return true
 }
 
+function normalizeCountryParam(value: unknown): string {
+  const raw = Array.isArray(value) ? value[0] : value
+  return typeof raw === 'string' ? raw.trim().toUpperCase() : ''
+}
+
+function contributorRouteLocation() {
+  const country = contributorCountry.value
+  return country
+    ? { path: '/contributor/claude-auth', query: { country } }
+    : { path: '/contributor/claude-auth' }
+}
+
 async function handleLogin(): Promise<void> {
   if (!validateForm()) return
 
@@ -272,7 +289,8 @@ async function handleLogin(): Promise<void> {
     const response = await authStore.contributorLogin({
       email: formData.email,
       password: formData.password,
-      turnstile_token: turnstileEnabled.value ? turnstileToken.value : undefined
+      turnstile_token: turnstileEnabled.value ? turnstileToken.value : undefined,
+      country: contributorCountry.value || undefined
     })
 
     if (isTotp2FARequired(response)) {
@@ -284,7 +302,7 @@ async function handleLogin(): Promise<void> {
     }
 
     appStore.showSuccess(t('auth.loginSuccess'))
-    await router.push('/contributor/claude-auth')
+    await router.push(contributorRouteLocation())
   } catch (error: unknown) {
     turnstileRef.value?.reset()
     turnstileToken.value = ''
@@ -300,7 +318,7 @@ async function handle2FAVerify(code: string): Promise<void> {
     await authStore.login2FA(totpTempToken.value, code)
     show2FAModal.value = false
     appStore.showSuccess(t('auth.loginSuccess'))
-    await router.push('/contributor/claude-auth')
+    await router.push(contributorRouteLocation())
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { data?: { message?: string } } }
     totpModalRef.value?.setError(err.response?.data?.message || err.message || t('profile.totp.loginFailed'))

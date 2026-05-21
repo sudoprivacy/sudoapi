@@ -30,5 +30,6 @@ func RegisterContributorRoutes(
 	proxies := contributor.Group("/proxies")
 	{
 		proxies.GET("/all", h.ContributorAccount.ListProxies)
+		proxies.POST("/reservation/release", h.ContributorAccount.ReleaseProxyReservation)
 	}
 }
