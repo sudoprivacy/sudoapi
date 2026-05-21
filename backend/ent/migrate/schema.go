@@ -446,6 +446,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "name", Type: field.TypeString, Size: 100},
 		{Name: "provider", Type: field.TypeEnum, Enums: []string{"openai", "anthropic", "gemini"}},
+		{Name: "api_mode", Type: field.TypeString, Size: 32, Default: "chat_completions"},
 		{Name: "endpoint", Type: field.TypeString, Size: 500},
 		{Name: "api_key_encrypted", Type: field.TypeString},
 		{Name: "primary_model", Type: field.TypeString, Size: 200},
@@ -468,7 +469,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_monitors_channel_monitor_request_templates_request_template",
-				Columns:    []*schema.Column{ChannelMonitorsColumns[17]},
+				Columns:    []*schema.Column{ChannelMonitorsColumns[18]},
 				RefColumns: []*schema.Column{ChannelMonitorRequestTemplatesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -477,7 +478,7 @@ var (
 			{
 				Name:    "channelmonitor_enabled_last_checked_at",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorsColumns[10], ChannelMonitorsColumns[12]},
+				Columns: []*schema.Column{ChannelMonitorsColumns[11], ChannelMonitorsColumns[13]},
 			},
 			{
 				Name:    "channelmonitor_provider",
@@ -485,14 +486,19 @@ var (
 				Columns: []*schema.Column{ChannelMonitorsColumns[4]},
 			},
 			{
+				Name:    "channelmonitor_provider_api_mode",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelMonitorsColumns[4], ChannelMonitorsColumns[5]},
+			},
+			{
 				Name:    "channelmonitor_group_name",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorsColumns[9]},
+				Columns: []*schema.Column{ChannelMonitorsColumns[10]},
 			},
 			{
 				Name:    "channelmonitor_template_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorsColumns[17]},
+				Columns: []*schema.Column{ChannelMonitorsColumns[18]},
 			},
 		},
 	}
@@ -584,6 +590,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "name", Type: field.TypeString, Size: 100},
 		{Name: "provider", Type: field.TypeEnum, Enums: []string{"openai", "anthropic", "gemini"}},
+		{Name: "api_mode", Type: field.TypeString, Size: 32, Default: "chat_completions"},
 		{Name: "description", Type: field.TypeString, Nullable: true, Size: 500, Default: ""},
 		{Name: "extra_headers", Type: field.TypeJSON},
 		{Name: "body_override_mode", Type: field.TypeString, Size: 10, Default: "off"},
@@ -599,6 +606,11 @@ var (
 				Name:    "channelmonitorrequesttemplate_provider_name",
 				Unique:  true,
 				Columns: []*schema.Column{ChannelMonitorRequestTemplatesColumns[4], ChannelMonitorRequestTemplatesColumns[3]},
+			},
+			{
+				Name:    "channelmonitorrequesttemplate_provider_api_mode",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelMonitorRequestTemplatesColumns[4], ChannelMonitorRequestTemplatesColumns[5]},
 			},
 		},
 	}
