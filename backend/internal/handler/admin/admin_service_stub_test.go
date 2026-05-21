@@ -486,6 +486,22 @@ func (s *stubAdminService) GetAllProxiesWithAccountCount(ctx context.Context) ([
 	return s.proxyCounts, nil
 }
 
+func (s *stubAdminService) SelectContributorProxy(ctx context.Context, ownerUserID int64, country string) (*service.Proxy, error) {
+	if len(s.proxyCounts) > 0 {
+		proxy := s.proxyCounts[0].Proxy
+		return &proxy, nil
+	}
+	if len(s.proxies) > 0 {
+		proxy := s.proxies[0]
+		return &proxy, nil
+	}
+	return nil, nil
+}
+
+func (s *stubAdminService) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
+	return nil
+}
+
 func (s *stubAdminService) GetProxy(ctx context.Context, id int64) (*service.Proxy, error) {
 	for i := range s.proxies {
 		proxy := s.proxies[i]

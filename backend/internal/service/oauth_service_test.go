@@ -6,7 +6,9 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/oauth"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
@@ -95,6 +97,24 @@ func (m *mockProxyRepoForOAuth) CountAccountsByProxyID(ctx context.Context, prox
 }
 func (m *mockProxyRepoForOAuth) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
 	panic("ListAccountSummariesByProxyID not implemented")
+}
+func (m *mockProxyRepoForOAuth) ExpireContributorProxyReservations(ctx context.Context, now time.Time) error {
+	panic("ExpireContributorProxyReservations not implemented")
+}
+func (m *mockProxyRepoForOAuth) GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*ContributorProxyReservation, error) {
+	panic("GetActiveContributorProxyReservation not implemented")
+}
+func (m *mockProxyRepoForOAuth) ListActiveContributorProxyReservationProxyIDs(ctx context.Context, now time.Time) (map[int64]struct{}, error) {
+	panic("ListActiveContributorProxyReservationProxyIDs not implemented")
+}
+func (m *mockProxyRepoForOAuth) CreateContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64, country string, expiresAt time.Time) (*ContributorProxyReservation, error) {
+	panic("CreateContributorProxyReservation not implemented")
+}
+func (m *mockProxyRepoForOAuth) ConsumeContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64) error {
+	panic("ConsumeContributorProxyReservation not implemented")
+}
+func (m *mockProxyRepoForOAuth) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
+	panic("ReleaseContributorProxyReservations not implemented")
 }
 
 // =====================
@@ -223,8 +243,8 @@ func TestOAuthService_ExchangeCode_SessionNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("ExchangeCode 应返回错误（session 不存在）")
 	}
-	if err.Error() != "session not found or expired" {
-		t.Fatalf("错误信息不匹配: got=%q", err.Error())
+	if infraerrors.Code(err) != 400 || infraerrors.Reason(err) != "OAUTH_SESSION_EXPIRED" {
+		t.Fatalf("错误类型不匹配: code=%d reason=%q err=%v", infraerrors.Code(err), infraerrors.Reason(err), err)
 	}
 }
 
@@ -364,8 +384,8 @@ func TestOAuthService_ExchangeCode_ClientError(t *testing.T) {
 	if err == nil {
 		t.Fatal("ExchangeCode 应返回错误")
 	}
-	if err.Error() != "upstream error: invalid code" {
-		t.Fatalf("错误信息不匹配: got=%q", err.Error())
+	if infraerrors.Code(err) != 400 || infraerrors.Reason(err) != "OAUTH_CODE_INVALID" {
+		t.Fatalf("错误类型不匹配: code=%d reason=%q err=%v", infraerrors.Code(err), infraerrors.Reason(err), err)
 	}
 }
 

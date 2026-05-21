@@ -9,15 +9,16 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+	"github.com/imroc/req/v3"
+	"github.com/tidwall/gjson"
+
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/oauth"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-	"github.com/gin-gonic/gin"
-	"github.com/imroc/req/v3"
-	"github.com/tidwall/gjson"
 )
 
 const (
@@ -28,6 +29,8 @@ const (
 	emailOAuthAffiliateCookie = "email_oauth_affiliate"
 	emailOAuthCookieMaxAgeSec = 10 * 60
 	emailOAuthDefaultRedirect = "/dashboard"
+
+	emailOAuthContributorCookie = "email_oauth_contributor"
 )
 
 type emailOAuthTokenResponse struct {
@@ -73,11 +76,19 @@ func (h *AuthHandler) emailOAuthStart(c *gin.Context, provider string) {
 	if redirectTo == "" {
 		redirectTo = emailOAuthDefaultRedirect
 	}
+	contributorFlow := isTruthyQuery(c.Query("contributor")) ||
+		strings.EqualFold(strings.TrimSpace(c.Query("role")), service.RoleAccountContributor) ||
+		strings.HasPrefix(redirectTo, "/contributor/")
 
 	secureCookie := isRequestHTTPS(c)
 	emailOAuthSetCookie(c, emailOAuthStateCookieName, encodeCookieValue(state), secureCookie)
 	emailOAuthSetCookie(c, emailOAuthRedirectCookie, encodeCookieValue(redirectTo), secureCookie)
 	emailOAuthSetCookie(c, emailOAuthProviderCookie, encodeCookieValue(provider), secureCookie)
+	if contributorFlow {
+		emailOAuthSetCookie(c, emailOAuthContributorCookie, encodeCookieValue("1"), secureCookie)
+	} else {
+		emailOAuthClearCookie(c, emailOAuthContributorCookie, secureCookie)
+	}
 	if affCode := strings.TrimSpace(firstNonEmpty(c.Query("aff_code"), c.Query("aff"))); affCode != "" {
 		emailOAuthSetCookie(c, emailOAuthAffiliateCookie, encodeCookieValue(affCode), secureCookie)
 	} else {
@@ -119,6 +130,7 @@ func (h *AuthHandler) emailOAuthCallback(c *gin.Context, provider string) {
 		emailOAuthClearCookie(c, emailOAuthRedirectCookie, secureCookie)
 		emailOAuthClearCookie(c, emailOAuthProviderCookie, secureCookie)
 		emailOAuthClearCookie(c, emailOAuthAffiliateCookie, secureCookie)
+		emailOAuthClearCookie(c, emailOAuthContributorCookie, secureCookie)
 	}()
 	expectedState, err := readCookieDecoded(c, emailOAuthStateCookieName)
 	if err != nil || expectedState == "" || expectedState != state {
@@ -135,6 +147,8 @@ func (h *AuthHandler) emailOAuthCallback(c *gin.Context, provider string) {
 	if redirectTo == "" {
 		redirectTo = emailOAuthDefaultRedirect
 	}
+	contributorCookie, _ := readCookieDecoded(c, emailOAuthContributorCookie)
+	contributorFlow := isTruthyQuery(contributorCookie) || strings.HasPrefix(redirectTo, "/contributor/")
 
 	tokenResp, err := exchangeEmailOAuthCode(c.Request.Context(), cfg, code)
 	if err != nil {
@@ -146,7 +160,7 @@ func (h *AuthHandler) emailOAuthCallback(c *gin.Context, provider string) {
 		redirectOAuthError(c, frontendCallback, "userinfo_failed", "failed to fetch verified email", singleLine(err.Error()))
 		return
 	}
-	h.emailOAuthCallbackWithProfile(c, provider, cfg, frontendCallback, redirectTo, profile)
+	h.emailOAuthCallbackWithProfile(c, provider, cfg, frontendCallback, redirectTo, profile, contributorFlow)
 }
 
 func (h *AuthHandler) emailOAuthCallbackWithProfile(
@@ -156,7 +170,9 @@ func (h *AuthHandler) emailOAuthCallbackWithProfile(
 	frontendCallback string,
 	redirectTo string,
 	profile *emailOAuthProfile,
+	contributorFlow ...bool,
 ) {
+	wantsContributor := len(contributorFlow) > 0 && contributorFlow[0]
 	input := service.EmailOAuthIdentityInput{
 		ProviderType:     provider,
 		ProviderKey:      provider,
@@ -173,7 +189,7 @@ func (h *AuthHandler) emailOAuthCallbackWithProfile(
 		redirectOAuthError(c, frontendCallback, infraerrors.Reason(err), infraerrors.Message(err), "")
 		return
 	} else if shouldCreate {
-		if pendingErr := h.createEmailOAuthRegistrationPendingSession(c, provider, frontendCallback, redirectTo, profile); pendingErr != nil {
+		if pendingErr := h.createEmailOAuthRegistrationPendingSession(c, provider, frontendCallback, redirectTo, profile, wantsContributor); pendingErr != nil {
 			redirectOAuthError(c, frontendCallback, infraerrors.Reason(pendingErr), infraerrors.Message(pendingErr), "")
 			return
 		}
@@ -181,10 +197,22 @@ func (h *AuthHandler) emailOAuthCallbackWithProfile(
 		return
 	}
 
-	tokenPair, user, err := h.authService.LoginOrRegisterVerifiedEmailOAuthWithInvitation(c.Request.Context(), input, "", affiliateCode)
+	var tokenPair *service.TokenPair
+	var user *service.User
+	var err error
+	if wantsContributor {
+		tokenPair, user, err = h.authService.LoginOrRegisterVerifiedEmailOAuthContributor(
+			c.Request.Context(),
+			input,
+			"",
+			affiliateCode,
+		)
+	} else {
+		tokenPair, user, err = h.authService.LoginOrRegisterVerifiedEmailOAuthWithInvitation(c.Request.Context(), input, "", affiliateCode)
+	}
 	if err != nil {
 		if errors.Is(err, service.ErrOAuthInvitationRequired) {
-			if pendingErr := h.createEmailOAuthRegistrationPendingSession(c, provider, frontendCallback, redirectTo, profile); pendingErr != nil {
+			if pendingErr := h.createEmailOAuthRegistrationPendingSession(c, provider, frontendCallback, redirectTo, profile, wantsContributor); pendingErr != nil {
 				redirectOAuthError(c, frontendCallback, infraerrors.Reason(pendingErr), infraerrors.Message(pendingErr), "")
 				return
 			}
@@ -253,6 +281,7 @@ func (h *AuthHandler) createEmailOAuthRegistrationPendingSession(
 	frontendCallback string,
 	redirectTo string,
 	profile *emailOAuthProfile,
+	contributorFlow ...bool,
 ) error {
 	if h == nil || profile == nil {
 		return infraerrors.ServiceUnavailable("PENDING_AUTH_NOT_READY", "pending auth service is not ready")
@@ -266,6 +295,7 @@ func (h *AuthHandler) createEmailOAuthRegistrationPendingSession(
 	email := strings.TrimSpace(strings.ToLower(profile.Email))
 	username := strings.TrimSpace(profile.Username)
 	affiliateCode := h.emailOAuthAffiliateCode(c)
+	wantsContributor := len(contributorFlow) > 0 && contributorFlow[0]
 	upstreamClaims := map[string]any{
 		"email":            email,
 		"email_verified":   profile.EmailVerified,
@@ -273,6 +303,9 @@ func (h *AuthHandler) createEmailOAuthRegistrationPendingSession(
 		"provider":         provider,
 		"provider_key":     provider,
 		"provider_subject": strings.TrimSpace(profile.Subject),
+	}
+	if wantsContributor {
+		upstreamClaims["account_role"] = service.RoleAccountContributor
 	}
 	if strings.TrimSpace(profile.DisplayName) != "" {
 		upstreamClaims["suggested_display_name"] = strings.TrimSpace(profile.DisplayName)
@@ -309,6 +342,9 @@ func (h *AuthHandler) createEmailOAuthRegistrationPendingSession(
 		"resolved_email":            email,
 		"provider":                  provider,
 		"redirect":                  redirectTo,
+	}
+	if wantsContributor {
+		completionResponse["account_role"] = service.RoleAccountContributor
 	}
 	if strings.TrimSpace(frontendCallback) != "" {
 		completionResponse["frontend_callback"] = strings.TrimSpace(frontendCallback)
@@ -361,13 +397,25 @@ func (h *AuthHandler) completeEmailOAuthRegistration(c *gin.Context, provider st
 		affiliateCode = pendingSessionStringValue(session.UpstreamIdentityClaims, "aff_code")
 	}
 
-	tokenPair, user, err := h.authService.RegisterVerifiedOAuthEmailAccount(
-		c.Request.Context(),
-		strings.TrimSpace(session.ResolvedEmail),
-		req.Password,
-		strings.TrimSpace(req.InvitationCode),
-		strings.TrimSpace(session.ProviderType),
-	)
+	var tokenPair *service.TokenPair
+	var user *service.User
+	if pendingSessionStringValue(session.UpstreamIdentityClaims, "account_role") == service.RoleAccountContributor {
+		tokenPair, user, err = h.authService.RegisterVerifiedOAuthEmailContributorAccount(
+			c.Request.Context(),
+			strings.TrimSpace(session.ResolvedEmail),
+			req.Password,
+			strings.TrimSpace(req.InvitationCode),
+			strings.TrimSpace(session.ProviderType),
+		)
+	} else {
+		tokenPair, user, err = h.authService.RegisterVerifiedOAuthEmailAccount(
+			c.Request.Context(),
+			strings.TrimSpace(session.ResolvedEmail),
+			req.Password,
+			strings.TrimSpace(req.InvitationCode),
+			strings.TrimSpace(session.ProviderType),
+		)
+	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -618,4 +666,13 @@ func emailOAuthClearCookie(c *gin.Context, name string, secure bool) {
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func isTruthyQuery(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }

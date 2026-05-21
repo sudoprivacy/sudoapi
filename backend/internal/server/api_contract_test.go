@@ -1838,6 +1838,30 @@ func (stubProxyRepo) ListAccountSummariesByProxyID(ctx context.Context, proxyID 
 	return nil, errors.New("not implemented")
 }
 
+func (stubProxyRepo) ExpireContributorProxyReservations(ctx context.Context, now time.Time) error {
+	return errors.New("not implemented")
+}
+
+func (stubProxyRepo) GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*service.ContributorProxyReservation, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubProxyRepo) ListActiveContributorProxyReservationProxyIDs(ctx context.Context, now time.Time) (map[int64]struct{}, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubProxyRepo) CreateContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64, country string, expiresAt time.Time) (*service.ContributorProxyReservation, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubProxyRepo) ConsumeContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64) error {
+	return errors.New("not implemented")
+}
+
+func (stubProxyRepo) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
+	return errors.New("not implemented")
+}
+
 type stubRedeemCodeRepo struct {
 	byUser map[int64][]service.RedeemCode
 }

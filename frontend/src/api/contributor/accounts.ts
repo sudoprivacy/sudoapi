@@ -3,6 +3,21 @@
 import { apiClient } from '../client'
 import type { Account, CreateAccountRequest, PaginatedResponse, Proxy, UpdateAccountRequest } from '@/types'
 
+export interface ContributorClaudeAuthURLRequest {
+  proxy_id?: number | null
+}
+
+export interface ContributorClaudeAuthURLResponse {
+  auth_url: string
+  session_id: string
+}
+
+export interface ContributorClaudeExchangeCodeRequest {
+  session_id: string
+  code: string
+  proxy_id?: number | null
+}
+
 export async function list(
   page = 1,
   pageSize = 20,
@@ -31,6 +46,46 @@ export async function create(payload: CreateAccountRequest): Promise<Account> {
   return data
 }
 
+export async function generateClaudeAuthUrl(
+  payload: ContributorClaudeAuthURLRequest = {}
+): Promise<ContributorClaudeAuthURLResponse> {
+  const { data } = await apiClient.post<ContributorClaudeAuthURLResponse>(
+    '/contributor/accounts/generate-auth-url',
+    payload
+  )
+  return data
+}
+
+export async function generateClaudeSetupTokenUrl(
+  payload: ContributorClaudeAuthURLRequest = {}
+): Promise<ContributorClaudeAuthURLResponse> {
+  const { data } = await apiClient.post<ContributorClaudeAuthURLResponse>(
+    '/contributor/accounts/generate-setup-token-url',
+    payload
+  )
+  return data
+}
+
+export async function exchangeClaudeCode(
+  payload: ContributorClaudeExchangeCodeRequest
+): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    '/contributor/accounts/exchange-code',
+    payload
+  )
+  return data
+}
+
+export async function exchangeClaudeSetupTokenCode(
+  payload: ContributorClaudeExchangeCodeRequest
+): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    '/contributor/accounts/exchange-setup-token-code',
+    payload
+  )
+  return data
+}
+
 export async function update(id: number, payload: UpdateAccountRequest): Promise<Account> {
   const { data } = await apiClient.put<Account>(`/contributor/accounts/${id}`, payload)
   return data
@@ -45,13 +100,31 @@ export async function getProxies(): Promise<Proxy[]> {
   return data
 }
 
+export async function getProxiesForCountry(country?: string): Promise<Proxy[]> {
+  const normalized = country?.trim().toUpperCase()
+  const { data } = await apiClient.get<Proxy[]>('/contributor/proxies/all', {
+    params: normalized ? { country: normalized } : undefined
+  })
+  return data
+}
+
+export async function releaseProxyReservation(): Promise<void> {
+  await apiClient.post('/contributor/proxies/reservation/release')
+}
+
 export const contributorAccountsAPI = {
   list,
   getById,
   create,
+  generateClaudeAuthUrl,
+  generateClaudeSetupTokenUrl,
+  exchangeClaudeCode,
+  exchangeClaudeSetupTokenCode,
   update,
   testAccount,
-  getProxies
+  getProxies,
+  getProxiesForCountry,
+  releaseProxyReservation
 }
 
 export default contributorAccountsAPI

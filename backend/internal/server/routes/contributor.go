@@ -24,10 +24,16 @@ func RegisterContributorRoutes(
 		accounts.GET("/:id", h.ContributorAccount.GetByID)
 		accounts.PUT("/:id", h.ContributorAccount.Update)
 		accounts.POST("/:id/test", h.ContributorAccount.Test)
+		// sudoapi: Contributor account self-service authorization.
+		accounts.POST("/generate-auth-url", h.ContributorAccount.GenerateAuthURL)
+		accounts.POST("/generate-setup-token-url", h.ContributorAccount.GenerateSetupTokenURL)
+		accounts.POST("/exchange-code", h.ContributorAccount.ExchangeCode)
+		accounts.POST("/exchange-setup-token-code", h.ContributorAccount.ExchangeSetupTokenCode)
 	}
 	proxies := contributor.Group("/proxies")
 	{
 		// sudoapi: Account contributor review workflow.
 		proxies.GET("/all", h.ContributorAccount.ListProxies)
+		proxies.POST("/reservation/release", h.ContributorAccount.ReleaseProxyReservation)
 	}
 }

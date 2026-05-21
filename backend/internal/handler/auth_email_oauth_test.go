@@ -9,14 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
+
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 )
 
 func TestEmailOAuthCallbackRequiresPendingRegistrationWhenInvitationEnabled(t *testing.T) {
@@ -184,6 +185,136 @@ func TestEmailOAuthCallbackCreatesPasswordRegistrationSessionForNewEmail(t *test
 	require.Equal(t, "aff-user@example.com", completion["resolved_email"])
 }
 
+func TestEmailOAuthContributorCallbackRejectsNonContributor(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, false)
+	ctx := context.Background()
+
+	_, err := client.User.Create().
+		SetEmail("regular@example.com").
+		SetUsername("regular").
+		SetPasswordHash("hash").
+		SetRole(service.RoleUser).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/google/callback", nil)
+
+	handler.emailOAuthCallbackWithProfile(c, "google", config.EmailOAuthProviderConfig{
+		Enabled:             true,
+		ClientID:            "google-client",
+		ClientSecret:        "google-secret",
+		RedirectURL:         "https://app.example/api/v1/auth/oauth/google/callback",
+		FrontendRedirectURL: "/auth/oauth/callback",
+	}, "/auth/oauth/callback", "/contributor/claude-auth", &emailOAuthProfile{
+		Subject:       "google-regular",
+		Email:         "regular@example.com",
+		EmailVerified: true,
+		Username:      "regular",
+	}, true)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "CONTRIBUTOR_ROLE_REQUIRED")
+	require.NotContains(t, location, "access_token=")
+
+	identityCount, err := client.AuthIdentity.Query().Where(
+		authidentity.ProviderTypeEQ("google"),
+		authidentity.ProviderSubjectEQ("google-regular"),
+	).Count(ctx)
+	require.NoError(t, err)
+	require.Zero(t, identityCount)
+}
+
+func TestEmailOAuthContributorCallbackCreatesContributorRegistrationSession(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, false)
+	ctx := context.Background()
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/google/callback", nil)
+
+	handler.emailOAuthCallbackWithProfile(c, "google", config.EmailOAuthProviderConfig{
+		Enabled:             true,
+		ClientID:            "google-client",
+		ClientSecret:        "google-secret",
+		RedirectURL:         "https://app.example/api/v1/auth/oauth/google/callback",
+		FrontendRedirectURL: "/auth/oauth/callback",
+	}, "/auth/oauth/callback", "/contributor/claude-auth", &emailOAuthProfile{
+		Subject:       "google-contributor",
+		Email:         "new-contributor@example.com",
+		EmailVerified: true,
+		Username:      "new-contributor",
+	}, true)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	require.NotContains(t, recorder.Header().Get("Location"), "access_token=")
+
+	session, err := client.PendingAuthSession.Query().Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "new-contributor@example.com", session.ResolvedEmail)
+	require.Equal(t, "/contributor/claude-auth", session.RedirectTo)
+	require.Equal(t, service.RoleAccountContributor, pendingSessionStringValue(session.UpstreamIdentityClaims, "account_role"))
+
+	completion, ok := readCompletionResponse(session.LocalFlowState)
+	require.True(t, ok)
+	require.Equal(t, service.RoleAccountContributor, completion["account_role"])
+}
+
+func TestEmailOAuthContributorCallbackExistingContributorKeepsContributorRedirect(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, false)
+	ctx := context.Background()
+
+	user, err := client.User.Create().
+		SetEmail("existing-contributor@example.com").
+		SetUsername("existing-contributor").
+		SetPasswordHash("hash").
+		SetRole(service.RoleAccountContributor).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	_, err = client.AuthIdentity.Create().
+		SetUserID(user.ID).
+		SetProviderType("google").
+		SetProviderKey("google").
+		SetProviderSubject("google-existing-contributor").
+		SetMetadata(map[string]any{
+			"email":          "existing-contributor@example.com",
+			"email_verified": true,
+		}).
+		Save(ctx)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/google/callback", nil)
+
+	handler.emailOAuthCallbackWithProfile(c, "google", config.EmailOAuthProviderConfig{
+		Enabled:             true,
+		ClientID:            "google-client",
+		ClientSecret:        "google-secret",
+		RedirectURL:         "https://app.example/api/v1/auth/oauth/google/callback",
+		FrontendRedirectURL: "/auth/oauth/callback",
+	}, "/auth/oauth/callback", "/contributor/claude-auth", &emailOAuthProfile{
+		Subject:       "google-existing-contributor",
+		Email:         "existing-contributor@example.com",
+		EmailVerified: true,
+		Username:      "existing-contributor",
+	}, true)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "access_token=")
+	require.Contains(t, location, "redirect=%252Fcontributor%252Fclaude-auth")
+
+	sessionCount, err := client.PendingAuthSession.Query().Count(ctx)
+	require.NoError(t, err)
+	require.Zero(t, sessionCount)
+}
+
 func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *testing.T) {
 	affiliateRepo := newOAuthEmailAffiliateRepoStub(map[string]int64{"AFF456": 2002})
 	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
@@ -253,6 +384,55 @@ func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *te
 	require.NoError(t, err)
 	require.NotNil(t, storedInvitation.UsedBy)
 	require.Equal(t, user.ID, *storedInvitation.UsedBy)
+}
+
+func TestCompleteEmailOAuthRegistrationCreatesContributor(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, false)
+	ctx := context.Background()
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("email-oauth-contributor-session-token").
+		SetIntent(oauthIntentLogin).
+		SetProviderType("google").
+		SetProviderKey("google").
+		SetProviderSubject("google-new-contributor").
+		SetResolvedEmail("oauth-contributor@example.com").
+		SetRedirectTo("/contributor/claude-auth").
+		SetBrowserSessionKey("browser-contributor-key").
+		SetUpstreamIdentityClaims(map[string]any{
+			"email":            "oauth-contributor@example.com",
+			"email_verified":   true,
+			"username":         "oauth-contributor",
+			"provider":         "google",
+			"provider_key":     "google",
+			"provider_subject": "google-new-contributor",
+			"account_role":     service.RoleAccountContributor,
+		}).
+		SetLocalFlowState(map[string]any{
+			"step":         oauthPendingChoiceStep,
+			"error":        "registration_completion_required",
+			"account_role": service.RoleAccountContributor,
+		}).
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/google/complete-registration", strings.NewReader(`{"password":"secret-123"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("browser-contributor-key")})
+	c.Request = req
+
+	handler.completeEmailOAuthRegistration(c, "google")
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	user, err := client.User.Query().Where(dbuser.EmailEQ("oauth-contributor@example.com")).Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, service.RoleAccountContributor, user.Role)
+	require.Equal(t, 0.0, user.Balance)
+	require.Equal(t, 1, user.Concurrency)
 }
 
 func TestCompleteEmailOAuthRegistrationRequiresPassword(t *testing.T) {

@@ -110,6 +110,9 @@ type CreateAccountRequest struct {
 	ExpiresAt               *int64         `json:"expires_at"`
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
+	// sudoapi: Contributor account self-service authorization.
+	AddMethod          string `json:"add_method" binding:"omitempty,oneof=oauth setup-token"`
+	ContributorCountry string `json:"country"`
 }
 
 // UpdateAccountRequest represents update account request

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"sort"
 	"strconv"
@@ -132,6 +133,9 @@ type AdminService interface {
 	GetContributorAccount(ctx context.Context, ownerUserID, accountID int64) (*Account, error)
 	CreateContributorAccount(ctx context.Context, ownerUserID int64, input *CreateAccountInput) (*Account, error)
 	UpdateContributorAccount(ctx context.Context, ownerUserID, accountID int64, input *UpdateAccountInput) (*Account, error)
+	// sudoapi: Contributor account self-service authorization.
+	SelectContributorProxy(ctx context.Context, ownerUserID int64, country string) (*Proxy, error)
+	ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error
 }
 
 // CreateUserInput represents input for creating a new user via admin operations.
@@ -147,6 +151,10 @@ type CreateUserInput struct {
 	// sudoapi: Account contributor review workflow.
 	Role string
 }
+
+// sudoapi: Contributor account self-service authorization.
+const contributorProxyReservationTTL = 30 * time.Minute
+const contributorProxyReservationAttempts = 3
 
 type UpdateUserInput struct {
 	Email         string
@@ -307,6 +315,8 @@ type CreateAccountInput struct {
 	// sudoapi: Account contributor review workflow.
 	OwnerUserID  *int64
 	ReviewStatus string
+	// sudoapi: Contributor account self-service authorization.
+	ContributorCountry string
 }
 
 type UpdateAccountInput struct {
@@ -3314,6 +3324,60 @@ func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*Pr
 	return result, nil
 }
 
+// sudoapi: Contributor account self-service authorization.
+func (s *adminServiceImpl) SelectContributorProxy(ctx context.Context, ownerUserID int64, country string) (*Proxy, error) {
+	if ownerUserID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_OWNER", "owner_user_id is required")
+	}
+	now := time.Now().UTC()
+	expiresAt := now.Add(contributorProxyReservationTTL)
+	if err := s.proxyRepo.ExpireContributorProxyReservations(ctx, now); err != nil {
+		return nil, err
+	}
+	if reservation, err := s.proxyRepo.GetActiveContributorProxyReservation(ctx, ownerUserID, now, expiresAt); err != nil {
+		return nil, err
+	} else if reservation != nil {
+		return s.proxyRepo.GetByID(ctx, reservation.ProxyID)
+	}
+
+	proxies, err := s.GetAllProxiesWithAccountCount(ctx)
+	if err != nil {
+		return nil, err
+	}
+	normalizedCountry := normalizeContributorCountry(country)
+	for attempt := 0; attempt < contributorProxyReservationAttempts; attempt++ {
+		reserved, err := s.proxyRepo.ListActiveContributorProxyReservationProxyIDs(ctx, now)
+		if err != nil {
+			return nil, err
+		}
+		candidate := selectContributorProxyFromList(filterReservedContributorProxies(proxies, reserved), normalizedCountry)
+		if candidate == nil {
+			return nil, nil
+		}
+		reservation, err := s.proxyRepo.CreateContributorProxyReservation(ctx, ownerUserID, candidate.ID, normalizedCountry, expiresAt)
+		if err != nil {
+			return nil, err
+		}
+		if reservation != nil {
+			return candidate, nil
+		}
+		if reservation, err := s.proxyRepo.GetActiveContributorProxyReservation(ctx, ownerUserID, now, expiresAt); err != nil {
+			return nil, err
+		} else if reservation != nil {
+			return s.proxyRepo.GetByID(ctx, reservation.ProxyID)
+		}
+	}
+	return nil, nil
+}
+
+// sudoapi: Contributor account self-service authorization.
+func (s *adminServiceImpl) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
+	if ownerUserID <= 0 {
+		return infraerrors.BadRequest("INVALID_OWNER", "owner_user_id is required")
+	}
+	return s.proxyRepo.ReleaseContributorProxyReservations(ctx, ownerUserID)
+}
+
 func runProxyQualityTarget(ctx context.Context, client *http.Client, target proxyQualityTarget) ProxyQualityCheckItem {
 	item := ProxyQualityCheckItem{
 		Target: target.Target,
@@ -3967,6 +4031,9 @@ func (s *adminServiceImpl) CreateContributorAccount(ctx context.Context, ownerUs
 		return nil, infraerrors.BadRequest("INVALID_OWNER", "owner_user_id is required")
 	}
 	inputCopy := *input
+	// sudoapi: Contributor account self-service authorization.
+	contributorCountry := normalizeContributorCountry(inputCopy.ContributorCountry)
+
 	inputCopy.OwnerUserID = &ownerUserID
 	inputCopy.ReviewStatus = AccountReviewStatusPending
 	inputCopy.GroupIDs = nil
@@ -3981,7 +4048,19 @@ func (s *adminServiceImpl) CreateContributorAccount(ctx context.Context, ownerUs
 	if err := s.accountRepo.Update(ctx, account); err != nil {
 		return nil, err
 	}
-	return s.accountRepo.GetByID(ctx, account.ID)
+	account, err = s.accountRepo.GetByID(ctx, account.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// sudoapi: Contributor account self-service authorization.
+	if account != nil {
+		if account.ProxyID != nil {
+			_ = s.proxyRepo.ConsumeContributorProxyReservation(ctx, ownerUserID, *account.ProxyID)
+		}
+		_ = s.renameConsumedDefaultContributorProxy(ctx, account.ProxyID, contributorCountry)
+	}
+	return account, nil
 }
 
 // sudoapi: Account contributor review workflow.
@@ -4043,4 +4122,119 @@ func accountListOrderForService(params pagination.PaginationParams) []func(*ents
 		return []func(*entsql.Selector){dbent.Asc(dbaccount.FieldName), dbent.Asc(dbaccount.FieldID)}
 	}
 	return []func(*entsql.Selector){dbent.Asc(field), dbent.Asc(dbaccount.FieldID)}
+}
+
+// sudoapi: Contributor account self-service authorization.
+func normalizeContributorCountry(country string) string {
+	return strings.ToUpper(strings.TrimSpace(country))
+}
+
+// sudoapi: Contributor account self-service authorization.
+func isDefaultContributorProxy(p Proxy) bool {
+	return strings.EqualFold(strings.TrimSpace(p.Name), "default")
+}
+
+// sudoapi: Contributor account self-service authorization.
+func pickRandomContributorProxy(proxies []ProxyWithAccountCount) *Proxy {
+	if len(proxies) == 0 {
+		return nil
+	}
+	selected := proxies[rand.IntN(len(proxies))] //nolint:gosec // Random load distribution, not security-sensitive.
+	return &selected.Proxy
+}
+
+// sudoapi: Contributor account self-service authorization.
+func filterReservedContributorProxies(proxies []ProxyWithAccountCount, reserved map[int64]struct{}) []ProxyWithAccountCount {
+	if len(reserved) == 0 {
+		return proxies
+	}
+	out := make([]ProxyWithAccountCount, 0, len(proxies))
+	for _, item := range proxies {
+		if _, ok := reserved[item.ID]; ok {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+// sudoapi: Contributor account self-service authorization.
+func selectContributorProxyFromList(proxies []ProxyWithAccountCount, country string) *Proxy {
+	if len(proxies) == 0 {
+		return nil
+	}
+	normalizedCountry := normalizeContributorCountry(country)
+	countryDefaults := make([]ProxyWithAccountCount, 0)
+	countryProxies := make([]ProxyWithAccountCount, 0)
+	allDefaults := make([]ProxyWithAccountCount, 0)
+	for _, item := range proxies {
+		if isDefaultContributorProxy(item.Proxy) {
+			allDefaults = append(allDefaults, item)
+		}
+		if normalizedCountry != "" && normalizeContributorCountry(item.CountryCode) == normalizedCountry {
+			countryProxies = append(countryProxies, item)
+			if isDefaultContributorProxy(item.Proxy) {
+				countryDefaults = append(countryDefaults, item)
+			}
+		}
+	}
+	if normalizedCountry != "" {
+		if proxy := pickRandomContributorProxy(countryDefaults); proxy != nil {
+			return proxy
+		}
+		if proxy := pickRandomContributorProxy(countryProxies); proxy != nil {
+			return proxy
+		}
+	}
+	if proxy := pickRandomContributorProxy(allDefaults); proxy != nil {
+		return proxy
+	}
+	return pickRandomContributorProxy(proxies)
+}
+
+// sudoapi: Contributor account self-service authorization.
+func (s *adminServiceImpl) renameConsumedDefaultContributorProxy(ctx context.Context, proxyID *int64, country string) error {
+	if proxyID == nil || *proxyID <= 0 {
+		return nil
+	}
+	proxies, err := s.GetAllProxiesWithAccountCount(ctx)
+	if err != nil {
+		return err
+	}
+	var selected *ProxyWithAccountCount
+	for i := range proxies {
+		if proxies[i].ID == *proxyID {
+			selected = &proxies[i]
+			break
+		}
+	}
+	if selected == nil || !isDefaultContributorProxy(selected.Proxy) {
+		return nil
+	}
+
+	nameCountry := normalizeContributorCountry(country)
+	if nameCountry == "" {
+		nameCountry = normalizeContributorCountry(selected.CountryCode)
+	}
+	ipAddress := strings.TrimSpace(selected.IPAddress)
+	if ipAddress == "" {
+		ipAddress = strings.TrimSpace(selected.Host)
+	}
+	if ipAddress == "" {
+		return nil
+	}
+	newName := nameCountry + ipAddress
+	if newName == "" || newName == selected.Name {
+		return nil
+	}
+	_, err = s.UpdateProxy(ctx, selected.ID, &UpdateProxyInput{
+		Name:     newName,
+		Protocol: selected.Protocol,
+		Host:     selected.Host,
+		Port:     selected.Port,
+		Username: selected.Username,
+		Password: selected.Password,
+		Status:   selected.Status,
+	})
+	return err
 }

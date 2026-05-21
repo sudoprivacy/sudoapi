@@ -184,6 +184,27 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	invitationCode string,
 	signupSource string,
 ) (*TokenPair, *User, error) {
+	return s.registerVerifiedOAuthEmailAccountWithRole(ctx, email, password, invitationCode, signupSource, RoleUser)
+}
+
+func (s *AuthService) RegisterVerifiedOAuthEmailContributorAccount(
+	ctx context.Context,
+	email string,
+	password string,
+	invitationCode string,
+	signupSource string,
+) (*TokenPair, *User, error) {
+	return s.registerVerifiedOAuthEmailAccountWithRole(ctx, email, password, invitationCode, signupSource, RoleAccountContributor)
+}
+
+func (s *AuthService) registerVerifiedOAuthEmailAccountWithRole(
+	ctx context.Context,
+	email string,
+	password string,
+	invitationCode string,
+	signupSource string,
+	accountRole string,
+) (*TokenPair, *User, error) {
 	if s == nil {
 		return nil, nil, ErrServiceUnavailable
 	}
@@ -225,18 +246,27 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
+	accountRole = normalizeEmailOAuthAccountRole(accountRole)
 	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
 	var defaultRPMLimit int
 	if s.settingService != nil {
 		defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
 	}
+	balance := grantPlan.Balance
+	concurrency := grantPlan.Concurrency
+	rpmLimit := defaultRPMLimit
+	if accountRole == RoleAccountContributor {
+		balance = 0
+		concurrency = 1
+		rpmLimit = 0
+	}
 	user := &User{
 		Email:        email,
 		PasswordHash: hashedPassword,
-		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
-		Concurrency:  grantPlan.Concurrency,
-		RPMLimit:     defaultRPMLimit,
+		Role:         accountRole,
+		Balance:      balance,
+		Concurrency:  concurrency,
+		RPMLimit:     rpmLimit,
 		Status:       StatusActive,
 		SignupSource: signupSource,
 	}
@@ -281,11 +311,13 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	}
 
 	s.updateOAuthSignupSource(ctx, user.ID, signupSource)
-	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
-	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
-	// snapshot user × platform quota（fail-open）
-	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
+	if user.Role != RoleAccountContributor {
+		grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
+		s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+		// snapshot user × platform quota（fail-open）
+		_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+		s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
+	}
 	return nil
 }
 

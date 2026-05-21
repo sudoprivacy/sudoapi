@@ -114,6 +114,7 @@ export interface LoginRequest {
   email: string
   password: string
   turnstile_token?: string
+  country?: string
 }
 
 export interface RegisterRequest {
@@ -1033,6 +1034,9 @@ export interface CreateAccountRequest {
   expires_at?: number | null
   auto_pause_on_expired?: boolean
   confirm_mixed_channel_risk?: boolean
+  // sudoapi: Contributor account self-service authorization.
+  add_method?: OAuthAddMethod
+  country?: string
 }
 
 export interface UpdateAccountRequest {

@@ -468,6 +468,82 @@ func TestAuthService_Register_Success(t *testing.T) {
 	require.True(t, user.CheckPassword("password"))
 }
 
+func TestAuthService_ContributorLoginOrRegister_CreatesContributor(t *testing.T) {
+	repo := &userRepoStub{nextID: 71}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+
+	token, user, err := service.ContributorLoginOrRegister(context.Background(), "contributor@test.com", "password")
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+	require.NotNil(t, user)
+	require.Equal(t, int64(71), user.ID)
+	require.Equal(t, "contributor@test.com", user.Email)
+	require.Equal(t, RoleAccountContributor, user.Role)
+	require.Equal(t, StatusActive, user.Status)
+	require.Equal(t, 0.0, user.Balance)
+	require.Equal(t, 1, user.Concurrency)
+	require.Equal(t, 0, user.RPMLimit)
+	require.Equal(t, "email", user.SignupSource)
+	require.Len(t, repo.created, 1)
+	require.True(t, user.CheckPassword("password"))
+}
+
+func TestAuthService_ContributorLoginOrRegister_ExistingContributor(t *testing.T) {
+	service := newAuthService(&userRepoStub{}, nil, nil, nil)
+	hash, err := service.HashPassword("password")
+	require.NoError(t, err)
+	existing := &User{
+		ID:           72,
+		Email:        "contributor@test.com",
+		PasswordHash: hash,
+		Role:         RoleAccountContributor,
+		Status:       StatusActive,
+		TokenVersion: 1,
+	}
+	repo := &userRepoStub{user: existing}
+	service.userRepo = repo
+
+	token, user, err := service.ContributorLoginOrRegister(context.Background(), existing.Email, "password")
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+	require.Equal(t, existing.ID, user.ID)
+	require.Empty(t, repo.created)
+}
+
+func TestAuthService_ContributorLoginOrRegister_WrongPassword(t *testing.T) {
+	service := newAuthService(&userRepoStub{}, nil, nil, nil)
+	hash, err := service.HashPassword("password")
+	require.NoError(t, err)
+	service.userRepo = &userRepoStub{user: &User{
+		ID:           73,
+		Email:        "contributor@test.com",
+		PasswordHash: hash,
+		Role:         RoleAccountContributor,
+		Status:       StatusActive,
+	}}
+
+	_, _, err = service.ContributorLoginOrRegister(context.Background(), "contributor@test.com", "wrong-password")
+	require.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
+func TestAuthService_ContributorLoginOrRegister_RejectsNonContributor(t *testing.T) {
+	service := newAuthService(&userRepoStub{}, nil, nil, nil)
+	hash, err := service.HashPassword("password")
+	require.NoError(t, err)
+	service.userRepo = &userRepoStub{user: &User{
+		ID:           74,
+		Email:        "user@test.com",
+		PasswordHash: hash,
+		Role:         RoleUser,
+		Status:       StatusActive,
+	}}
+
+	_, _, err = service.ContributorLoginOrRegister(context.Background(), "user@test.com", "password")
+	require.ErrorIs(t, err, ErrContributorRoleRequired)
+}
+
 func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {
 	repo := &userRepoStub{}
 	service := newAuthService(repo, nil, nil, nil)

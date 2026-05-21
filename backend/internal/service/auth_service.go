@@ -43,6 +43,7 @@ var (
 	ErrInvitationCodeRequired  = infraerrors.BadRequest("INVITATION_CODE_REQUIRED", "invitation code is required")
 	ErrInvitationCodeInvalid   = infraerrors.BadRequest("INVITATION_CODE_INVALID", "invalid or used invitation code")
 	ErrOAuthInvitationRequired = infraerrors.Forbidden("OAUTH_INVITATION_REQUIRED", "invitation code required to complete oauth registration")
+	ErrContributorRoleRequired = infraerrors.Forbidden("CONTRIBUTOR_ROLE_REQUIRED", "account contributor access required")
 )
 
 // maxTokenLength 限制 token 大小，避免超长 header 触发解析时的异常内存分配。
@@ -465,6 +466,85 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 		return "", nil, fmt.Errorf("generate token: %w", err)
 	}
 
+	return token, user, nil
+}
+
+// ContributorLoginOrRegister logs in an existing account contributor, or creates
+// one when the email has not been registered yet.
+func (s *AuthService) ContributorLoginOrRegister(ctx context.Context, email, password string) (string, *User, error) {
+	email = strings.TrimSpace(email)
+	if email == "" || len(email) > 255 {
+		return "", nil, infraerrors.BadRequest("INVALID_EMAIL", "invalid email")
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return "", nil, infraerrors.BadRequest("INVALID_EMAIL", "invalid email")
+	}
+	if isReservedEmail(email) {
+		return "", nil, ErrEmailReserved
+	}
+	if len(password) < 6 {
+		return "", nil, infraerrors.BadRequest("PASSWORD_TOO_SHORT", "password must be at least 6 characters")
+	}
+
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if !errors.Is(err, ErrUserNotFound) {
+			logger.LegacyPrintf("service.auth", "[Auth] Database error during contributor login: %v", err)
+			return "", nil, ErrServiceUnavailable
+		}
+		if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
+			return "", nil, ErrRegDisabled
+		}
+		if err := s.validateRegistrationEmailPolicy(ctx, email); err != nil {
+			return "", nil, err
+		}
+
+		hashedPassword, err := s.HashPassword(password)
+		if err != nil {
+			return "", nil, fmt.Errorf("hash password: %w", err)
+		}
+
+		user = &User{
+			Email:        email,
+			PasswordHash: hashedPassword,
+			Role:         RoleAccountContributor,
+			Balance:      0,
+			Concurrency:  1,
+			RPMLimit:     0,
+			Status:       StatusActive,
+			SignupSource: "email",
+		}
+		if err := s.userRepo.Create(ctx, user); err != nil {
+			if errors.Is(err, ErrEmailExists) {
+				existing, getErr := s.userRepo.GetByEmail(ctx, email)
+				if getErr != nil {
+					logger.LegacyPrintf("service.auth", "[Auth] Database error getting contributor after conflict: %v", getErr)
+					return "", nil, ErrServiceUnavailable
+				}
+				user = existing
+			} else {
+				logger.LegacyPrintf("service.auth", "[Auth] Database error creating contributor user: %v", err)
+				return "", nil, ErrServiceUnavailable
+			}
+		} else {
+			s.postAuthUserBootstrap(ctx, user, "email", true)
+		}
+	}
+
+	if user.Role != RoleAccountContributor {
+		return "", nil, ErrContributorRoleRequired
+	}
+	if !s.CheckPassword(password, user.PasswordHash) {
+		return "", nil, ErrInvalidCredentials
+	}
+	if !user.IsActive() {
+		return "", nil, ErrUserNotActive
+	}
+
+	token, err := s.GenerateToken(user)
+	if err != nil {
+		return "", nil, fmt.Errorf("generate token: %w", err)
+	}
 	return token, user, nil
 }
 

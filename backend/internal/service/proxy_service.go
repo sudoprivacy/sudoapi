@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -29,6 +30,14 @@ type ProxyRepository interface {
 	ExistsByHostPortAuth(ctx context.Context, host string, port int, username, password string) (bool, error)
 	CountAccountsByProxyID(ctx context.Context, proxyID int64) (int64, error)
 	ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error)
+
+	// sudoapi: Contributor account self-service authorization.
+	ExpireContributorProxyReservations(ctx context.Context, now time.Time) error
+	GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*ContributorProxyReservation, error)
+	ListActiveContributorProxyReservationProxyIDs(ctx context.Context, now time.Time) (map[int64]struct{}, error)
+	CreateContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64, country string, expiresAt time.Time) (*ContributorProxyReservation, error)
+	ConsumeContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64) error
+	ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error
 }
 
 // CreateProxyRequest 创建代理请求
