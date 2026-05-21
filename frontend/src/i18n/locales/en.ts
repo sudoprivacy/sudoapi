@@ -5493,7 +5493,7 @@ export default {
           source: 'Source',
           retryable: "Retryable",
           resolvedAt: 'Resolved At',
-          resolvedBy: 'Resolved By'
+          resolvedBy: 'Resolved By',
           resolvedRetryId: "Resolved Retry",
           retryCount: "Retry Count",
         },
