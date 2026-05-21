@@ -842,7 +842,7 @@ router.beforeEach(async (to, _from, next) => {
   if (!requiresAuth) {
     if (authStore.isAuthenticated && to.path === '/contributor/login') {
       if (authStore.isAccountContributor) {
-        next('/contributor/claude-auth')
+        next()
         return
       }
       next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
@@ -851,6 +851,14 @@ router.beforeEach(async (to, _from, next) => {
 
     // If already authenticated and trying to access login/register, redirect to appropriate dashboard
     if (authStore.isAuthenticated && (to.path === '/login' || to.path === '/register')) {
+      if (authStore.isAccountContributor && to.path === '/login') {
+        next()
+        return
+      }
+      if (authStore.isAccountContributor && to.path !== '/login') {
+        next('/contributor/claude-auth')
+        return
+      }
       // In backend mode, non-admin users should NOT be redirected away from login
       // (they are blocked from all protected routes, so redirecting would cause a loop)
       if (appStore.backendModeEnabled && !authStore.isAdmin) {
@@ -880,6 +888,11 @@ router.beforeEach(async (to, _from, next) => {
       path: to.path.startsWith('/contributor/') ? '/contributor/login' : '/login',
       query: { redirect: to.fullPath } // Save intended destination
     })
+    return
+  }
+
+  if (authStore.isAccountContributor && !to.path.startsWith('/contributor/')) {
+    next('/contributor/claude-auth')
     return
   }
 

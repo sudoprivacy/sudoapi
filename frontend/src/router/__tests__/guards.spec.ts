@@ -78,7 +78,7 @@ function simulateGuard(
   if (!requiresAuth) {
     if (authState.isAuthenticated && toPath === '/contributor/login') {
       if (authState.isAccountContributor) {
-        return '/contributor/claude-auth'
+        return null
       }
       return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
     }
@@ -86,6 +86,12 @@ function simulateGuard(
       authState.isAuthenticated &&
       (toPath === '/login' || toPath === '/register')
     ) {
+      if (authState.isAccountContributor && toPath === '/login') {
+        return null
+      }
+      if (authState.isAccountContributor && toPath !== '/login') {
+        return '/contributor/claude-auth'
+      }
       if (authState.backendModeEnabled && !authState.isAdmin) {
         return null
       }
@@ -115,6 +121,10 @@ function simulateGuard(
   // 需要认证但未登录
   if (!authState.isAuthenticated) {
     return toPath.startsWith('/contributor/') ? '/contributor/login' : '/login'
+  }
+
+  if (authState.isAccountContributor && !toPath.startsWith('/contributor/')) {
+    return '/contributor/claude-auth'
   }
 
   // 需要管理员但不是管理员
@@ -273,8 +283,23 @@ describe('路由守卫逻辑', () => {
       hasPendingAuthSession: false,
     }
 
-    it('访问贡献者登录页重定向到 Claude 授权页', () => {
+    it('访问贡献者登录页允许通过，浏览器回退可以停留', () => {
       const redirect = simulateGuard('/contributor/login', { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('访问普通登录页允许通过，便于切换普通账号', () => {
+      const redirect = simulateGuard('/login', { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('访问注册页重定向到 Claude 授权页', () => {
+      const redirect = simulateGuard('/register', { requiresAuth: false }, authState)
+      expect(redirect).toBe('/contributor/claude-auth')
+    })
+
+    it('访问普通用户仪表盘重定向到 Claude 授权页', () => {
+      const redirect = simulateGuard('/dashboard', {}, authState)
       expect(redirect).toBe('/contributor/claude-auth')
     })
 

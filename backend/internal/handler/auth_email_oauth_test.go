@@ -262,6 +262,58 @@ func TestEmailOAuthContributorCallbackCreatesContributorRegistrationSession(t *t
 	require.Equal(t, service.RoleAccountContributor, completion["account_role"])
 }
 
+func TestEmailOAuthContributorCallbackExistingContributorKeepsContributorRedirect(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, false)
+	ctx := context.Background()
+
+	user, err := client.User.Create().
+		SetEmail("existing-contributor@example.com").
+		SetUsername("existing-contributor").
+		SetPasswordHash("hash").
+		SetRole(service.RoleAccountContributor).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	_, err = client.AuthIdentity.Create().
+		SetUserID(user.ID).
+		SetProviderType("google").
+		SetProviderKey("google").
+		SetProviderSubject("google-existing-contributor").
+		SetMetadata(map[string]any{
+			"email":          "existing-contributor@example.com",
+			"email_verified": true,
+		}).
+		Save(ctx)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/google/callback", nil)
+
+	handler.emailOAuthCallbackWithProfile(c, "google", config.EmailOAuthProviderConfig{
+		Enabled:             true,
+		ClientID:            "google-client",
+		ClientSecret:        "google-secret",
+		RedirectURL:         "https://app.example/api/v1/auth/oauth/google/callback",
+		FrontendRedirectURL: "/auth/oauth/callback",
+	}, "/auth/oauth/callback", "/contributor/claude-auth", &emailOAuthProfile{
+		Subject:       "google-existing-contributor",
+		Email:         "existing-contributor@example.com",
+		EmailVerified: true,
+		Username:      "existing-contributor",
+	}, true)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "access_token=")
+	require.Contains(t, location, "redirect=%252Fcontributor%252Fclaude-auth")
+
+	sessionCount, err := client.PendingAuthSession.Query().Count(ctx)
+	require.NoError(t, err)
+	require.Zero(t, sessionCount)
+}
+
 func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *testing.T) {
 	affiliateRepo := newOAuthEmailAffiliateRepoStub(map[string]int64{"AFF456": 2002})
 	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{

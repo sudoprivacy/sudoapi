@@ -140,18 +140,14 @@ describe('ClaudeAuthView', () => {
     expect(generateClaudeAuthUrl).not.toHaveBeenCalled()
   })
 
-  it('waits for manual generation when multiple proxies are available', async () => {
+  it('hides the proxy card generate button while auto-generating for available proxies', async () => {
     getProxies.mockResolvedValue([proxyA, proxyB])
     getProxiesForCountry.mockResolvedValue([proxyA, proxyB])
     const wrapper = mount(ClaudeAuthView)
     await flushPromises()
 
     expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: 10 })
-
-    await wrapper.find('[data-testid="generate-auth-url"]').trigger('click')
-    await flushPromises()
-
-    expect(generateClaudeSetupTokenUrl).toHaveBeenCalledWith({ proxy_id: 10 })
+    expect(wrapper.find('[data-testid="generate-auth-url"]').exists()).toBe(false)
   })
 
   it('disables authorization flow when no proxies are available', async () => {
@@ -161,7 +157,7 @@ describe('ClaudeAuthView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('暂时没有可选代理，无法继续授权。')
-    expect(wrapper.find('[data-testid="generate-auth-url"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="generate-auth-url"]').exists()).toBe(false)
     expect(wrapper.findComponent({ name: 'OAuthAuthorizationFlow' }).exists()).toBe(false)
     expect(generateClaudeSetupTokenUrl).not.toHaveBeenCalled()
   })

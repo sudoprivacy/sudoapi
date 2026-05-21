@@ -3,10 +3,10 @@
     <div class="space-y-6">
       <div class="text-center">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-          {{ isRegisterMode ? t('auth.createAccount') : t('auth.welcomeBack') }}
+          {{ t('auth.welcomeBack') }}
         </h2>
         <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">
-          {{ isRegisterMode ? '注册 Claude 账号贡献者' : 'Claude 账号贡献者登录' }}
+          Claude 账号贡献者登录
         </p>
       </div>
 
@@ -90,7 +90,7 @@
             />
           </svg>
           <Icon v-else name="login" size="md" class="mr-2" />
-          {{ isLoading ? t('auth.signingIn') : isRegisterMode ? t('auth.createAccount') : t('auth.signIn') }}
+          {{ isLoading ? t('auth.signingIn') : t('auth.signIn') }}
         </button>
 
         <div v-if="showOAuthLogin" class="space-y-3 pt-1">
@@ -113,19 +113,6 @@
         </div>
       </form>
     </div>
-
-    <template v-if="registrationEnabled" #footer>
-      <p class="text-gray-500 dark:text-dark-400">
-        {{ isRegisterMode ? t('auth.alreadyHaveAccount') : t('auth.dontHaveAccount') }}
-        <button
-          type="button"
-          class="font-medium text-primary-600 transition-colors hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
-          @click="toggleAuthMode"
-        >
-          {{ isRegisterMode ? t('auth.signIn') : t('auth.signUp') }}
-        </button>
-      </p>
-    </template>
   </AuthLayout>
 
   <TotpLoginModal
@@ -161,13 +148,11 @@ const appStore = useAppStore()
 const isLoading = ref(false)
 const publicSettingsLoaded = ref(false)
 const showPassword = ref(false)
-const authMode = ref<'login' | 'register'>('login')
 const turnstileEnabled = ref(false)
 const turnstileSiteKey = ref('')
 const turnstileToken = ref('')
 const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
 const backendModeEnabled = ref(false)
-const registrationEnabled = ref(false)
 const googleOAuthEnabled = ref(false)
 const contributorCountry = computed(() => normalizeCountryParam(route.query.country ?? route.query.country_code))
 const contributorRedirect = computed(() => {
@@ -193,7 +178,6 @@ const errors = reactive({
 
 const authActionDisabled = computed(() => isLoading.value || !publicSettingsLoaded.value)
 const showOAuthLogin = computed(() => !backendModeEnabled.value && googleOAuthEnabled.value)
-const isRegisterMode = computed(() => authMode.value === 'register')
 
 watch(
   () => errors.email || errors.password || errors.turnstile,
@@ -210,7 +194,6 @@ onMounted(async () => {
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
     backendModeEnabled.value = settings.backend_mode_enabled
-    registrationEnabled.value = settings.registration_enabled
     googleOAuthEnabled.value = settings.google_oauth_enabled
   } catch (error) {
     console.error('Failed to load public settings:', error)
@@ -221,13 +204,6 @@ onMounted(async () => {
 
 function onTurnstileVerify(token: string): void {
   turnstileToken.value = token
-  errors.turnstile = ''
-}
-
-function toggleAuthMode(): void {
-  authMode.value = isRegisterMode.value ? 'login' : 'register'
-  errors.email = ''
-  errors.password = ''
   errors.turnstile = ''
 }
 
