@@ -434,6 +434,57 @@ func TestCompleteEmailOAuthRegistrationCreatesContributor(t *testing.T) {
 	require.Equal(t, 1, user.Concurrency)
 }
 
+func TestCompleteEmailOAuthRegistrationCreatesGoogleContributorWithoutPasswordOrInvitation(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, true)
+	ctx := context.Background()
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("email-oauth-google-contributor-no-password-session-token").
+		SetIntent(oauthIntentLogin).
+		SetProviderType("google").
+		SetProviderKey("google").
+		SetProviderSubject("google-new-contributor-no-password").
+		SetResolvedEmail("oauth-contributor-no-password@example.com").
+		SetRedirectTo("/contributor/claude-auth").
+		SetBrowserSessionKey("browser-google-contributor-no-password-key").
+		SetUpstreamIdentityClaims(map[string]any{
+			"email":            "oauth-contributor-no-password@example.com",
+			"email_verified":   true,
+			"username":         "oauth-contributor-no-password",
+			"provider":         "google",
+			"provider_key":     "google",
+			"provider_subject": "google-new-contributor-no-password",
+			"account_role":     service.RoleAccountContributor,
+		}).
+		SetLocalFlowState(map[string]any{
+			"step":                oauthPendingChoiceStep,
+			"error":               "invitation_required",
+			"invitation_required": true,
+			"account_role":        service.RoleAccountContributor,
+		}).
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/google/complete-registration", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("browser-google-contributor-no-password-key")})
+	c.Request = req
+
+	handler.completeEmailOAuthRegistration(c, "google")
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	user, err := client.User.Query().Where(dbuser.EmailEQ("oauth-contributor-no-password@example.com")).Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, service.RoleAccountContributor, user.Role)
+	require.Equal(t, "google", user.SignupSource)
+	require.NotEmpty(t, user.PasswordHash)
+	require.False(t, handler.authService.CheckPassword("", user.PasswordHash))
+}
+
 func TestCompleteEmailOAuthRegistrationRequiresPassword(t *testing.T) {
 	handler, client := newOAuthPendingFlowTestHandler(t, false)
 	ctx := context.Background()
@@ -475,6 +526,99 @@ func TestCompleteEmailOAuthRegistrationRequiresPassword(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
 	userCount, err := client.User.Query().Where(dbuser.EmailEQ("password-required@example.com")).Count(ctx)
+	require.NoError(t, err)
+	require.Zero(t, userCount)
+}
+
+func TestCompleteEmailOAuthRegistrationRequiresPasswordForGitHubContributor(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, false)
+	ctx := context.Background()
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("email-oauth-github-contributor-password-session-token").
+		SetIntent(oauthIntentLogin).
+		SetProviderType("github").
+		SetProviderKey("github").
+		SetProviderSubject("github-contributor-password-user").
+		SetResolvedEmail("github-contributor-password@example.com").
+		SetRedirectTo("/contributor/claude-auth").
+		SetBrowserSessionKey("browser-github-contributor-password-key").
+		SetUpstreamIdentityClaims(map[string]any{
+			"email":            "github-contributor-password@example.com",
+			"email_verified":   true,
+			"username":         "github-contributor-password",
+			"provider":         "github",
+			"provider_key":     "github",
+			"provider_subject": "github-contributor-password-user",
+			"account_role":     service.RoleAccountContributor,
+		}).
+		SetLocalFlowState(map[string]any{
+			"step":         oauthPendingChoiceStep,
+			"error":        "registration_completion_required",
+			"account_role": service.RoleAccountContributor,
+		}).
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/github/complete-registration", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("browser-github-contributor-password-key")})
+	c.Request = req
+
+	handler.completeEmailOAuthRegistration(c, "github")
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	userCount, err := client.User.Query().Where(dbuser.EmailEQ("github-contributor-password@example.com")).Count(ctx)
+	require.NoError(t, err)
+	require.Zero(t, userCount)
+}
+
+func TestCompleteEmailOAuthRegistrationRequiresInvitationForRegularGoogleWhenEnabled(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, true)
+	ctx := context.Background()
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("email-oauth-google-regular-invitation-session-token").
+		SetIntent(oauthIntentLogin).
+		SetProviderType("google").
+		SetProviderKey("google").
+		SetProviderSubject("google-regular-invitation-user").
+		SetResolvedEmail("google-regular-invitation@example.com").
+		SetRedirectTo("/dashboard").
+		SetBrowserSessionKey("browser-google-regular-invitation-key").
+		SetUpstreamIdentityClaims(map[string]any{
+			"email":            "google-regular-invitation@example.com",
+			"email_verified":   true,
+			"username":         "google-regular-invitation",
+			"provider":         "google",
+			"provider_key":     "google",
+			"provider_subject": "google-regular-invitation-user",
+		}).
+		SetLocalFlowState(map[string]any{
+			"step":                oauthPendingChoiceStep,
+			"error":               "invitation_required",
+			"invitation_required": true,
+		}).
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/google/complete-registration", strings.NewReader(`{"password":"secret-123"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("browser-google-regular-invitation-key")})
+	c.Request = req
+
+	handler.completeEmailOAuthRegistration(c, "google")
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	userCount, err := client.User.Query().Where(dbuser.EmailEQ("google-regular-invitation@example.com")).Count(ctx)
 	require.NoError(t, err)
 	require.Zero(t, userCount)
 }
