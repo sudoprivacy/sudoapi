@@ -362,7 +362,7 @@ func (h *AuthHandler) createEmailOAuthRegistrationPendingSession(
 }
 
 type completeEmailOAuthRequest struct {
-	Password       string `json:"password" binding:"required,min=6"`
+	Password       string `json:"password,omitempty"`
 	InvitationCode string `json:"invitation_code,omitempty"`
 	AffCode        string `json:"aff_code,omitempty"`
 }
@@ -392,6 +392,13 @@ func (h *AuthHandler) completeEmailOAuthRegistration(c *gin.Context, provider st
 		return
 	}
 
+	// sudoapi: Google contributor OAuth passwordless signup.
+	contributorGoogleNoPassword := emailOAuthPendingSessionAllowsContributorPasswordSkip(session, provider)
+	if !contributorGoogleNoPassword && len(req.Password) < 6 {
+		response.BadRequest(c, "password must be at least 6 characters")
+		return
+	}
+
 	affiliateCode := strings.TrimSpace(req.AffCode)
 	if affiliateCode == "" {
 		affiliateCode = pendingSessionStringValue(session.UpstreamIdentityClaims, "aff_code")
@@ -399,7 +406,13 @@ func (h *AuthHandler) completeEmailOAuthRegistration(c *gin.Context, provider st
 
 	var tokenPair *service.TokenPair
 	var user *service.User
-	if pendingSessionStringValue(session.UpstreamIdentityClaims, "account_role") == service.RoleAccountContributor {
+	if contributorGoogleNoPassword {
+		tokenPair, user, err = h.authService.RegisterVerifiedOAuthEmailContributorAccountWithRandomPassword(
+			c.Request.Context(),
+			strings.TrimSpace(session.ResolvedEmail),
+			strings.TrimSpace(session.ProviderType),
+		)
+	} else if pendingSessionStringValue(session.UpstreamIdentityClaims, "account_role") == service.RoleAccountContributor {
 		tokenPair, user, err = h.authService.RegisterVerifiedOAuthEmailContributorAccount(
 			c.Request.Context(),
 			strings.TrimSpace(session.ResolvedEmail),
@@ -451,17 +464,19 @@ func (h *AuthHandler) completeEmailOAuthRegistration(c *gin.Context, provider st
 		respondPendingOAuthBindingApplyError(c, err)
 		return
 	}
-	if err := h.authService.FinalizeOAuthEmailAccount(
-		txCtx,
-		user,
-		strings.TrimSpace(req.InvitationCode),
-		strings.TrimSpace(session.ProviderType),
-		affiliateCode,
-	); err != nil {
-		_ = tx.Rollback()
-		_ = h.authService.RollbackOAuthEmailAccountCreation(c.Request.Context(), user.ID, strings.TrimSpace(req.InvitationCode))
-		response.ErrorFrom(c, err)
-		return
+	if !contributorGoogleNoPassword {
+		if err := h.authService.FinalizeOAuthEmailAccount(
+			txCtx,
+			user,
+			strings.TrimSpace(req.InvitationCode),
+			strings.TrimSpace(session.ProviderType),
+			affiliateCode,
+		); err != nil {
+			_ = tx.Rollback()
+			_ = h.authService.RollbackOAuthEmailAccountCreation(c.Request.Context(), user.ID, strings.TrimSpace(req.InvitationCode))
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 	if err := consumePendingOAuthBrowserSessionTx(c.Request.Context(), tx, session); err != nil {
 		_ = tx.Rollback()

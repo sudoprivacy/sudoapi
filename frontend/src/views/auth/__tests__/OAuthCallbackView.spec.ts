@@ -188,6 +188,52 @@ describe('OAuthCallbackView', () => {
     expect(setTokenMock).toHaveBeenCalledWith('token-1')
   })
 
+  // sudoapi: Google contributor OAuth passwordless signup.
+  it('auto-completes contributor Google registration without password or invitation', async () => {
+    routeState.path = '/auth/oauth/callback'
+    exchangePendingOAuthCompletionMock.mockResolvedValue({
+      error: 'invitation_required',
+      provider: 'google',
+      account_role: 'account_contributor',
+      redirect: '/contributor/claude-auth',
+      resolved_email: 'contributor@example.com',
+      invitation_required: true,
+    })
+    apiPostMock.mockResolvedValue({
+      data: {
+        access_token: 'contributor-token',
+      },
+    })
+
+    const wrapper = mount(OAuthCallbackView)
+    await vi.dynamicImportSettled()
+
+    expect(wrapper.findAll('input[type="password"]')).toHaveLength(0)
+    expect(wrapper.find('input[type="text"]').exists()).toBe(false)
+    expect(apiPostMock).toHaveBeenCalledWith('/auth/oauth/google/complete-registration', {})
+    expect(setTokenMock).toHaveBeenCalledWith('contributor-token')
+    expect(routerReplaceMock).toHaveBeenCalledWith('/contributor/claude-auth')
+  })
+
+  // sudoapi: Google contributor OAuth passwordless signup.
+  it('only auto-completes when Google pending completion is for an account contributor', async () => {
+    routeState.path = '/auth/oauth/callback'
+    exchangePendingOAuthCompletionMock.mockResolvedValue({
+      error: 'registration_completion_required',
+      provider: 'google',
+      redirect: '/dashboard',
+      resolved_email: 'regular-google@example.com',
+      invitation_required: false,
+    })
+
+    const wrapper = mount(OAuthCallbackView)
+    await vi.dynamicImportSettled()
+
+    expect(apiPostMock).not.toHaveBeenCalled()
+    expect(wrapper.find('input[type="email"]').exists()).toBe(true)
+    expect(wrapper.findAll('input[type="password"]')).toHaveLength(2)
+  })
+
   it('completes email oauth registration with readonly email and without posting email', async () => {
     routeState.path = '/auth/oauth/callback'
     exchangePendingOAuthCompletionMock.mockResolvedValue({

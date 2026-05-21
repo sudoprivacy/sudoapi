@@ -190,6 +190,8 @@ type EmailOAuthPendingCompletion = Partial<OAuthTokenResponse> & {
   email?: string
   resolved_email?: string
   invitation_required?: boolean
+  // sudoapi: Google contributor OAuth passwordless signup.
+  account_role?: string
 }
 
 const code = computed(() => (route.query.code as string) || '')
@@ -287,6 +289,12 @@ function hasOAuthTokenResponse(value: Partial<OAuthTokenResponse>): value is OAu
   return typeof value.access_token === 'string' && value.access_token.trim() !== ''
 }
 
+// sudoapi: Google contributor OAuth passwordless signup.
+function isContributorGoogleCompletion(completion: EmailOAuthPendingCompletion): boolean {
+  return String(completion.provider || '').toLowerCase() === 'google' &&
+    String(completion.account_role || '').trim() === 'account_contributor'
+}
+
 async function resumePendingEmailOAuth() {
   isProcessing.value = true
   try {
@@ -304,6 +312,12 @@ async function resumePendingEmailOAuth() {
     redirectTo.value = sanitizeRedirectPath(completionRedirect)
 
     if (completion.error === 'invitation_required' || completion.error === 'registration_completion_required') {
+      // sudoapi: Google contributor OAuth passwordless signup.
+      if (isContributorGoogleCompletion(completion)) {
+        registrationEmail.value = String(completion.resolved_email || completion.email || '').trim()
+        await completeContributorGoogleRegistration()
+        return
+      }
       invitationRequired.value = completion.error === 'invitation_required' || completion.invitation_required === true
       registrationEmail.value = String(completion.resolved_email || completion.email || '').trim()
       needsRegistrationCompletion.value = true
@@ -321,6 +335,32 @@ async function resumePendingEmailOAuth() {
     if (!needsRegistrationCompletion.value) {
       isProcessing.value = false
     }
+  }
+}
+
+// sudoapi: Google contributor OAuth passwordless signup.
+async function postCompleteRegistration(payload: { password?: string; invitation_code?: string; aff_code?: string }) {
+  const { data } = await apiClient.post<OAuthTokenResponse>(
+    `/auth/oauth/${pendingProvider.value}/complete-registration`,
+    payload
+  )
+  await finalizeTokenResponse(data, redirectTo.value)
+}
+
+// sudoapi: Google contributor OAuth passwordless signup.
+async function completeContributorGoogleRegistration() {
+  isSubmitting.value = true
+  try {
+    await postCompleteRegistration({
+      ...oauthAffiliatePayload(loadOAuthAffiliateCode())
+    })
+  } catch (e: unknown) {
+    const err = e as { message?: string; response?: { data?: { message?: string } } }
+    const message = err.response?.data?.message || err.message || t('auth.oidc.completeRegistrationFailed')
+    appStore.showError(message)
+    invalidCallback.value = true
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -343,18 +383,14 @@ async function handleSubmitRegistration() {
 
   isSubmitting.value = true
   try {
-    const payload: { password: string; invitation_code?: string; aff_code?: string } = {
+    const payload: { password?: string; invitation_code?: string; aff_code?: string } = {
       password: password.value,
       ...oauthAffiliatePayload(loadOAuthAffiliateCode())
     }
     if (invitationRequired.value) {
       payload.invitation_code = code
     }
-    const { data } = await apiClient.post<OAuthTokenResponse>(
-      `/auth/oauth/${pendingProvider.value}/complete-registration`,
-      payload
-    )
-    await finalizeTokenResponse(data, redirectTo.value)
+    await postCompleteRegistration(payload)
   } catch (e: unknown) {
     const err = e as { message?: string; response?: { data?: { message?: string } } }
     registrationError.value =
