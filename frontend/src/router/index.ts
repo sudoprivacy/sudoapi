@@ -180,7 +180,7 @@ const routes: RouteRecordRaw[] = [
     name: 'ModelCatalog',
     component: () => import('@/views/public/LiteLLMModelView.vue'),
     meta: {
-      requiresAuth: false,
+      requiresAuth: true,
       title: 'Model Square',
       titleKey: 'liteLLMModels.title',
     }
