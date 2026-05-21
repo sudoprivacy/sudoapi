@@ -113,6 +113,7 @@ export interface LoginRequest {
   email: string
   password: string
   turnstile_token?: string
+  country?: string
 }
 
 export interface RegisterRequest {
@@ -1003,6 +1004,7 @@ export interface CreateAccountRequest {
   notes?: string | null
   platform: AccountPlatform
   type: AccountType
+  add_method?: OAuthAddMethod
   credentials: Record<string, unknown>
   extra?: Record<string, unknown>
   proxy_id?: number | null
@@ -1014,6 +1016,7 @@ export interface CreateAccountRequest {
   expires_at?: number | null
   auto_pause_on_expired?: boolean
   confirm_mixed_channel_risk?: boolean
+  country?: string
 }
 
 export interface UpdateAccountRequest {

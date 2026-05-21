@@ -6,6 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api'
+import { contributorAPI } from '@/api/contributor'
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'
 
 const AUTH_TOKEN_KEY = 'auth_token'
@@ -261,6 +262,28 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Account contributor login/register entry.
+   * @param credentials - Login credentials (email and password)
+   * @returns Promise resolving to the login response (may require 2FA)
+   */
+  async function contributorLogin(credentials: LoginRequest): Promise<LoginResponse> {
+    try {
+      const response = await authAPI.contributorLogin(credentials)
+
+      if (isTotp2FARequired(response)) {
+        return response
+      }
+
+      setAuthFromResponse(response)
+
+      return response
+    } catch (error) {
+      clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      throw error
+    }
+  }
+
+  /**
    * Complete login with 2FA code
    * @param tempToken - Temporary token from initial login
    * @param totpCode - 6-digit TOTP code
@@ -400,6 +423,13 @@ export const useAuthStore = defineStore('auth', () => {
    * Clears all authentication state and persisted data
    */
   async function logout(): Promise<void> {
+    if (user.value?.role === 'account_contributor') {
+      try {
+        await contributorAPI.accounts.releaseProxyReservation()
+      } catch {
+        // Logout can continue; stale reservations are cleared by TTL.
+      }
+    }
     // Call API logout (revokes refresh token on server)
     await authAPI.logout()
 
@@ -485,6 +515,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Actions
     login,
+    contributorLogin,
     login2FA,
     register,
     setToken,

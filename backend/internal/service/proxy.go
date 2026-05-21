@@ -60,3 +60,14 @@ type ProxyAccountSummary struct {
 	Type     string
 	Notes    *string
 }
+
+type ContributorProxyReservation struct {
+	ID          int64
+	ProxyID     int64
+	OwnerUserID int64
+	Country     string
+	Status      string
+	ExpiresAt   time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}

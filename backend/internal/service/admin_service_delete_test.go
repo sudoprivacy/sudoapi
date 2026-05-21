@@ -307,6 +307,30 @@ func (s *proxyRepoStub) ListAccountSummariesByProxyID(ctx context.Context, proxy
 	panic("unexpected ListAccountSummariesByProxyID call")
 }
 
+func (s *proxyRepoStub) ExpireContributorProxyReservations(ctx context.Context, now time.Time) error {
+	panic("unexpected ExpireContributorProxyReservations call")
+}
+
+func (s *proxyRepoStub) GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*ContributorProxyReservation, error) {
+	panic("unexpected GetActiveContributorProxyReservation call")
+}
+
+func (s *proxyRepoStub) ListActiveContributorProxyReservationProxyIDs(ctx context.Context, now time.Time) (map[int64]struct{}, error) {
+	panic("unexpected ListActiveContributorProxyReservationProxyIDs call")
+}
+
+func (s *proxyRepoStub) CreateContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64, country string, expiresAt time.Time) (*ContributorProxyReservation, error) {
+	panic("unexpected CreateContributorProxyReservation call")
+}
+
+func (s *proxyRepoStub) ConsumeContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64) error {
+	panic("unexpected ConsumeContributorProxyReservation call")
+}
+
+func (s *proxyRepoStub) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
+	panic("unexpected ReleaseContributorProxyReservations call")
+}
+
 type redeemRepoStub struct {
 	deleteErrByID map[int64]error
 	deletedIDs    []int64

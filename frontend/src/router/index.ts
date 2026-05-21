@@ -49,6 +49,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/contributor/login',
+    name: 'ContributorLogin',
+    component: () => import('@/views/auth/ContributorLoginView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Contributor Login'
+    }
+  },
+  {
     path: '/register',
     name: 'Register',
     component: () => import('@/views/auth/RegisterView.vue'),
@@ -543,6 +552,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/contributor/claude-auth',
+    name: 'ContributorClaudeAuth',
+    component: () => import('@/views/contributor/ClaudeAuthView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAccountContributor: true,
+      title: 'Claude Account Authorization'
+    }
+  },
+  {
     path: '/admin/announcements',
     name: 'AdminAnnouncements',
     component: () => import('@/views/admin/AnnouncementsView.vue'),
@@ -743,7 +762,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/models', '/model']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/contributor/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/models', '/model']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',
@@ -821,8 +840,25 @@ router.beforeEach(async (to, _from, next) => {
 
   // If route doesn't require auth, allow access
   if (!requiresAuth) {
+    if (authStore.isAuthenticated && to.path === '/contributor/login') {
+      if (authStore.isAccountContributor) {
+        next()
+        return
+      }
+      next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+      return
+    }
+
     // If already authenticated and trying to access login/register, redirect to appropriate dashboard
     if (authStore.isAuthenticated && (to.path === '/login' || to.path === '/register')) {
+      if (authStore.isAccountContributor && to.path === '/login') {
+        next()
+        return
+      }
+      if (authStore.isAccountContributor && to.path !== '/login') {
+        next('/contributor/claude-auth')
+        return
+      }
       // In backend mode, non-admin users should NOT be redirected away from login
       // (they are blocked from all protected routes, so redirecting would cause a loop)
       if (appStore.backendModeEnabled && !authStore.isAdmin) {
@@ -849,9 +885,14 @@ router.beforeEach(async (to, _from, next) => {
   if (!authStore.isAuthenticated) {
     // Not authenticated, redirect to login
     next({
-      path: '/login',
+      path: to.path.startsWith('/contributor/') ? '/contributor/login' : '/login',
       query: { redirect: to.fullPath } // Save intended destination
     })
+    return
+  }
+
+  if (authStore.isAccountContributor && !to.path.startsWith('/contributor/')) {
+    next('/contributor/claude-auth')
     return
   }
 
@@ -864,6 +905,11 @@ router.beforeEach(async (to, _from, next) => {
 
   if (requiresAccountContributor && !authStore.isAccountContributor) {
     next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+    return
+  }
+
+  if (authStore.isAccountContributor && to.path === '/contributor/accounts') {
+    next('/contributor/claude-auth')
     return
   }
 
@@ -905,6 +951,10 @@ router.beforeEach(async (to, _from, next) => {
   // Backend mode: admin gets full access, non-admin blocked
   if (appStore.backendModeEnabled) {
     if (authStore.isAuthenticated && authStore.isAdmin) {
+      next()
+      return
+    }
+    if (authStore.isAuthenticated && authStore.isAccountContributor && to.path.startsWith('/contributor/')) {
       next()
       return
     }

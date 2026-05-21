@@ -805,6 +805,24 @@ func (m *mockGeminiProxyRepo) CountAccountsByProxyID(ctx context.Context, proxyI
 func (m *mockGeminiProxyRepo) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
 	panic("not impl")
 }
+func (m *mockGeminiProxyRepo) ExpireContributorProxyReservations(ctx context.Context, now time.Time) error {
+	panic("not impl")
+}
+func (m *mockGeminiProxyRepo) GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*ContributorProxyReservation, error) {
+	panic("not impl")
+}
+func (m *mockGeminiProxyRepo) ListActiveContributorProxyReservationProxyIDs(ctx context.Context, now time.Time) (map[int64]struct{}, error) {
+	panic("not impl")
+}
+func (m *mockGeminiProxyRepo) CreateContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64, country string, expiresAt time.Time) (*ContributorProxyReservation, error) {
+	panic("not impl")
+}
+func (m *mockGeminiProxyRepo) ConsumeContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64) error {
+	panic("not impl")
+}
+func (m *mockGeminiProxyRepo) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
+	panic("not impl")
+}
 
 // mockDriveClient implements geminicli.DriveClient for tests.
 type mockDriveClient struct {

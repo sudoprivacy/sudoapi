@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"sort"
 	"strings"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
@@ -17,6 +18,7 @@ import (
 
 type sqlQuerier interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
 type proxyRepository struct {
@@ -351,6 +353,122 @@ func (r *proxyRepository) ListAccountSummariesByProxyID(ctx context.Context, pro
 		return nil, err
 	}
 	return out, nil
+}
+
+func (r *proxyRepository) ExpireContributorProxyReservations(ctx context.Context, now time.Time) error {
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE contributor_proxy_reservations
+		SET status = 'expired', updated_at = NOW()
+		WHERE status = 'active' AND expires_at <= $1
+	`, now)
+	return err
+}
+
+func (r *proxyRepository) GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*service.ContributorProxyReservation, error) {
+	reservation := &service.ContributorProxyReservation{}
+	err := scanSingleRow(ctx, r.sql, `
+		UPDATE contributor_proxy_reservations
+		SET expires_at = $3, updated_at = NOW()
+		WHERE id = (
+			SELECT id
+			FROM contributor_proxy_reservations
+			WHERE owner_user_id = $1
+			  AND status = 'active'
+			  AND expires_at > $2
+			ORDER BY updated_at DESC, id DESC
+			LIMIT 1
+		)
+		RETURNING id, proxy_id, owner_user_id, country, status, expires_at, created_at, updated_at
+	`, []any{ownerUserID, now, expiresAt},
+		&reservation.ID,
+		&reservation.ProxyID,
+		&reservation.OwnerUserID,
+		&reservation.Country,
+		&reservation.Status,
+		&reservation.ExpiresAt,
+		&reservation.CreatedAt,
+		&reservation.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return reservation, nil
+}
+
+func (r *proxyRepository) ListActiveContributorProxyReservationProxyIDs(ctx context.Context, now time.Time) (map[int64]struct{}, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT proxy_id
+		FROM contributor_proxy_reservations
+		WHERE status = 'active' AND expires_at > $1
+	`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make(map[int64]struct{})
+	for rows.Next() {
+		var proxyID int64
+		if err := rows.Scan(&proxyID); err != nil {
+			return nil, err
+		}
+		out[proxyID] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (r *proxyRepository) CreateContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64, country string, expiresAt time.Time) (*service.ContributorProxyReservation, error) {
+	reservation := &service.ContributorProxyReservation{}
+	err := scanSingleRow(ctx, r.sql, `
+		INSERT INTO contributor_proxy_reservations (proxy_id, owner_user_id, country, status, expires_at, created_at, updated_at)
+		VALUES ($1, $2, $3, 'active', $4, NOW(), NOW())
+		ON CONFLICT DO NOTHING
+		RETURNING id, proxy_id, owner_user_id, country, status, expires_at, created_at, updated_at
+	`, []any{proxyID, ownerUserID, strings.TrimSpace(country), expiresAt},
+		&reservation.ID,
+		&reservation.ProxyID,
+		&reservation.OwnerUserID,
+		&reservation.Country,
+		&reservation.Status,
+		&reservation.ExpiresAt,
+		&reservation.CreatedAt,
+		&reservation.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return reservation, nil
+}
+
+func (r *proxyRepository) ConsumeContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64) error {
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE contributor_proxy_reservations
+		SET status = 'consumed', updated_at = NOW()
+		WHERE owner_user_id = $1
+		  AND proxy_id = $2
+		  AND status = 'active'
+		  AND expires_at > NOW()
+	`, ownerUserID, proxyID)
+	return err
+}
+
+func (r *proxyRepository) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE contributor_proxy_reservations
+		SET status = 'released', updated_at = NOW()
+		WHERE owner_user_id = $1
+		  AND status = 'active'
+	`, ownerUserID)
+	return err
 }
 
 // GetAccountCountsForProxies returns a map of proxy ID to account count for all proxies

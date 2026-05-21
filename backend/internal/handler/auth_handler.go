@@ -74,6 +74,7 @@ type LoginRequest struct {
 	Email          string `json:"email" binding:"required,email"`
 	Password       string `json:"password" binding:"required"`
 	TurnstileToken string `json:"turnstile_token"`
+	Country        string `json:"country"`
 }
 
 // AuthResponse 认证响应格式（匹配前端期望）
@@ -261,6 +262,45 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	h.authService.RecordSuccessfulLogin(c.Request.Context(), user.ID)
 
+	h.respondWithTokenPair(c, user)
+}
+
+// ContributorLogin handles account-contributor login and first-time registration.
+// POST /api/v1/auth/contributor/login
+func (h *AuthHandler) ContributorLogin(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := h.authService.VerifyTurnstile(c.Request.Context(), req.TurnstileToken, ip.GetClientIP(c)); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	_, user, err := h.authService.ContributorLoginOrRegister(c.Request.Context(), req.Email, req.Password)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	if h.totpService != nil && h.settingSvc.IsTotpEnabled(c.Request.Context()) && user.TotpEnabled {
+		tempToken, err := h.totpService.CreateLoginSession(c.Request.Context(), user.ID, user.Email)
+		if err != nil {
+			response.InternalError(c, "Failed to create 2FA session")
+			return
+		}
+
+		response.Success(c, TotpLoginResponse{
+			Requires2FA:     true,
+			TempToken:       tempToken,
+			UserEmailMasked: service.MaskEmail(user.Email),
+		})
+		return
+	}
+
+	h.authService.RecordSuccessfulLogin(c.Request.Context(), user.ID)
 	h.respondWithTokenPair(c, user)
 }
 

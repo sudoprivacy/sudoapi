@@ -17,10 +17,25 @@ import (
 type ContributorAccountHandler struct {
 	adminService       service.AdminService
 	accountTestService *service.AccountTestService
+	oauthService       *service.OAuthService
 }
 
-func NewContributorAccountHandler(adminService service.AdminService, accountTestService *service.AccountTestService) *ContributorAccountHandler {
-	return &ContributorAccountHandler{adminService: adminService, accountTestService: accountTestService}
+func NewContributorAccountHandler(adminService service.AdminService, accountTestService *service.AccountTestService, oauthService *service.OAuthService) *ContributorAccountHandler {
+	return &ContributorAccountHandler{adminService: adminService, accountTestService: accountTestService, oauthService: oauthService}
+}
+
+func normalizeCountryParam(country string) string {
+	return strings.ToUpper(strings.TrimSpace(country))
+}
+
+func countryFromRequest(c *gin.Context) string {
+	if c == nil {
+		return ""
+	}
+	if country := normalizeCountryParam(c.Query("country")); country != "" {
+		return country
+	}
+	return normalizeCountryParam(c.Query("country_code"))
 }
 
 func (h *ContributorAccountHandler) List(c *gin.Context) {
@@ -101,6 +116,7 @@ func (h *ContributorAccountHandler) Create(c *gin.Context) {
 		LoadFactor:         req.LoadFactor,
 		ExpiresAt:          req.ExpiresAt,
 		AutoPauseOnExpired: req.AutoPauseOnExpired,
+		ContributorCountry: normalizeCountryParam(req.ContributorCountry),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -169,14 +185,102 @@ func (h *ContributorAccountHandler) Test(c *gin.Context) {
 }
 
 func (h *ContributorAccountHandler) ListProxies(c *gin.Context) {
-	proxies, err := h.adminService.GetAllProxies(c.Request.Context())
+	subject, ok := servermiddleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found")
+		return
+	}
+	proxy, err := h.adminService.SelectContributorProxy(c.Request.Context(), subject.UserID, countryFromRequest(c))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	out := make([]dto.Proxy, 0, len(proxies))
-	for i := range proxies {
-		out = append(out, *dto.ProxyFromService(&proxies[i]))
+	out := make([]dto.Proxy, 0, 1)
+	if proxy != nil {
+		out = append(out, *dto.ProxyFromService(proxy))
 	}
 	response.Success(c, out)
+}
+
+func (h *ContributorAccountHandler) ReleaseProxyReservation(c *gin.Context) {
+	subject, ok := servermiddleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found")
+		return
+	}
+	if err := h.adminService.ReleaseContributorProxyReservations(c.Request.Context(), subject.UserID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "proxy reservation released"})
+}
+
+func (h *ContributorAccountHandler) GenerateAuthURL(c *gin.Context) {
+	var req admin.GenerateAuthURLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req = admin.GenerateAuthURLRequest{}
+	}
+
+	result, err := h.oauthService.GenerateAuthURL(c.Request.Context(), req.ProxyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, result)
+}
+
+func (h *ContributorAccountHandler) GenerateSetupTokenURL(c *gin.Context) {
+	var req admin.GenerateAuthURLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req = admin.GenerateAuthURLRequest{}
+	}
+
+	result, err := h.oauthService.GenerateSetupTokenURL(c.Request.Context(), req.ProxyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, result)
+}
+
+func (h *ContributorAccountHandler) ExchangeCode(c *gin.Context) {
+	var req admin.ExchangeCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	tokenInfo, err := h.oauthService.ExchangeCode(c.Request.Context(), &service.ExchangeCodeInput{
+		SessionID: req.SessionID,
+		Code:      req.Code,
+		ProxyID:   req.ProxyID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, tokenInfo)
+}
+
+func (h *ContributorAccountHandler) ExchangeSetupTokenCode(c *gin.Context) {
+	var req admin.ExchangeCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	tokenInfo, err := h.oauthService.ExchangeCode(c.Request.Context(), &service.ExchangeCodeInput{
+		SessionID: req.SessionID,
+		Code:      req.Code,
+		ProxyID:   req.ProxyID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, tokenInfo)
 }

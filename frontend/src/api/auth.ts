@@ -107,6 +107,27 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
 }
 
 /**
+ * Account contributor login/register entry.
+ * Uses the same response shape as the normal login endpoint.
+ */
+export async function contributorLogin(credentials: LoginRequest): Promise<LoginResponse> {
+  const { data } = await apiClient.post<LoginResponse>('/auth/contributor/login', credentials)
+
+  if (!isTotp2FARequired(data)) {
+    setAuthToken(data.access_token)
+    if (data.refresh_token) {
+      setRefreshToken(data.refresh_token)
+    }
+    if (data.expires_in) {
+      setTokenExpiresAt(data.expires_in)
+    }
+    localStorage.setItem('auth_user', JSON.stringify(data.user))
+  }
+
+  return data
+}
+
+/**
  * Complete login with 2FA code
  * @param request - Temp token and TOTP code
  * @returns Authentication response with token and user data
@@ -659,6 +680,7 @@ export async function exchangePendingOAuthCompletion(
 
 export const authAPI = {
   login,
+  contributorLogin,
   login2FA,
   isTotp2FARequired,
   register,

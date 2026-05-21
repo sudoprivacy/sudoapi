@@ -26,7 +26,7 @@ type EmailOAuthIdentityInput struct {
 }
 
 func (s *AuthService) LoginOrRegisterVerifiedEmailOAuth(ctx context.Context, input EmailOAuthIdentityInput) (*TokenPair, *User, error) {
-	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, "", "")
+	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, "", "", RoleUser)
 }
 
 func (s *AuthService) LoginOrRegisterVerifiedEmailOAuthWithInvitation(
@@ -35,7 +35,16 @@ func (s *AuthService) LoginOrRegisterVerifiedEmailOAuthWithInvitation(
 	invitationCode string,
 	affiliateCode string,
 ) (*TokenPair, *User, error) {
-	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, invitationCode, affiliateCode)
+	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, invitationCode, affiliateCode, RoleUser)
+}
+
+func (s *AuthService) LoginOrRegisterVerifiedEmailOAuthContributor(
+	ctx context.Context,
+	input EmailOAuthIdentityInput,
+	invitationCode string,
+	affiliateCode string,
+) (*TokenPair, *User, error) {
+	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, invitationCode, affiliateCode, RoleAccountContributor)
 }
 
 func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
@@ -43,12 +52,14 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 	input EmailOAuthIdentityInput,
 	invitationCode string,
 	affiliateCode string,
+	accountRole string,
 ) (*TokenPair, *User, error) {
 	if s == nil || s.userRepo == nil || s.entClient == nil {
 		return nil, nil, ErrServiceUnavailable
 	}
 
 	providerType := normalizeOAuthSignupSource(input.ProviderType)
+	accountRole = normalizeEmailOAuthAccountRole(accountRole)
 	if providerType != "github" && providerType != "google" {
 		return nil, nil, infraerrors.BadRequest("OAUTH_PROVIDER_INVALID", "oauth provider is invalid")
 	}
@@ -92,7 +103,7 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 		user, err = s.userRepo.GetByEmail(ctx, email)
 		if err != nil {
 			if errors.Is(err, ErrUserNotFound) {
-				user, err = s.createEmailOAuthUser(ctx, email, input.Username, providerType, invitationCode, affiliateCode)
+				user, err = s.createEmailOAuthUser(ctx, email, input.Username, providerType, invitationCode, affiliateCode, accountRole)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -106,6 +117,9 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 
 	if !user.IsActive() {
 		return nil, nil, ErrUserNotActive
+	}
+	if accountRole == RoleAccountContributor && user.Role != RoleAccountContributor {
+		return nil, nil, ErrContributorRoleRequired
 	}
 	if err := s.ensureEmailOAuthIdentity(ctx, user.ID, EmailOAuthIdentityInput{
 		ProviderType:     providerType,
@@ -127,7 +141,7 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to update username after %s oauth login: %v", providerType, err)
 		}
 	}
-	if !created {
+	if !created && user.Role != RoleAccountContributor {
 		if err := s.ApplyProviderDefaultSettingsOnFirstBind(ctx, user.ID, providerType); err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to apply %s first bind defaults: %v", providerType, err)
 		}
@@ -141,9 +155,13 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 	return tokenPair, user, nil
 }
 
-func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username, providerType, invitationCode, affiliateCode string) (*User, error) {
+func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username, providerType, invitationCode, affiliateCode string, accountRole ...string) (*User, error) {
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return nil, ErrRegDisabled
+	}
+	role := RoleUser
+	if len(accountRole) > 0 {
+		role = normalizeEmailOAuthAccountRole(accountRole[0])
 	}
 	invitationRedeemCode, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
 	if err != nil {
@@ -166,14 +184,22 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	if s.settingService != nil {
 		defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
 	}
+	balance := grantPlan.Balance
+	concurrency := grantPlan.Concurrency
+	rpmLimit := defaultRPMLimit
+	if role == RoleAccountContributor {
+		balance = 0
+		concurrency = 1
+		rpmLimit = 0
+	}
 	user := &User{
 		Email:        email,
 		Username:     strings.TrimSpace(username),
 		PasswordHash: hashedPassword,
-		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
-		Concurrency:  grantPlan.Concurrency,
-		RPMLimit:     defaultRPMLimit,
+		Role:         role,
+		Balance:      balance,
+		Concurrency:  concurrency,
+		RPMLimit:     rpmLimit,
 		Status:       StatusActive,
 		SignupSource: providerType,
 	}
@@ -188,8 +214,10 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		return nil, ErrServiceUnavailable
 	}
 	s.postAuthUserBootstrap(ctx, user, providerType, false)
-	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
-	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
+	if role != RoleAccountContributor {
+		s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+		s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
+	}
 	if invitationRedeemCode != nil {
 		if err := s.useOAuthRegistrationInvitation(ctx, invitationRedeemCode.ID, user.ID); err != nil {
 			_ = s.RollbackOAuthEmailAccountCreation(ctx, user.ID, invitationCode)
@@ -197,6 +225,13 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		}
 	}
 	return user, nil
+}
+
+func normalizeEmailOAuthAccountRole(role string) string {
+	if strings.TrimSpace(role) == RoleAccountContributor {
+		return RoleAccountContributor
+	}
+	return RoleUser
 }
 
 func (s *AuthService) findEmailOAuthIdentityOwner(ctx context.Context, providerType, providerKey, providerSubject string) (*User, error) {
