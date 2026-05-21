@@ -55,6 +55,10 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			return
 		}
 		apiKey = effectiveAPIKeyForRequest(c, apiKey, service.PlatformGemini, nil)
+		if _, message, ok := validateAPIKeyGroupAvailable(apiKey); !ok {
+			abortWithGoogleError(c, 403, message)
+			return
+		}
 
 		// 简易模式：跳过余额和订阅检查
 		if cfg.RunMode == config.RunModeSimple {

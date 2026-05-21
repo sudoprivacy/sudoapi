@@ -115,6 +115,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 		apiKey = effectiveAPIKeyForRequest(c, apiKey, "", routeResolver)
+		if code, message, available := validateAPIKeyGroupAvailable(apiKey); !available {
+			AbortWithError(c, 403, code, message)
+			return
+		}
 
 		// ── 4. SimpleMode → early return ─────────────────────────────
 
@@ -256,4 +260,22 @@ func setGroupContext(c *gin.Context, group *service.Group) {
 	}
 	ctx := context.WithValue(c.Request.Context(), ctxkey.Group, group)
 	c.Request = c.Request.WithContext(ctx)
+}
+
+func validateAPIKeyGroupAvailable(apiKey *service.APIKey) (string, string, bool) {
+	// 未分组, 交给后续的 RequireGroupAssignment 进行拦截
+	if apiKey == nil || (apiKey.GroupID == nil && len(apiKey.GroupIDs) == 0) {
+		return "", "", true
+	}
+
+	groups := make([]*service.Group, 0, len(apiKey.Groups)+1)
+	groups = append(groups, apiKey.Group)
+	groups = append(groups, apiKey.Groups...)
+
+	for _, group := range groups {
+		if group != nil && group.IsActive() {
+			return "", "", true
+		}
+	}
+	return "GROUP_UNAVAILABLE", "API Key 所属分组不可用", false
 }
