@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/stretchr/testify/require"
 )
 
 type settingRepoStub struct {
@@ -394,7 +395,7 @@ func TestAuthService_Register_Success(t *testing.T) {
 
 func TestAuthService_ContributorLoginOrRegister_CreatesContributor(t *testing.T) {
 	repo := &userRepoStub{nextID: 71}
-	service := newAuthService(repo, nil, nil)
+	service := newAuthService(repo, map[string]string{SettingKeyRegistrationEnabled: "true"}, nil)
 
 	token, user, err := service.ContributorLoginOrRegister(context.Background(), "contributor@test.com", "password")
 	require.NoError(t, err)
