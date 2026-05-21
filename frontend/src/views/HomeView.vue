@@ -48,8 +48,8 @@
 
         <!-- Nav Actions -->
         <div class="flex items-center gap-3">
-          <!-- 模型广场入口（公开可见，未登录也能浏览） -->
           <router-link
+            v-if="isAuthenticated"
             to="/model"
             class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex dark:text-dark-200 dark:hover:bg-dark-800 dark:hover:text-white"
           >
@@ -379,8 +379,7 @@
           </div>
         </div>
 
-        <!-- 模型广场入口 CTA：进入模型目录页。 -->
-        <div class="mb-16 text-center">
+        <div v-if="isAuthenticated" class="mb-16 text-center">
           <router-link
             to="/model"
             class="inline-flex items-center gap-2 rounded-full border border-primary-500/30 bg-primary-500/5 px-5 py-2.5 text-sm font-medium text-primary-700 transition hover:bg-primary-500/10 dark:text-primary-300"

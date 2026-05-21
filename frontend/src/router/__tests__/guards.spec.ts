@@ -209,6 +209,11 @@ describe('路由守卫逻辑', () => {
       const redirect = simulateGuard('/contributor/claude-auth', { requiresAccountContributor: true }, authState)
       expect(redirect).toBe('/contributor/login')
     })
+
+    it('访问 /model 重定向到 /login', () => {
+      const redirect = simulateGuard('/model', {}, authState)
+      expect(redirect).toBe('/login')
+    })
   })
 
   // --- 已认证普通用户 ---
@@ -234,6 +239,11 @@ describe('路由守卫逻辑', () => {
 
     it('访问 /dashboard 允许通过', () => {
       const redirect = simulateGuard('/dashboard', {}, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('访问 /model 允许通过', () => {
+      const redirect = simulateGuard('/model', {}, authState)
       expect(redirect).toBeNull()
     })
 
