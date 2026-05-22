@@ -1732,6 +1732,11 @@ export default {
       search: "Search accounts...",
       add: "Add Account",
       edit: "Edit Account",
+      selectPlatform: "Select Platform",
+      authorizationMethod: "Authorization Method",
+      reauthorize: "Reauthorize",
+      proxyLoading: "Loading proxy...",
+      proxyUnavailable: "No proxy is currently available, so authorization cannot continue.",
       reviewStatus: "Review",
       columns: {
         created: "Created",
@@ -1742,9 +1747,20 @@ export default {
         rejected: "Rejected",
       },
       loadFailed: "Failed to load accounts",
+      loadProxiesFailed: "Failed to load proxies",
+      generateAuthUrlFailed: "Failed to generate authorization URL",
+      missingOAuthState: "Missing OAuth state",
+      unknownError: "Unknown error",
       saveFailed: "Failed to save account",
       created: "Account submitted for admin review",
       updated: "Account updated and returned to review",
+      authSubmitted: "{platform} account authorization submitted",
+      authSubmittedReview: "{platform} account authorization submitted, pending admin review.",
+      openaiRefreshTokenRequired: "Please enter Refresh Token",
+      openaiPartialSubmitted: "OpenAI account authorization partially submitted: {success} succeeded, {failed} failed",
+      openaiSubmittedCount: "{count} OpenAI account authorizations submitted",
+      openaiRefreshTokenFailed: "OpenAI Refresh Token validation failed",
+      resetProxyReservationFailed: "Failed to reset proxy reservation",
     },
   },
 
@@ -4270,6 +4286,8 @@ export default {
         authCodePlaceholder: "Paste the Authorization Code from Claude page...",
         authCodeHint:
           "Paste the Authorization Code copied from the Claude page",
+        copyUrl: "Copy URL",
+        urlCopied: "URL copied to clipboard",
         completeAuth: "Complete Authorization",
         verifying: "Verifying...",
         pleaseEnterSessionKey: "Please enter at least one valid sessionKey",
@@ -4312,6 +4330,9 @@ export default {
           },
           // Refresh Token auth
           refreshTokenAuth: "Manual RT Input",
+          mobileRefreshTokenAuth: "Manual Mobile RT Input",
+          accessTokenAuth: "Manual AT Input",
+          refreshTokenLabel: "Refresh Token",
           refreshTokenDesc:
             "Enter your existing OpenAI Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.",
           refreshTokenPlaceholder:
@@ -4433,6 +4454,7 @@ export default {
           failedToExchangeCode: "Failed to exchange Antigravity auth code",
           // Refresh Token auth
           refreshTokenAuth: "Manual RT",
+          refreshTokenLabel: "Refresh Token",
           refreshTokenDesc:
             "Enter your existing Antigravity Refresh Token. Supports batch input (one per line). The system will automatically validate and create accounts.",
           refreshTokenPlaceholder:

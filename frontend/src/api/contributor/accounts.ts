@@ -16,6 +16,16 @@ export interface ContributorClaudeExchangeCodeRequest {
   proxy_id?: number | null
 }
 
+export interface ContributorOpenAIExchangeCodeRequest extends ContributorClaudeExchangeCodeRequest {
+  state: string
+}
+
+export interface ContributorOpenAIRefreshTokenRequest {
+  refresh_token: string
+  proxy_id?: number | null
+  client_id?: string
+}
+
 export async function list(
   page = 1,
   pageSize = 20,
@@ -84,6 +94,36 @@ export async function exchangeClaudeSetupTokenCode(
   return data
 }
 
+export async function generateOpenAIAuthUrl(
+  payload: ContributorClaudeAuthURLRequest = {}
+): Promise<ContributorClaudeAuthURLResponse> {
+  const { data } = await apiClient.post<ContributorClaudeAuthURLResponse>(
+    '/contributor/accounts/openai/generate-auth-url',
+    payload
+  )
+  return data
+}
+
+export async function exchangeOpenAICode(
+  payload: ContributorOpenAIExchangeCodeRequest
+): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    '/contributor/accounts/openai/exchange-code',
+    payload
+  )
+  return data
+}
+
+export async function refreshOpenAIToken(
+  payload: ContributorOpenAIRefreshTokenRequest
+): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    '/contributor/accounts/openai/refresh-token',
+    payload
+  )
+  return data
+}
+
 export async function update(id: number, payload: UpdateAccountRequest): Promise<Account> {
   const { data } = await apiClient.put<Account>(`/contributor/accounts/${id}`, payload)
   return data
@@ -118,6 +158,9 @@ export const contributorAccountsAPI = {
   generateClaudeSetupTokenUrl,
   exchangeClaudeCode,
   exchangeClaudeSetupTokenCode,
+  generateOpenAIAuthUrl,
+  exchangeOpenAICode,
+  refreshOpenAIToken,
   update,
   testAccount,
   getProxies,

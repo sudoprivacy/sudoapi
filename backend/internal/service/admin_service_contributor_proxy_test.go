@@ -4,11 +4,17 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/enttest"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
 func contributorProxy(id int64, name, host, countryCode, ipAddress string) ProxyWithAccountCount {
@@ -26,6 +32,22 @@ func contributorProxy(id int64, name, host, countryCode, ipAddress string) Proxy
 		CountryCode: countryCode,
 		IPAddress:   ipAddress,
 	}
+}
+
+func newContributorProxyTestClient(t *testing.T) *dbent.Client {
+	t.Helper()
+
+	db, err := sql.Open("sqlite", "file:contributor_proxy_reuse?mode=memory&cache=shared&_fk=1")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	_, err = db.Exec("PRAGMA foreign_keys = ON")
+	require.NoError(t, err)
+
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(drv)))
+	t.Cleanup(func() { _ = client.Close() })
+	return client
 }
 
 func TestSelectContributorProxyFromList(t *testing.T) {
@@ -233,6 +255,66 @@ func TestSelectContributorProxyReusesExistingReservation(t *testing.T) {
 	require.Equal(t, first.ID, second.ID)
 	require.Len(t, proxyRepo.reservations, 1)
 	require.True(t, proxyRepo.reservations[0].ExpiresAt.After(initialExpiry) || proxyRepo.reservations[0].ExpiresAt.Equal(initialExpiry))
+}
+
+func TestSelectContributorProxyReusesExistingContributorAccountProxy(t *testing.T) {
+	ctx := context.Background()
+	client := newContributorProxyTestClient(t)
+
+	user, err := client.User.Create().
+		SetEmail("contributor-proxy@example.com").
+		SetPasswordHash("hash").
+		SetRole(RoleUser).
+		SetStatus(StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	entProxy, err := client.Proxy.Create().
+		SetName("existing-proxy").
+		SetProtocol("http").
+		SetHost("existing.example.com").
+		SetPort(8080).
+		SetStatus(StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	_, err = client.Account.Create().
+		SetName("Claude OAuth").
+		SetOwnerUserID(user.ID).
+		SetPlatform(PlatformAnthropic).
+		SetType(AccountTypeSetupToken).
+		SetCredentials(map[string]any{"access_token": "token"}).
+		SetProxyID(entProxy.ID).
+		Save(ctx)
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+	proxyRepo := &contributorProxyRepoStub{
+		proxies: []ProxyWithAccountCount{
+			contributorProxy(entProxy.ID, "existing-proxy", "existing.example.com", "US", "1.1.1.1"),
+			contributorProxy(entProxy.ID+1, "reserved-proxy", "reserved.example.com", "US", "1.1.1.2"),
+		},
+		reservations: []ContributorProxyReservation{
+			{
+				ID:          1,
+				ProxyID:     entProxy.ID + 1,
+				OwnerUserID: user.ID,
+				Country:     "US",
+				Status:      "active",
+				ExpiresAt:   now.Add(time.Hour),
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			},
+		},
+		nextResID: 1,
+	}
+	svc := &adminServiceImpl{proxyRepo: proxyRepo, entClient: client}
+
+	selected, err := svc.SelectContributorProxy(ctx, user.ID, "JP")
+	require.NoError(t, err)
+	require.NotNil(t, selected)
+	require.Equal(t, entProxy.ID, selected.ID)
+	require.Len(t, proxyRepo.reservations, 1)
 }
 
 func TestSelectContributorProxySkipsReservedProxyForOtherUsers(t *testing.T) {

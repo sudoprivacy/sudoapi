@@ -1675,6 +1675,11 @@ export default {
       search: "搜索账号...",
       add: "添加账号",
       edit: "编辑账号",
+      selectPlatform: "选择平台",
+      authorizationMethod: "授权方式",
+      reauthorize: "重新授权",
+      proxyLoading: "正在加载代理...",
+      proxyUnavailable: "暂时没有可选代理，无法继续授权。",
       reviewStatus: "审核状态",
       columns: {
         created: "创建时间",
@@ -1685,9 +1690,20 @@ export default {
         rejected: "已拒绝",
       },
       loadFailed: "加载账号失败",
+      loadProxiesFailed: "加载代理失败",
+      generateAuthUrlFailed: "生成授权链接失败",
+      missingOAuthState: "缺少 OAuth state",
+      unknownError: "未知错误",
       saveFailed: "保存账号失败",
       created: "账号已提交，等待管理员审核",
       updated: "账号已更新，等待管理员重新审核",
+      authSubmitted: "{platform} 账号授权已提交",
+      authSubmittedReview: "{platform} 账号授权已提交，等待管理员审核。",
+      openaiRefreshTokenRequired: "请输入 Refresh Token",
+      openaiPartialSubmitted: "OpenAI 账号部分授权已提交，成功 {success} 个，失败 {failed} 个",
+      openaiSubmittedCount: "OpenAI 账号授权已提交 {count} 个",
+      openaiRefreshTokenFailed: "OpenAI Refresh Token 验证失败",
+      resetProxyReservationFailed: "重置代理预占失败",
     },
   },
 
@@ -4247,6 +4263,8 @@ export default {
         authCode: "授权码",
         authCodePlaceholder: "粘贴 Claude 页面的授权码...",
         authCodeHint: "粘贴从 Claude 页面复制的授权码",
+        copyUrl: "复制链接",
+        urlCopied: "链接已复制到剪贴板",
         completeAuth: "完成授权",
         verifying: "验证中...",
         pleaseEnterSessionKey: "请输入至少一个有效的 sessionKey",
@@ -4285,6 +4303,9 @@ export default {
           },
           // Refresh Token auth
           refreshTokenAuth: "手动输入 RT",
+          mobileRefreshTokenAuth: "手动输入 Mobile RT",
+          accessTokenAuth: "手动输入 AT",
+          refreshTokenLabel: "Refresh Token",
           refreshTokenDesc:
             "输入您已有的 OpenAI Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。",
           refreshTokenPlaceholder:
@@ -4400,6 +4421,7 @@ export default {
           failedToExchangeCode: "Antigravity 授权码兑换失败",
           // Refresh Token auth
           refreshTokenAuth: "手动输入 RT",
+          refreshTokenLabel: "Refresh Token",
           refreshTokenDesc:
             "输入您已有的 Antigravity Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。",
           refreshTokenPlaceholder:
