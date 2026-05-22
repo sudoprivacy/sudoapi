@@ -1549,6 +1549,12 @@ export default {
       search: 'Search accounts...',
       add: 'Add Account',
       edit: 'Edit Account',
+      // sudoapi: Contributor account OpenAI OAuth self-service authorization.
+      selectPlatform: 'Select Platform',
+      authorizationMethod: 'Authorization Method',
+      reauthorize: 'Reauthorize',
+      proxyLoading: 'Loading proxy...',
+      proxyUnavailable: 'No proxy is currently available, so authorization cannot continue.',
       reviewStatus: 'Review',
       columns: {
         created: 'Created'
@@ -1559,9 +1565,21 @@ export default {
         rejected: 'Rejected'
       },
       loadFailed: 'Failed to load accounts',
+      // sudoapi: Contributor account OpenAI OAuth self-service authorization.
+      loadProxiesFailed: 'Failed to load proxies',
+      generateAuthUrlFailed: 'Failed to generate authorization URL',
+      missingOAuthState: 'Missing OAuth state',
+      unknownError: 'Unknown error',
       saveFailed: 'Failed to save account',
       created: 'Account submitted for admin review',
-      updated: 'Account updated and returned to review'
+      updated: 'Account updated and returned to review',
+      authSubmitted: '{platform} account authorization submitted',
+      authSubmittedReview: '{platform} account authorization submitted, pending admin review.',
+      openaiRefreshTokenRequired: 'Please enter Refresh Token',
+      openaiPartialSubmitted: 'OpenAI account authorization partially submitted: {success} succeeded, {failed} failed',
+      openaiSubmittedCount: '{count} OpenAI account authorizations submitted',
+      openaiRefreshTokenFailed: 'OpenAI Refresh Token validation failed',
+      resetProxyReservationFailed: 'Failed to reset proxy reservation'
     }
   },
 
@@ -3964,6 +3982,9 @@ export default {
         authCode: 'Authorization Code',
         authCodePlaceholder: 'Paste the Authorization Code from Claude page...',
         authCodeHint: 'Paste the Authorization Code copied from the Claude page',
+        // sudoapi: Contributor account OpenAI OAuth self-service authorization.
+        copyUrl: 'Copy URL',
+        urlCopied: 'URL copied to clipboard',
         completeAuth: 'Complete Authorization',
         verifying: 'Verifying...',
         pleaseEnterSessionKey: 'Please enter at least one valid sessionKey',
@@ -4001,9 +4022,11 @@ export default {
               'No proxy is configured and this server could not reach OpenAI directly, so the OpenAI OAuth request failed. Select a proxy that can access OpenAI and retry; if the authorization code has expired, regenerate the authorization URL.'
           },
           // Refresh Token auth
+          // sudoapi: Contributor account OpenAI OAuth self-service authorization.
           accessTokenAuth: 'Manual AT Input',
           mobileRefreshTokenAuth: 'Manual Mobile RT Input',
           refreshTokenAuth: 'Manual RT Input',
+          refreshTokenLabel: 'Refresh Token',
           refreshTokenDesc: 'Enter your existing OpenAI Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
           refreshTokenPlaceholder: 'Paste your OpenAI Refresh Token...\nSupports multiple, one per line',
           codexSessionAuth: 'Codex JSON / AT Batch Input',
@@ -4098,20 +4121,22 @@ export default {
           authCode: 'Authorization URL or Code',
           authCodePlaceholder:
             'Option 1: Copy the complete URL\n(http://localhost:xxx/auth/callback?code=...)\nOption 2: Copy only the code parameter value',
-                    authCodeHint: 'You can copy the entire URL or just the code parameter value, the system will auto-detect',
-                    failedToGenerateUrl: 'Failed to generate Antigravity auth URL',
-                    missingExchangeParams: 'Missing code, session ID, or state',
-                    failedToExchangeCode: 'Failed to exchange Antigravity auth code',
-                    // Refresh Token auth
-                    refreshTokenAuth: 'Manual RT',
-                    refreshTokenDesc: 'Enter your existing Antigravity Refresh Token. Supports batch input (one per line). The system will automatically validate and create accounts.',
-                    refreshTokenPlaceholder: 'Paste your Antigravity Refresh Token...\nSupports multiple tokens, one per line',
-                    validating: 'Validating...',
-                    validateAndCreate: 'Validate & Create',
-                    pleaseEnterRefreshToken: 'Please enter Refresh Token',
-                    failedToValidateRT: 'Failed to validate Refresh Token'
-                  }
-                },      // Gemini specific (platform-wide)
+          authCodeHint: 'You can copy the entire URL or just the code parameter value, the system will auto-detect',
+          failedToGenerateUrl: 'Failed to generate Antigravity auth URL',
+          missingExchangeParams: 'Missing code, session ID, or state',
+          failedToExchangeCode: 'Failed to exchange Antigravity auth code',
+          // Refresh Token auth
+          // sudoapi: Contributor account OpenAI OAuth self-service authorization.
+          refreshTokenAuth: 'Manual RT',
+          refreshTokenLabel: 'Refresh Token',
+          refreshTokenDesc: 'Enter your existing Antigravity Refresh Token. Supports batch input (one per line). The system will automatically validate and create accounts.',
+          refreshTokenPlaceholder: 'Paste your Antigravity Refresh Token...\nSupports multiple tokens, one per line',
+          validating: 'Validating...',
+          validateAndCreate: 'Validate & Create',
+          pleaseEnterRefreshToken: 'Please enter Refresh Token',
+          failedToValidateRT: 'Failed to validate Refresh Token'
+        }
+      },
       gemini: {
         helpButton: 'Help',
         helpDialog: {

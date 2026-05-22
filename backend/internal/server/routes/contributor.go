@@ -29,6 +29,10 @@ func RegisterContributorRoutes(
 		accounts.POST("/generate-setup-token-url", h.ContributorAccount.GenerateSetupTokenURL)
 		accounts.POST("/exchange-code", h.ContributorAccount.ExchangeCode)
 		accounts.POST("/exchange-setup-token-code", h.ContributorAccount.ExchangeSetupTokenCode)
+		// sudoapi: Contributor account OpenAI OAuth self-service authorization.
+		accounts.POST("/openai/generate-auth-url", h.ContributorAccount.GenerateOpenAIAuthURL)
+		accounts.POST("/openai/exchange-code", h.ContributorAccount.ExchangeOpenAICode)
+		accounts.POST("/openai/refresh-token", h.ContributorAccount.RefreshOpenAIToken)
 	}
 	proxies := contributor.Group("/proxies")
 	{

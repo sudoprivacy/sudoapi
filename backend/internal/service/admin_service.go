@@ -3334,6 +3334,12 @@ func (s *adminServiceImpl) SelectContributorProxy(ctx context.Context, ownerUser
 	if err := s.proxyRepo.ExpireContributorProxyReservations(ctx, now); err != nil {
 		return nil, err
 	}
+	// sudoapi: Contributor account OpenAI OAuth self-service authorization.
+	if existingProxy, err := s.getContributorExistingProxy(ctx, ownerUserID); err != nil {
+		return nil, err
+	} else if existingProxy != nil {
+		return existingProxy, nil
+	}
 	if reservation, err := s.proxyRepo.GetActiveContributorProxyReservation(ctx, ownerUserID, now, expiresAt); err != nil {
 		return nil, err
 	} else if reservation != nil {
@@ -4190,6 +4196,37 @@ func selectContributorProxyFromList(proxies []ProxyWithAccountCount, country str
 		return proxy
 	}
 	return pickRandomContributorProxy(proxies)
+}
+
+// sudoapi: Contributor account OpenAI OAuth self-service authorization.
+func (s *adminServiceImpl) getContributorExistingProxy(ctx context.Context, ownerUserID int64) (*Proxy, error) {
+	if s.entClient == nil {
+		return nil, nil
+	}
+	account, err := s.entClient.Account.Query().
+		Where(dbaccount.OwnerUserIDEQ(ownerUserID), dbaccount.ProxyIDNotNil()).
+		Order(dbent.Asc(dbaccount.FieldCreatedAt), dbent.Asc(dbaccount.FieldID)).
+		First(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if account.ProxyID == nil || *account.ProxyID <= 0 {
+		return nil, nil
+	}
+	proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID)
+	if err != nil {
+		if errors.Is(err, ErrProxyNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if proxy == nil || !proxy.IsActive() {
+		return nil, nil
+	}
+	return proxy, nil
 }
 
 // sudoapi: Contributor account self-service authorization.

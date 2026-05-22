@@ -256,7 +256,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	paymentWebhookHandler := handler.NewPaymentWebhookHandler(paymentService, registry)
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
 	modelSquareHandler := handler.NewModelSquareHandler(modelSquareService, apiKeyService)
-	contributorAccountHandler := handler.NewContributorAccountHandler(adminService, accountTestService, oAuthService)
+	contributorAccountHandler := handler.NewContributorAccountHandler(adminService, accountTestService, oAuthService, openAIOAuthService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelSquareHandler, contributorAccountHandler, idempotencyCoordinator, idempotencyCleanupService)

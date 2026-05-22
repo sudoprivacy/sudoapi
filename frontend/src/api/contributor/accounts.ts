@@ -86,6 +86,51 @@ export async function exchangeClaudeSetupTokenCode(
   return data
 }
 
+// sudoapi: Contributor account OpenAI OAuth self-service authorization.
+export interface ContributorOpenAIExchangeCodeRequest extends ContributorClaudeExchangeCodeRequest {
+  state: string
+}
+
+// sudoapi: Contributor account OpenAI OAuth self-service authorization.
+export interface ContributorOpenAIRefreshTokenRequest {
+  refresh_token: string
+  proxy_id?: number | null
+  client_id?: string
+}
+
+// sudoapi: Contributor account OpenAI OAuth self-service authorization.
+export async function generateOpenAIAuthUrl(
+  payload: ContributorClaudeAuthURLRequest = {}
+): Promise<ContributorClaudeAuthURLResponse> {
+  const { data } = await apiClient.post<ContributorClaudeAuthURLResponse>(
+    '/contributor/accounts/openai/generate-auth-url',
+    payload
+  )
+  return data
+}
+
+// sudoapi: Contributor account OpenAI OAuth self-service authorization.
+export async function exchangeOpenAICode(
+  payload: ContributorOpenAIExchangeCodeRequest
+): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    '/contributor/accounts/openai/exchange-code',
+    payload
+  )
+  return data
+}
+
+// sudoapi: Contributor account OpenAI OAuth self-service authorization.
+export async function refreshOpenAIToken(
+  payload: ContributorOpenAIRefreshTokenRequest
+): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post<Record<string, unknown>>(
+    '/contributor/accounts/openai/refresh-token',
+    payload
+  )
+  return data
+}
+
 export async function update(id: number, payload: UpdateAccountRequest): Promise<Account> {
   const { data } = await apiClient.put<Account>(`/contributor/accounts/${id}`, payload)
   return data
@@ -124,7 +169,11 @@ export const contributorAccountsAPI = {
   testAccount,
   getProxies,
   getProxiesForCountry,
-  releaseProxyReservation
+  releaseProxyReservation,
+  // sudoapi: Contributor account OpenAI OAuth self-service authorization.
+  generateOpenAIAuthUrl,
+  exchangeOpenAICode,
+  refreshOpenAIToken
 }
 
 export default contributorAccountsAPI

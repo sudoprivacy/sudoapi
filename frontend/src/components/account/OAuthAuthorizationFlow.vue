@@ -6,13 +6,13 @@
       <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-500">
         <Icon name="link" size="md" class="text-white" />
       </div>
-      <div class="flex-1">
+      <div class="min-w-0 flex-1">
         <h4 class="mb-3 font-semibold text-blue-900 dark:text-blue-200">{{ oauthTitle }}</h4>
 
         <!-- Auth Method Selection -->
         <div v-if="showMethodSelection" class="mb-4">
           <label class="mb-2 block text-sm font-medium text-blue-800 dark:text-blue-300">
-            {{ methodLabel }}
+            {{ displayMethodLabel }}
           </label>
           <div class="flex flex-wrap gap-4">
             <label class="flex cursor-pointer items-center gap-2">
@@ -56,7 +56,7 @@
                 class="text-blue-600 focus:ring-blue-500"
               />
               <span class="text-sm text-blue-900 dark:text-blue-200">{{
-                t('admin.accounts.oauth.openai.mobileRefreshTokenAuth', '手动输入 Mobile RT')
+                t('admin.accounts.oauth.openai.mobileRefreshTokenAuth')
               }}</span>
             </label>
             <label v-if="showSessionTokenOption" class="flex cursor-pointer items-center gap-2">
@@ -78,7 +78,7 @@
                 class="text-blue-600 focus:ring-blue-500"
               />
               <span class="text-sm text-blue-900 dark:text-blue-200">{{
-                t('admin.accounts.oauth.openai.accessTokenAuth', '手动输入 AT')
+                t('admin.accounts.oauth.openai.accessTokenAuth')
               }}</span>
             </label>
             <label v-if="showCodexSessionImportOption" class="flex cursor-pointer items-center gap-2">
@@ -110,7 +110,7 @@
                 class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
               >
                 <Icon name="key" size="sm" class="text-blue-500" />
-                Refresh Token
+                {{ refreshTokenLabel }}
                 <span
                   v-if="parsedRefreshTokenCount > 1"
                   class="rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white"
@@ -392,7 +392,7 @@
 
         <!-- Manual Authorization Flow -->
         <div v-if="inputMethod === 'manual'" class="space-y-4">
-          <p class="mb-4 text-sm text-blue-800 dark:text-blue-300">
+          <p class="mb-4 break-words text-sm text-blue-800 dark:text-blue-300">
             {{ oauthFollowSteps }}
           </p>
 
@@ -400,14 +400,14 @@
           <div
             class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
           >
-            <div class="flex items-start gap-3">
+            <div class="flex min-w-0 items-start gap-3">
               <div
                 class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
               >
                 1
               </div>
-              <div class="flex-1">
-                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+              <div class="min-w-0 flex-1">
+                <p class="mb-2 break-words font-medium text-blue-900 dark:text-blue-200">
                   {{ oauthStep1GenerateUrl }}
                 </p>
                 <div v-if="showProjectId && platform === 'gemini'" class="mb-3">
@@ -466,17 +466,17 @@
                   {{ loading ? t('admin.accounts.oauth.generating') : oauthGenerateAuthUrl }}
                 </button>
                 <div v-else class="space-y-3">
-                  <div class="flex items-center gap-2">
+                  <div class="flex min-w-0 items-center gap-2">
                     <input
                       :value="authUrl"
                       readonly
                       type="text"
-                      class="input flex-1 bg-gray-50 font-mono text-xs dark:bg-gray-700"
+                      class="input min-w-0 flex-1 bg-gray-50 font-mono text-xs dark:bg-gray-700"
                     />
                     <button
                       type="button"
                       class="btn btn-secondary p-2"
-                      title="Copy URL"
+                      :title="t('admin.accounts.oauth.copyUrl')"
                       @click="handleCopyUrl"
                     >
                       <svg
@@ -519,17 +519,17 @@
           <div
             class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
           >
-            <div class="flex items-start gap-3">
+            <div class="flex min-w-0 items-start gap-3">
               <div
                 class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
               >
                 2
               </div>
-              <div class="flex-1">
-                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+              <div class="min-w-0 flex-1">
+                <p class="mb-2 break-words font-medium text-blue-900 dark:text-blue-200">
                   {{ oauthStep2OpenUrl }}
                 </p>
-                <p class="text-sm text-blue-700 dark:text-blue-300">
+                <p class="break-words text-sm text-blue-700 dark:text-blue-300">
                   {{ oauthOpenUrlDesc }}
                 </p>
                 <!-- OpenAI Important Notice -->
@@ -538,7 +538,7 @@
                   class="mt-2 rounded border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/30"
                 >
                   <p
-                    class="text-xs text-amber-800 dark:text-amber-300"
+                    class="break-words text-xs text-amber-800 dark:text-amber-300"
                     v-text="oauthImportantNotice"
                   ></p>
                 </div>
@@ -548,7 +548,7 @@
                   class="mt-2 rounded border border-yellow-300 bg-yellow-50 p-3 dark:border-yellow-700 dark:bg-yellow-900/30"
                 >
                   <p
-                    class="text-xs text-yellow-800 dark:text-yellow-300"
+                    class="break-words text-xs text-yellow-800 dark:text-yellow-300"
                     v-text="t('admin.accounts.oauth.proxyWarning')"
                   ></p>
                 </div>
@@ -560,18 +560,18 @@
           <div
             class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
           >
-            <div class="flex items-start gap-3">
+            <div class="flex min-w-0 items-start gap-3">
               <div
                 class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
               >
                 3
               </div>
-              <div class="flex-1">
-                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+              <div class="min-w-0 flex-1">
+                <p class="mb-2 break-words font-medium text-blue-900 dark:text-blue-200">
                   {{ oauthStep3EnterCode }}
                 </p>
                 <p
-                  class="mb-3 text-sm text-blue-700 dark:text-blue-300"
+                  class="mb-3 break-words text-sm text-blue-700 dark:text-blue-300"
                   v-text="oauthAuthCodeDesc"
                 ></p>
                 <div>
@@ -654,6 +654,8 @@ interface Props {
   showCodexSessionImportOption?: boolean
   platform?: AccountPlatform // Platform type for different UI/text
   showProjectId?: boolean // New prop to control project ID visibility
+  // sudoapi: Contributor account OpenAI OAuth self-service authorization.
+  forceShowMethodSelection?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -664,7 +666,7 @@ const props = withDefaults(defineProps<Props>(), {
   showHelp: true,
   showProxyWarning: true,
   allowMultiple: false,
-  methodLabel: 'Authorization Method',
+  methodLabel: '',
   showCookieOption: true,
   showRefreshTokenOption: false,
   showMobileRefreshTokenOption: false,
@@ -672,7 +674,9 @@ const props = withDefaults(defineProps<Props>(), {
   showAccessTokenOption: false,
   showCodexSessionImportOption: false,
   platform: 'anthropic',
-  showProjectId: true
+  showProjectId: true,
+  // sudoapi: Contributor account OpenAI OAuth self-service authorization.
+  forceShowMethodSelection: false
 })
 
 const emit = defineEmits<{
@@ -690,6 +694,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const isOpenAI = computed(() => props.platform === 'openai')
+const displayMethodLabel = computed(() => props.methodLabel || t('admin.accounts.oauth.authMethod'))
 
 // Get translation key based on platform
 const getOAuthKey = (key: string) => {
@@ -711,6 +716,7 @@ const oauthAuthCodeDesc = computed(() => t(getOAuthKey('authCodeDesc')))
 const oauthAuthCode = computed(() => t(getOAuthKey('authCode')))
 const oauthAuthCodePlaceholder = computed(() => t(getOAuthKey('authCodePlaceholder')))
 const oauthAuthCodeHint = computed(() => t(getOAuthKey('authCodeHint')))
+const refreshTokenLabel = computed(() => t(getOAuthKey('refreshTokenLabel')))
 const oauthImportantNotice = computed(() => {
   if (props.platform === 'openai') return t('admin.accounts.oauth.openai.importantNotice')
   if (props.platform === 'antigravity') return t('admin.accounts.oauth.antigravity.importantNotice')
@@ -729,7 +735,7 @@ const oauthState = ref('')
 const projectId = ref('')
 
 // Computed: show method selection when either cookie or refresh token option is enabled
-const showMethodSelection = computed(() => props.showCookieOption || props.showRefreshTokenOption || props.showMobileRefreshTokenOption || props.showSessionTokenOption || props.showAccessTokenOption || props.showCodexSessionImportOption)
+const showMethodSelection = computed(() => props.forceShowMethodSelection || props.showCookieOption || props.showRefreshTokenOption || props.showMobileRefreshTokenOption || props.showSessionTokenOption || props.showAccessTokenOption || props.showCodexSessionImportOption)
 
 // Clipboard
 const { copied, copyToClipboard } = useClipboard()
@@ -806,7 +812,7 @@ const handleGenerateUrl = () => {
 
 const handleCopyUrl = () => {
   if (props.authUrl) {
-    copyToClipboard(props.authUrl, 'URL copied to clipboard')
+    copyToClipboard(props.authUrl, t('admin.accounts.oauth.urlCopied'))
   }
 }
 
