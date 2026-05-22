@@ -142,6 +142,7 @@ type ModelSquareCard struct {
 // /model page.
 type LiteLLMModelListItem struct {
 	Name                            string
+	SerialNumber                    *int
 	Provider                        string
 	Mode                            string
 	Category                        string
@@ -170,6 +171,15 @@ type LiteLLMModelListItem struct {
 	RawFields                       map[string]any
 }
 
+type LiteLLMModelListDiagnostics struct {
+	CSVOnlyModels []ModelSettingRecord `json:"csv_only_models"`
+}
+
+type LiteLLMModelListResult struct {
+	Items       []LiteLLMModelListItem
+	Diagnostics LiteLLMModelListDiagnostics
+}
+
 // ModelSquareService 把 ChannelService.ListAvailable 的「渠道→模型」视图倒置为
 // 「模型→平台→分组定价」视图，并叠加 LiteLLM 元数据（描述/上下文/能力）。
 //
@@ -180,6 +190,7 @@ type ModelSquareService struct {
 	pricingSvc     *PricingService
 	metadata       ModelMetadataOverrideReader
 	endpointConfig ModelEndpointConfigReader
+	modelSetting   *ModelSettingService
 
 	mu sync.Mutex
 	// publicEntry 全局共享；userEntries 按 userID 索引。
@@ -202,19 +213,29 @@ func NewModelSquareService(channelSvc *ChannelService, pricingSvc *PricingServic
 	}
 }
 
-// ListLiteLLMModels returns the current LiteLLM model pricing list as loaded by
-// PricingService. The list is sorted by model name for deterministic API output.
+// ListLiteLLMModels returns the CSV-whitelisted LiteLLM model pricing list.
+// Items are sorted by serial_number descending, then model name.
 func (s *ModelSquareService) ListLiteLLMModels() []LiteLLMModelListItem {
+	return s.ListLiteLLMModelsWithDiagnostics().Items
+}
+
+func (s *ModelSquareService) ListLiteLLMModelsWithDiagnostics() LiteLLMModelListResult {
 	if s == nil || s.pricingSvc == nil {
-		return []LiteLLMModelListItem{}
+		return LiteLLMModelListResult{Items: []LiteLLMModelListItem{}}
 	}
 
 	s.pricingSvc.mu.RLock()
 	defer s.pricingSvc.mu.RUnlock()
 
 	items := make([]LiteLLMModelListItem, 0, len(s.pricingSvc.pricingData))
+	inLiteLLM := make(map[string]struct{}, len(s.pricingSvc.pricingData))
 	for name, p := range s.pricingSvc.pricingData {
 		if p == nil {
+			continue
+		}
+		inLiteLLM[normalizeModelSettingID(name)] = struct{}{}
+		serialNumber, ok := s.lookupLiteLLMSerialNumber(name)
+		if !ok {
 			continue
 		}
 		category := inferCategoryFromName(name)
@@ -223,6 +244,7 @@ func (s *ModelSquareService) ListLiteLLMModels() []LiteLLMModelListItem {
 		}
 		items = append(items, LiteLLMModelListItem{
 			Name:                            name,
+			SerialNumber:                    &serialNumber,
 			Provider:                        strings.TrimSpace(p.LiteLLMProvider),
 			Mode:                            strings.TrimSpace(p.Mode),
 			Category:                        category,
@@ -253,9 +275,43 @@ func (s *ModelSquareService) ListLiteLLMModels() []LiteLLMModelListItem {
 	}
 
 	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].SerialNumber != nil && items[j].SerialNumber != nil && *items[i].SerialNumber != *items[j].SerialNumber {
+			return *items[i].SerialNumber > *items[j].SerialNumber
+		}
 		return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
 	})
-	return items
+	return LiteLLMModelListResult{
+		Items: items,
+		Diagnostics: LiteLLMModelListDiagnostics{
+			CSVOnlyModels: s.csvOnlyModels(inLiteLLM),
+		},
+	}
+}
+
+func (s *ModelSquareService) SetModelSettingService(modelSetting *ModelSettingService) {
+	s.modelSetting = modelSetting
+}
+
+func (s *ModelSquareService) lookupLiteLLMSerialNumber(name string) (int, bool) {
+	if s == nil || s.modelSetting == nil {
+		return 0, false
+	}
+	return s.modelSetting.LookupModelSerialNumber(name)
+}
+
+func (s *ModelSquareService) csvOnlyModels(inLiteLLM map[string]struct{}) []ModelSettingRecord {
+	if s == nil || s.modelSetting == nil {
+		return []ModelSettingRecord{}
+	}
+	records := s.modelSetting.Records()
+	out := make([]ModelSettingRecord, 0)
+	for _, record := range records {
+		if _, ok := inLiteLLM[normalizeModelSettingID(record.ID)]; ok {
+			continue
+		}
+		out = append(out, record)
+	}
+	return out
 }
 
 func cloneRawFields(in map[string]any) map[string]any {

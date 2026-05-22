@@ -205,6 +205,47 @@ func TestModelSquareService_OfficialPriceFromLiteLLM(t *testing.T) {
 	require.InDelta(t, 0.04, *cards[0].OfficialPrice.ImagePriceUSD, 1e-12)
 }
 
+func TestModelSquareService_ListLiteLLMModelsUsesWhitelist(t *testing.T) {
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-z": {LiteLLMProvider: "openai", Mode: "chat"},
+		"gpt-a": {LiteLLMProvider: "openai", Mode: "chat"},
+		"gpt-x": {LiteLLMProvider: "openai", Mode: "chat"},
+	}}
+	modelSettingSvc := &ModelSettingService{}
+	modelSettingSvc.replaceState(map[string]ModelSettingRecord{
+		"gpt-z": {SerialNumber: 2, ID: "gpt-z"},
+		"gpt-a": {SerialNumber: 1, ID: "gpt-a"},
+	}, ModelSettingSummary{LoadedRows: 2}, "test.csv", "test")
+
+	svc := NewModelSquareService(nil, pricingSvc)
+	svc.SetModelSettingService(modelSettingSvc)
+
+	items := svc.ListLiteLLMModels()
+	require.Len(t, items, 2)
+	require.Equal(t, "gpt-z", items[0].Name)
+	require.NotNil(t, items[0].SerialNumber)
+	require.Equal(t, 2, *items[0].SerialNumber)
+	require.Equal(t, "gpt-a", items[1].Name)
+}
+
+func TestModelSquareService_ListLiteLLMModelsDiagnosticsCSVOnly(t *testing.T) {
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-a": {LiteLLMProvider: "openai", Mode: "chat"},
+	}}
+	modelSettingSvc := &ModelSettingService{}
+	modelSettingSvc.replaceState(map[string]ModelSettingRecord{
+		"gpt-a": {SerialNumber: 2, ID: "gpt-a"},
+		"gpt-b": {SerialNumber: 1, ID: "gpt-b"},
+	}, ModelSettingSummary{LoadedRows: 2}, "test.csv", "test")
+
+	svc := NewModelSquareService(nil, pricingSvc)
+	svc.SetModelSettingService(modelSettingSvc)
+
+	result := svc.ListLiteLLMModelsWithDiagnostics()
+	require.Len(t, result.Items, 1)
+	require.Equal(t, []ModelSettingRecord{{SerialNumber: 1, ID: "gpt-b"}}, result.Diagnostics.CSVOnlyModels)
+}
+
 func TestModelSquareService_OfficialPriceMissingWhenLiteLLMUnmatched(t *testing.T) {
 	g := Group{ID: 1, Name: "auto", Platform: PlatformAnthropic, SubscriptionType: SubscriptionTypeStandard, RateMultiplier: 1.0, Status: StatusActive}
 	channels := []Channel{{

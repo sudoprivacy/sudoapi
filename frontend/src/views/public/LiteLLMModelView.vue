@@ -361,19 +361,10 @@ import SearchInput from '@/components/common/SearchInput.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores'
+import { contextWindow, sortLiteLLMModels, type LiteLLMSortKey } from './liteLLMModelSort'
 
 type ViewMode = 'table' | 'cards'
-type SortKey =
-  | 'latestDesc'
-  | 'nameAsc'
-  | 'nameDesc'
-  | 'providerAsc'
-  | 'modeAsc'
-  | 'inputAsc'
-  | 'inputDesc'
-  | 'outputAsc'
-  | 'outputDesc'
-  | 'contextDesc'
+type SortKey = LiteLLMSortKey
 type AllowedProvider = 'anthropic' | 'gemini' | 'openai'
 type DetailRow = {
   key: string
@@ -455,7 +446,7 @@ const modes = computed(() =>
   ),
 )
 
-const displayedModels = computed(() => sortModels(filterModels(models.value), sortKey.value))
+const displayedModels = computed(() => sortLiteLLMModels(filterModels(models.value), sortKey.value))
 const providerSummary = computed(() =>
   ALLOWED_PROVIDERS.map((key) => ({
     key,
@@ -470,7 +461,9 @@ async function reload() {
   loading.value = true
   error.value = null
   try {
-    const rows = await modelSquareAPI.listLiteLLMModels({ signal: abortCtl.signal })
+    const result = await modelSquareAPI.listLiteLLMModelsWithDiagnostics({ signal: abortCtl.signal })
+    logCSVOnlyModels(result.diagnostics.csv_only_models)
+    const rows = result.items
     models.value = rows.filter((row) => normalizedProvider(row.provider, row.name) != null)
     lastUpdated.value = new Intl.DateTimeFormat(undefined, {
       hour: '2-digit',
@@ -486,6 +479,17 @@ async function reload() {
   } finally {
     loading.value = false
   }
+}
+
+function logCSVOnlyModels(rows: Array<{ serial_number: number; id: string }>) {
+  if (!rows.length) return
+  console.warn(
+    '[LiteLLMModelView] CSV whitelist models missing from LiteLLM pricing, not shown on /model:',
+    rows.map((row) => ({
+      serial_number: row.serial_number,
+      id: row.id,
+    })),
+  )
 }
 
 onMounted(reload)
@@ -512,42 +516,6 @@ function filterModels(rows: LiteLLMModel[]) {
   })
 }
 
-function sortModels(rows: LiteLLMModel[], key: SortKey) {
-  const sorted = [...rows]
-  const byText = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true })
-  const byNumber = (a: number | null, b: number | null, dir: 'asc' | 'desc') => {
-    const av = Number.isFinite(a) && a != null ? a : Number.POSITIVE_INFINITY
-    const bv = Number.isFinite(b) && b != null ? b : Number.POSITIVE_INFINITY
-    return dir === 'asc' ? av - bv : bv - av
-  }
-  sorted.sort((a, b) => {
-    switch (key) {
-      case 'latestDesc':
-        return compareModelFreshness(a.name, b.name) || byText(a.name, b.name)
-      case 'nameDesc':
-        return byText(b.name, a.name)
-      case 'providerAsc':
-        return byText(a.provider || a.category, b.provider || b.category) || byText(a.name, b.name)
-      case 'modeAsc':
-        return byText(a.mode, b.mode) || byText(a.name, b.name)
-      case 'inputAsc':
-        return byNumber(a.input_price_per_mtok_usd, b.input_price_per_mtok_usd, 'asc') || byText(a.name, b.name)
-      case 'inputDesc':
-        return byNumber(a.input_price_per_mtok_usd, b.input_price_per_mtok_usd, 'desc') || byText(a.name, b.name)
-      case 'outputAsc':
-        return byNumber(a.output_price_per_mtok_usd, b.output_price_per_mtok_usd, 'asc') || byText(a.name, b.name)
-      case 'outputDesc':
-        return byNumber(a.output_price_per_mtok_usd, b.output_price_per_mtok_usd, 'desc') || byText(a.name, b.name)
-      case 'contextDesc':
-        return contextWindow(b) - contextWindow(a) || byText(a.name, b.name)
-      case 'nameAsc':
-      default:
-        return byText(a.name, b.name)
-    }
-  })
-  return sorted
-}
-
 function setColumnSort(next: SortKey) {
   const reverse: Partial<Record<SortKey, SortKey>> = {
     nameAsc: 'nameDesc',
@@ -557,80 +525,6 @@ function setColumnSort(next: SortKey) {
     outputDesc: 'outputAsc',
   }
   sortKey.value = sortKey.value === next && reverse[next] ? reverse[next] : next
-}
-
-interface ModelFreshness {
-  version: number
-  date: number
-  latestAlias: number
-}
-
-function compareModelFreshness(aName: string, bName: string): number {
-  const a = modelFreshness(aName)
-  const b = modelFreshness(bName)
-  return (
-    b.version - a.version ||
-    b.date - a.date ||
-    b.latestAlias - a.latestAlias
-  )
-}
-
-function modelFreshness(name: string): ModelFreshness {
-  const lower = name.toLowerCase()
-  return {
-    version: extractVersionScore(lower),
-    date: extractDateScore(lower),
-    latestAlias: /\blatest\b/.test(lower) ? 1 : 0,
-  }
-}
-
-function extractDateScore(name: string): number {
-  const scores: number[] = []
-  for (const match of name.matchAll(/\b(20\d{2})[-_.](\d{2})[-_.](\d{2})\b/g)) {
-    scores.push(Number(`${match[1]}${match[2]}${match[3]}`))
-  }
-  for (const match of name.matchAll(/\b(20\d{2})(\d{2})(\d{2})\b/g)) {
-    scores.push(Number(`${match[1]}${match[2]}${match[3]}`))
-  }
-  for (const match of name.matchAll(/\b(0[1-9]|1[0-2])[-_.](20\d{2})\b/g)) {
-    scores.push(Number(`${match[2]}${match[1]}31`))
-  }
-  return scores.length ? Math.max(...scores) : 0
-}
-
-function extractVersionScore(name: string): number {
-  const cleaned = name
-    .replace(/\b20\d{2}[-_.]?\d{2}[-_.]?\d{2}\b/g, ' ')
-    .replace(/\b(0[1-9]|1[0-2])[-_.]20\d{2}\b/g, ' ')
-    .replace(/\b(0[1-9]|1[0-2])[-_.](0[1-9]|[12]\d|3[01])\b/g, ' ')
-    .replace(/\b\d+k\b/g, ' ')
-    .replace(/\b20\d{2}\b/g, ' ')
-    .replace(/\b\d{4,}\b/g, ' ')
-
-  let score = 0
-  for (const match of cleaned.matchAll(/\b\d+\.\d+\b/g)) {
-    const value = Number(match[0])
-    if (Number.isFinite(value)) score = Math.max(score, value)
-  }
-
-  const ints = Array.from(cleaned.matchAll(/\d+/g))
-    .map((match) => Number(match[0]))
-    .filter((value) => Number.isFinite(value) && value > 0 && value < 20)
-  for (let i = 0; i < ints.length; i += 1) {
-    const current = ints[i]
-    const next = ints[i + 1]
-    if (next != null && next <= 9) {
-      score = Math.max(score, current + next / 10)
-      i += 1
-    } else {
-      score = Math.max(score, current)
-    }
-  }
-  return score
-}
-
-function contextWindow(model: LiteLLMModel): number {
-  return model.max_input_tokens || model.max_tokens || 0
 }
 
 function openDetail(model: LiteLLMModel) {

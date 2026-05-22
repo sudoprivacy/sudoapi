@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -109,6 +111,7 @@ type modelSquareCardDTO struct {
 
 type liteLLMModelDTO struct {
 	Name                            string         `json:"name"`
+	SerialNumber                    *int           `json:"serial_number"`
 	Provider                        string         `json:"provider"`
 	Mode                            string         `json:"mode"`
 	Category                        string         `json:"category"`
@@ -137,6 +140,20 @@ type liteLLMModelDTO struct {
 	RawFields                       map[string]any `json:"raw_fields"`
 }
 
+type liteLLMModelListDiagnosticsDTO struct {
+	CSVOnlyModels []modelSettingMissingLiteLLMDTO `json:"csv_only_models"`
+}
+
+type modelSettingMissingLiteLLMDTO struct {
+	SerialNumber int    `json:"serial_number"`
+	ID           string `json:"id"`
+}
+
+type liteLLMModelListResponseDTO struct {
+	Items       []liteLLMModelDTO              `json:"items"`
+	Diagnostics liteLLMModelListDiagnosticsDTO `json:"diagnostics"`
+}
+
 // ListPublic 处理 GET /api/v1/public/models。
 // 不需要 JWT；仅返回 standard 非专属分组的定价。
 func (h *ModelSquareHandler) ListPublic(c *gin.Context) {
@@ -151,11 +168,12 @@ func (h *ModelSquareHandler) ListPublic(c *gin.Context) {
 // ListLiteLLM handles GET /api/v1/public/litellm-models.
 // It returns the loaded LiteLLM model list directly, without channel filtering.
 func (h *ModelSquareHandler) ListLiteLLM(c *gin.Context) {
-	items := h.modelSquareSvc.ListLiteLLMModels()
-	out := make([]liteLLMModelDTO, 0, len(items))
-	for _, item := range items {
+	result := h.modelSquareSvc.ListLiteLLMModelsWithDiagnostics()
+	out := make([]liteLLMModelDTO, 0, len(result.Items))
+	for _, item := range result.Items {
 		out = append(out, liteLLMModelDTO{
 			Name:                            item.Name,
+			SerialNumber:                    item.SerialNumber,
 			Provider:                        item.Provider,
 			Mode:                            item.Mode,
 			Category:                        item.Category,
@@ -183,6 +201,13 @@ func (h *ModelSquareHandler) ListLiteLLM(c *gin.Context) {
 			Capabilities:                    emptyStrings(item.Capabilities),
 			RawFields:                       item.RawFields,
 		})
+	}
+	if c.Query("diagnostics") == "1" || strings.EqualFold(c.Query("diagnostics"), "true") {
+		response.Success(c, liteLLMModelListResponseDTO{
+			Items:       out,
+			Diagnostics: toLiteLLMModelListDiagnosticsDTO(result.Diagnostics),
+		})
+		return
 	}
 	response.Success(c, out)
 }
@@ -241,6 +266,17 @@ func toCardDTOs(cards []service.ModelSquareCard, userRateMultipliers map[int64]f
 		})
 	}
 	return out
+}
+
+func toLiteLLMModelListDiagnosticsDTO(in service.LiteLLMModelListDiagnostics) liteLLMModelListDiagnosticsDTO {
+	out := make([]modelSettingMissingLiteLLMDTO, 0, len(in.CSVOnlyModels))
+	for _, item := range in.CSVOnlyModels {
+		out = append(out, modelSettingMissingLiteLLMDTO{
+			SerialNumber: item.SerialNumber,
+			ID:           item.ID,
+		})
+	}
+	return liteLLMModelListDiagnosticsDTO{CSVOnlyModels: out}
 }
 
 func toOfficialPriceDTO(in *service.ModelOfficialPrice) *modelOfficialPriceDTO {

@@ -96,6 +96,7 @@ export interface ModelSquareCard {
 
 export interface LiteLLMModel {
   name: string
+  serial_number: number | null
   provider: string
   mode: string
   category: string
@@ -122,6 +123,18 @@ export interface LiteLLMModel {
   support_flags: string[]
   capabilities: string[]
   raw_fields: Record<string, unknown>
+}
+
+export interface LiteLLMModelDiagnostics {
+  csv_only_models: Array<{
+    serial_number: number
+    id: string
+  }>
+}
+
+export interface LiteLLMModelListResponse {
+  items: LiteLLMModel[]
+  diagnostics: LiteLLMModelDiagnostics
 }
 
 /** 公开入口：未登录也可调用。 */
@@ -154,10 +167,21 @@ export async function listLiteLLMModels(options?: {
   return data
 }
 
+export async function listLiteLLMModelsWithDiagnostics(options?: {
+  signal?: AbortSignal
+}): Promise<LiteLLMModelListResponse> {
+  const { data } = await apiClient.get<LiteLLMModelListResponse>('/public/litellm-models', {
+    params: { diagnostics: 1 },
+    signal: options?.signal,
+  })
+  return data
+}
+
 export const modelSquareAPI = {
   listPublicModels,
   listMyModels,
   listLiteLLMModels,
+  listLiteLLMModelsWithDiagnostics,
 }
 
 export default modelSquareAPI
