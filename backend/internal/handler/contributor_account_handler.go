@@ -6,6 +6,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -18,10 +19,16 @@ type ContributorAccountHandler struct {
 	adminService       service.AdminService
 	accountTestService *service.AccountTestService
 	oauthService       *service.OAuthService
+	openaiOAuthService *service.OpenAIOAuthService
 }
 
-func NewContributorAccountHandler(adminService service.AdminService, accountTestService *service.AccountTestService, oauthService *service.OAuthService) *ContributorAccountHandler {
-	return &ContributorAccountHandler{adminService: adminService, accountTestService: accountTestService, oauthService: oauthService}
+func NewContributorAccountHandler(adminService service.AdminService, accountTestService *service.AccountTestService, oauthService *service.OAuthService, openaiOAuthService *service.OpenAIOAuthService) *ContributorAccountHandler {
+	return &ContributorAccountHandler{
+		adminService:       adminService,
+		accountTestService: accountTestService,
+		oauthService:       oauthService,
+		openaiOAuthService: openaiOAuthService,
+	}
 }
 
 func normalizeCountryParam(country string) string {
@@ -265,6 +272,43 @@ func (h *ContributorAccountHandler) ExchangeCode(c *gin.Context) {
 	response.Success(c, tokenInfo)
 }
 
+func (h *ContributorAccountHandler) RefreshOpenAIToken(c *gin.Context) {
+	var req admin.OpenAIRefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	refreshToken := strings.TrimSpace(req.RefreshToken)
+	if refreshToken == "" {
+		refreshToken = strings.TrimSpace(req.RT)
+	}
+	if refreshToken == "" {
+		response.BadRequest(c, "refresh_token is required")
+		return
+	}
+
+	var proxyURL string
+	if req.ProxyID != nil {
+		proxy, err := h.adminService.GetProxy(c.Request.Context(), *req.ProxyID)
+		if err == nil && proxy != nil {
+			proxyURL = proxy.URL()
+		}
+	}
+
+	clientID := strings.TrimSpace(req.ClientID)
+	if clientID == "" {
+		clientID, _ = openai.OAuthClientConfigByPlatform(service.PlatformOpenAI)
+	}
+
+	tokenInfo, err := h.openaiOAuthService.RefreshTokenWithClientID(c.Request.Context(), refreshToken, proxyURL, clientID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, tokenInfo)
+}
+
 func (h *ContributorAccountHandler) ExchangeSetupTokenCode(c *gin.Context) {
 	var req admin.ExchangeCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -276,6 +320,48 @@ func (h *ContributorAccountHandler) ExchangeSetupTokenCode(c *gin.Context) {
 		SessionID: req.SessionID,
 		Code:      req.Code,
 		ProxyID:   req.ProxyID,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, tokenInfo)
+}
+
+func (h *ContributorAccountHandler) GenerateOpenAIAuthURL(c *gin.Context) {
+	var req admin.OpenAIGenerateAuthURLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req = admin.OpenAIGenerateAuthURLRequest{}
+	}
+
+	result, err := h.openaiOAuthService.GenerateAuthURL(
+		c.Request.Context(),
+		req.ProxyID,
+		req.RedirectURI,
+		service.PlatformOpenAI,
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, result)
+}
+
+func (h *ContributorAccountHandler) ExchangeOpenAICode(c *gin.Context) {
+	var req admin.OpenAIExchangeCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	tokenInfo, err := h.openaiOAuthService.ExchangeCode(c.Request.Context(), &service.OpenAIExchangeCodeInput{
+		SessionID:   req.SessionID,
+		Code:        req.Code,
+		State:       req.State,
+		RedirectURI: req.RedirectURI,
+		ProxyID:     req.ProxyID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
