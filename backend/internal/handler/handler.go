@@ -32,6 +32,7 @@ type AdminHandlers struct {
 	ScheduledTest          *admin.ScheduledTestHandler
 	Channel                *admin.ChannelHandler
 	ModelMetadata          *admin.ModelMetadataHandler
+	ModelSetting           *admin.ModelSettingHandler
 	ChannelMonitor         *admin.ChannelMonitorHandler
 	ChannelMonitorTemplate *admin.ChannelMonitorRequestTemplateHandler
 	ContentModeration      *admin.ContentModerationHandler

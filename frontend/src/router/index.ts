@@ -505,6 +505,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/model_setting',
+    name: 'AdminModelSetting',
+    component: () => import('@/views/admin/ModelSettingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Model Setting',
+      titleKey: 'admin.modelSetting.title',
+      descriptionKey: 'admin.modelSetting.description'
+    }
+  },
+  {
     path: '/monitor',
     name: 'ChannelStatus',
     component: () => import('@/views/user/ChannelStatusView.vue'),

@@ -436,10 +436,12 @@ func ProvideModelSquareService(
 	pricingSvc *PricingService,
 	metadataSvc *ModelMetadataService,
 	endpointConfigSvc *ModelEndpointConfigService,
+	modelSettingSvc *ModelSettingService,
 ) *ModelSquareService {
 	svc := NewModelSquareService(channelSvc, pricingSvc)
 	svc.SetModelMetadataReader(metadataSvc)
 	svc.SetModelEndpointConfigReader(endpointConfigSvc)
+	svc.SetModelSettingService(modelSettingSvc)
 	return svc
 }
 
@@ -527,6 +529,7 @@ var ProviderSet = wire.NewSet(
 	NewGroupCapacityService,
 	NewChannelService,
 	NewModelEndpointConfigService,
+	NewModelSettingService,
 	NewModelMetadataService,
 	NewAPIKeyModelRouteResolver,
 	NewModelPricingResolver,

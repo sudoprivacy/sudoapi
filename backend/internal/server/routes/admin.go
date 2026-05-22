@@ -89,6 +89,9 @@ func RegisterAdminRoutes(
 		// 渠道管理
 		registerChannelRoutes(admin, h)
 
+		// 模型白名单设置
+		registerModelSettingRoutes(admin, h)
+
 		// 渠道监控
 		registerChannelMonitorRoutes(admin, h)
 
@@ -97,6 +100,14 @@ func RegisterAdminRoutes(
 
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
+	}
+}
+
+func registerModelSettingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	modelSetting := admin.Group("/model_setting")
+	{
+		modelSetting.GET("", h.Admin.ModelSetting.Get)
+		modelSetting.POST("", h.Admin.ModelSetting.Upload)
 	}
 }
 
