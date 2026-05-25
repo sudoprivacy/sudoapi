@@ -60,7 +60,7 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 
 	providerType := normalizeOAuthSignupSource(input.ProviderType)
 	accountRole = normalizeEmailOAuthAccountRole(accountRole)
-	if providerType != "github" && providerType != "google" {
+	if providerType != "github" && providerType != "google" && providerType != "oidc" {
 		return nil, nil, infraerrors.BadRequest("OAUTH_PROVIDER_INVALID", "oauth provider is invalid")
 	}
 	providerKey := strings.TrimSpace(input.ProviderKey)
