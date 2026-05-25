@@ -71,6 +71,10 @@ type userSupportedModelPricing struct {
 	ImageOutputPrice *float64                 `json:"image_output_price"`
 	PerRequestPrice  *float64                 `json:"per_request_price"`
 	Intervals        []userPricingIntervalDTO `json:"intervals"`
+
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	CacheCreation5mPrice *float64 `json:"cache_creation_5m_price"`
+	CacheCreation1hPrice *float64 `json:"cache_creation_1h_price"`
 }
 
 // userPricingIntervalDTO 定价区间白名单（去掉内部 ID、SortOrder 等前端不渲染的字段）。
@@ -83,6 +87,10 @@ type userPricingIntervalDTO struct {
 	CacheWritePrice *float64 `json:"cache_write_price"`
 	CacheReadPrice  *float64 `json:"cache_read_price"`
 	PerRequestPrice *float64 `json:"per_request_price"`
+
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	CacheCreation5mPrice *float64 `json:"cache_creation_5m_price"`
+	CacheCreation1hPrice *float64 `json:"cache_creation_1h_price"`
 }
 
 // userSupportedModel 用户可见的支持模型条目。
@@ -264,6 +272,10 @@ func toUserPricing(p *service.ChannelModelPricing) *userSupportedModelPricing {
 			CacheWritePrice: iv.CacheWritePrice,
 			CacheReadPrice:  iv.CacheReadPrice,
 			PerRequestPrice: iv.PerRequestPrice,
+
+			// sudoapi: Channel TTL-specific cache creation pricing.
+			CacheCreation5mPrice: iv.CacheCreation5mPrice,
+			CacheCreation1hPrice: iv.CacheCreation1hPrice,
 		})
 	}
 	billingMode := string(p.BillingMode)
@@ -279,5 +291,9 @@ func toUserPricing(p *service.ChannelModelPricing) *userSupportedModelPricing {
 		ImageOutputPrice: p.ImageOutputPrice,
 		PerRequestPrice:  p.PerRequestPrice,
 		Intervals:        intervals,
+
+		// sudoapi: Channel TTL-specific cache creation pricing.
+		CacheCreation5mPrice: p.CacheCreation5mPrice,
+		CacheCreation1hPrice: p.CacheCreation1hPrice,
 	}
 }

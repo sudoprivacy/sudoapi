@@ -27,6 +27,9 @@ export interface UserPricingInterval {
   cache_write_price: number | null
   cache_read_price: number | null
   per_request_price: number | null
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: number | null
+  cache_creation_1h_price: number | null
 }
 
 export interface UserSupportedModelPricing {
@@ -38,6 +41,9 @@ export interface UserSupportedModelPricing {
   image_output_price: number | null
   per_request_price: number | null
   intervals: UserPricingInterval[]
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: number | null
+  cache_creation_1h_price: number | null
 }
 
 export interface UserSupportedModel {

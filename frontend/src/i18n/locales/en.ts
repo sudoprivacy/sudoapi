@@ -2644,6 +2644,10 @@ export default {
         imageTokenPrice: 'Image Output',
         imageOutputPrice: 'Image Output Price',
         pricePlaceholder: 'Default',
+        // sudoapi: Channel TTL-specific cache creation pricing.
+        cacheCreation5mPrice: 'Cache Creation 5m',
+        cacheCreation1hPrice: 'Cache Creation 1h',
+        cacheWriteFallback: 'Fallback to Cache Write Price',
         intervals: 'Context Intervals (optional)',
         addInterval: 'Add Interval',
         requestTiers: 'Request Tiers',

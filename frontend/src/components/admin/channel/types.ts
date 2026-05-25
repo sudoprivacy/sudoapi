@@ -10,6 +10,9 @@ export interface IntervalFormEntry {
   cache_read_price: number | string | null
   per_request_price: number | string | null
   sort_order: number
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: number | string | null
+  cache_creation_1h_price: number | string | null
 }
 
 export interface PricingFormEntry {
@@ -22,6 +25,9 @@ export interface PricingFormEntry {
   image_output_price: number | string | null
   per_request_price: number | string | null
   intervals: IntervalFormEntry[]
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: number | string | null
+  cache_creation_1h_price: number | string | null
 }
 
 // 价格转换：后端存 per-token，前端显示 per-MTok ($/1M tokens)
@@ -56,7 +62,10 @@ export function apiIntervalsToForm(intervals: PricingInterval[]): IntervalFormEn
     cache_write_price: perTokenToMTok(iv.cache_write_price),
     cache_read_price: perTokenToMTok(iv.cache_read_price),
     per_request_price: iv.per_request_price,
-    sort_order: iv.sort_order
+    sort_order: iv.sort_order,
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    cache_creation_5m_price: perTokenToMTok(iv.cache_creation_5m_price),
+    cache_creation_1h_price: perTokenToMTok(iv.cache_creation_1h_price)
   }))
 }
 
@@ -70,7 +79,10 @@ export function formIntervalsToAPI(intervals: IntervalFormEntry[]): PricingInter
     cache_write_price: mTokToPerToken(iv.cache_write_price),
     cache_read_price: mTokToPerToken(iv.cache_read_price),
     per_request_price: toNullableNumber(iv.per_request_price),
-    sort_order: iv.sort_order
+    sort_order: iv.sort_order,
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    cache_creation_5m_price: mTokToPerToken(iv.cache_creation_5m_price),
+    cache_creation_1h_price: mTokToPerToken(iv.cache_creation_1h_price)
   }))
 }
 
@@ -161,6 +173,8 @@ function validateIntervalPrices(iv: IntervalFormEntry, idx: number): string | nu
     ['输入价格', iv.input_price],
     ['输出价格', iv.output_price],
     ['缓存写入价格', iv.cache_write_price],
+    ['5m 缓存创建价格', iv.cache_creation_5m_price],
+    ['1h 缓存创建价格', iv.cache_creation_1h_price],
     ['缓存读取价格', iv.cache_read_price],
     ['单次价格', iv.per_request_price],
   ]

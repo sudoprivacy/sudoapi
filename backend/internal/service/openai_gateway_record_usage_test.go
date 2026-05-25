@@ -181,6 +181,11 @@ func expectedOpenAICost(t *testing.T, svc *OpenAIGatewayService, model string, u
 		OutputTokens:        usage.OutputTokens,
 		CacheCreationTokens: usage.CacheCreationInputTokens,
 		CacheReadTokens:     usage.CacheReadInputTokens,
+
+		// sudoapi: Channel TTL-specific cache creation pricing.
+		CacheCreation5mTokens: 0,
+		CacheCreation1hTokens: 0,
+		ImageOutputTokens:     0,
 	}, multiplier)
 	require.NoError(t, err)
 	return cost

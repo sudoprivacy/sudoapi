@@ -645,6 +645,9 @@ func checkPricesNotNegative(p ChannelModelPricing) error {
 		{"cache_read_price", p.CacheReadPrice},
 		{"image_output_price", p.ImageOutputPrice},
 		{"per_request_price", p.PerRequestPrice},
+		// sudoapi: Channel TTL-specific cache creation pricing.
+		{"cache_creation_5m_price", p.CacheCreation5mPrice},
+		{"cache_creation_1h_price", p.CacheCreation1hPrice},
 	}
 	for _, c := range checks {
 		if c.val != nil && *c.val < 0 {
@@ -658,7 +661,8 @@ func checkIntervalsHavePrices(p ChannelModelPricing) error {
 	for _, iv := range p.Intervals {
 		if iv.InputPrice == nil && iv.OutputPrice == nil &&
 			iv.CacheWritePrice == nil && iv.CacheReadPrice == nil &&
-			iv.PerRequestPrice == nil {
+			iv.PerRequestPrice == nil &&
+			iv.CacheCreation5mPrice == nil && iv.CacheCreation1hPrice == nil {
 			return infraerrors.BadRequest(
 				"INTERVAL_MISSING_PRICE",
 				fmt.Sprintf("interval [%d, %s] has no price fields set for model %v",

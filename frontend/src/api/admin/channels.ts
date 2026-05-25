@@ -19,6 +19,9 @@ export interface PricingInterval {
   cache_read_price: number | null
   per_request_price: number | null
   sort_order: number
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: number | null
+  cache_creation_1h_price: number | null
 }
 
 export interface ChannelModelPricing {
@@ -33,6 +36,9 @@ export interface ChannelModelPricing {
   image_output_price: number | null
   per_request_price: number | null
   intervals: PricingInterval[]
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: number | null
+  cache_creation_1h_price: number | null
 }
 
 export interface AccountStatsPricingRule {
@@ -184,6 +190,9 @@ export interface ModelDefaultPricing {
   cache_write_price?: number
   cache_read_price?: number
   image_output_price?: number
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price?: number
+  cache_creation_1h_price?: number
 }
 
 export async function getModelDefaultPricing(model: string): Promise<ModelDefaultPricing> {

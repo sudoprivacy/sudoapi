@@ -162,6 +162,18 @@ func (r *ModelPricingResolver) applyTokenOverrides(chPricing *ChannelModelPricin
 		resolved.BasePricing.CacheCreation5mPrice = *chPricing.CacheWritePrice
 		resolved.BasePricing.CacheCreation1hPrice = *chPricing.CacheWritePrice
 	}
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	if chPricing.CacheCreation5mPrice != nil {
+		resolved.BasePricing.CacheCreation5mPrice = *chPricing.CacheCreation5mPrice
+		resolved.BasePricing.SupportsCacheBreakdown = true
+		resolved.SupportsCacheBreakdown = true
+	}
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	if chPricing.CacheCreation1hPrice != nil {
+		resolved.BasePricing.CacheCreation1hPrice = *chPricing.CacheCreation1hPrice
+		resolved.BasePricing.SupportsCacheBreakdown = true
+		resolved.SupportsCacheBreakdown = true
+	}
 	if chPricing.CacheReadPrice != nil {
 		resolved.BasePricing.CacheReadPricePerToken = *chPricing.CacheReadPrice
 		resolved.BasePricing.CacheReadPricePerTokenPriority = *chPricing.CacheReadPrice
@@ -186,7 +198,8 @@ func filterValidIntervals(intervals []PricingInterval) []PricingInterval {
 	for _, iv := range intervals {
 		if iv.InputPrice != nil || iv.OutputPrice != nil ||
 			iv.CacheWritePrice != nil || iv.CacheReadPrice != nil ||
-			iv.PerRequestPrice != nil {
+			iv.PerRequestPrice != nil ||
+			iv.CacheCreation5mPrice != nil || iv.CacheCreation1hPrice != nil {
 			valid = append(valid, iv)
 		}
 	}
@@ -211,7 +224,7 @@ func (r *ModelPricingResolver) GetIntervalPricing(resolved *ResolvedPricing, tot
 // intervalToModelPricing 将区间定价转换为 ModelPricing
 func intervalToModelPricing(iv *PricingInterval, supportsCacheBreakdown bool) *ModelPricing {
 	pricing := &ModelPricing{
-		SupportsCacheBreakdown: supportsCacheBreakdown,
+		SupportsCacheBreakdown: supportsCacheBreakdown || iv.CacheCreation5mPrice != nil || iv.CacheCreation1hPrice != nil,
 	}
 	if iv.InputPrice != nil {
 		pricing.InputPricePerToken = *iv.InputPrice
@@ -225,6 +238,14 @@ func intervalToModelPricing(iv *PricingInterval, supportsCacheBreakdown bool) *M
 		pricing.CacheCreationPricePerToken = *iv.CacheWritePrice
 		pricing.CacheCreation5mPrice = *iv.CacheWritePrice
 		pricing.CacheCreation1hPrice = *iv.CacheWritePrice
+	}
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	if iv.CacheCreation5mPrice != nil {
+		pricing.CacheCreation5mPrice = *iv.CacheCreation5mPrice
+	}
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	if iv.CacheCreation1hPrice != nil {
+		pricing.CacheCreation1hPrice = *iv.CacheCreation1hPrice
 	}
 	if iv.CacheReadPrice != nil {
 		pricing.CacheReadPricePerToken = *iv.CacheReadPrice

@@ -276,6 +276,83 @@ func TestResolve_WithChannelOverride_TokenWithIntervals(t *testing.T) {
 	require.InDelta(t, 16e-6, iv2.OutputPricePerToken, 1e-12)
 }
 
+
+
+// sudoapi: Channel TTL-specific cache creation pricing.
+func TestResolve_WithChannelOverride_TokenCacheCreationTTLOverrides(t *testing.T) {
+	r := newResolverWithChannel(t, []ChannelModelPricing{{
+		Platform:             "anthropic",
+		Models:               []string{"claude-sonnet-4"},
+		BillingMode:          BillingModeToken,
+		CacheWritePrice:      testPtrFloat64(7e-6),
+		CacheCreation5mPrice: testPtrFloat64(8e-6),
+		CacheCreation1hPrice: testPtrFloat64(12e-6),
+	}})
+
+	resolved := r.Resolve(context.Background(), PricingInput{
+		Model:   "claude-sonnet-4",
+		GroupID: groupIDPtr(),
+	})
+
+	require.NotNil(t, resolved)
+	require.True(t, resolved.SupportsCacheBreakdown)
+	require.True(t, resolved.BasePricing.SupportsCacheBreakdown)
+	require.InDelta(t, 7e-6, resolved.BasePricing.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, 8e-6, resolved.BasePricing.CacheCreation5mPrice, 1e-12)
+	require.InDelta(t, 12e-6, resolved.BasePricing.CacheCreation1hPrice, 1e-12)
+}
+
+// sudoapi: Channel TTL-specific cache creation pricing.
+func TestResolve_WithChannelOverride_TokenCacheCreationTTLFallsBackToCacheWrite(t *testing.T) {
+	r := newResolverWithChannel(t, []ChannelModelPricing{{
+		Platform:             "anthropic",
+		Models:               []string{"claude-sonnet-4"},
+		BillingMode:          BillingModeToken,
+		CacheWritePrice:      testPtrFloat64(7e-6),
+		CacheCreation1hPrice: testPtrFloat64(12e-6),
+	}})
+
+	resolved := r.Resolve(context.Background(), PricingInput{
+		Model:   "claude-sonnet-4",
+		GroupID: groupIDPtr(),
+	})
+
+	require.NotNil(t, resolved)
+	require.True(t, resolved.SupportsCacheBreakdown)
+	require.InDelta(t, 7e-6, resolved.BasePricing.CacheCreation5mPrice, 1e-12)
+	require.InDelta(t, 12e-6, resolved.BasePricing.CacheCreation1hPrice, 1e-12)
+}
+
+// sudoapi: Channel TTL-specific cache creation pricing.
+func TestResolve_WithChannelOverride_TokenIntervalCacheCreationTTLOverrides(t *testing.T) {
+	r := newResolverWithChannel(t, []ChannelModelPricing{{
+		Platform:    "anthropic",
+		Models:      []string{"claude-sonnet-4"},
+		BillingMode: BillingModeToken,
+		Intervals: []PricingInterval{
+			{
+				MinTokens:            0,
+				MaxTokens:            testPtrInt(128000),
+				CacheWritePrice:      testPtrFloat64(7e-6),
+				CacheCreation5mPrice: testPtrFloat64(8e-6),
+				CacheCreation1hPrice: testPtrFloat64(12e-6),
+			},
+		},
+	}})
+
+	resolved := r.Resolve(context.Background(), PricingInput{
+		Model:   "claude-sonnet-4",
+		GroupID: groupIDPtr(),
+	})
+
+	pricing := r.GetIntervalPricing(resolved, 50000)
+	require.NotNil(t, pricing)
+	require.True(t, pricing.SupportsCacheBreakdown)
+	require.InDelta(t, 7e-6, pricing.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, 8e-6, pricing.CacheCreation5mPrice, 1e-12)
+	require.InDelta(t, 12e-6, pricing.CacheCreation1hPrice, 1e-12)
+}
+
 func TestResolve_WithChannelOverride_TokenNilBasePricing(t *testing.T) {
 	// Base pricing is nil (unknown model), channel has flat prices → creates new BasePricing.
 	r := newResolverWithChannel(t, []ChannelModelPricing{{

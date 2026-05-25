@@ -134,13 +134,15 @@ func pricingNeedsFallback(p *ChannelModelPricing) bool {
 	}
 	if p.InputPrice != nil || p.OutputPrice != nil ||
 		p.CacheWritePrice != nil || p.CacheReadPrice != nil ||
-		p.ImageOutputPrice != nil || p.PerRequestPrice != nil {
+		p.ImageOutputPrice != nil || p.PerRequestPrice != nil ||
+		p.CacheCreation5mPrice != nil || p.CacheCreation1hPrice != nil {
 		return false
 	}
 	for _, iv := range p.Intervals {
 		if iv.InputPrice != nil || iv.OutputPrice != nil ||
 			iv.CacheWritePrice != nil || iv.CacheReadPrice != nil ||
-			iv.PerRequestPrice != nil {
+			iv.PerRequestPrice != nil ||
+			iv.CacheCreation5mPrice != nil || iv.CacheCreation1hPrice != nil {
 			return false
 		}
 	}
@@ -186,6 +188,10 @@ func synthesizePricingFromLiteLLM(lp *LiteLLMModelPricing, existing *ChannelMode
 		CacheWritePrice:  nonZeroPtr(lp.CacheCreationInputTokenCost),
 		CacheReadPrice:   nonZeroPtr(lp.CacheReadInputTokenCost),
 		ImageOutputPrice: nonZeroPtr(lp.OutputCostPerImageToken),
+
+		// sudoapi: Channel TTL-specific cache creation pricing.
+		CacheCreation5mPrice: nonZeroPtr(lp.CacheCreationInputTokenCost),
+		CacheCreation1hPrice: nonZeroPtr(lp.CacheCreationInputTokenCostAbove1hr),
 	}
 }
 

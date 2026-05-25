@@ -83,6 +83,10 @@ type channelModelPricingRequest struct {
 	ImageOutputPrice *float64                 `json:"image_output_price" binding:"omitempty,min=0"`
 	PerRequestPrice  *float64                 `json:"per_request_price" binding:"omitempty,min=0"`
 	Intervals        []pricingIntervalRequest `json:"intervals"`
+
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	CacheCreation5mPrice *float64 `json:"cache_creation_5m_price" binding:"omitempty,min=0"`
+	CacheCreation1hPrice *float64 `json:"cache_creation_1h_price" binding:"omitempty,min=0"`
 }
 
 type pricingIntervalRequest struct {
@@ -95,6 +99,10 @@ type pricingIntervalRequest struct {
 	CacheReadPrice  *float64 `json:"cache_read_price"`
 	PerRequestPrice *float64 `json:"per_request_price"`
 	SortOrder       int      `json:"sort_order"`
+
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	CacheCreation5mPrice *float64 `json:"cache_creation_5m_price"`
+	CacheCreation1hPrice *float64 `json:"cache_creation_1h_price"`
 }
 
 type accountStatsPricingRuleRequest struct {
@@ -134,6 +142,10 @@ type channelModelPricingResponse struct {
 	ImageOutputPrice *float64                  `json:"image_output_price"`
 	PerRequestPrice  *float64                  `json:"per_request_price"`
 	Intervals        []pricingIntervalResponse `json:"intervals"`
+
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	CacheCreation5mPrice *float64 `json:"cache_creation_5m_price"`
+	CacheCreation1hPrice *float64 `json:"cache_creation_1h_price"`
 }
 
 type pricingIntervalResponse struct {
@@ -147,6 +159,10 @@ type pricingIntervalResponse struct {
 	CacheReadPrice  *float64 `json:"cache_read_price"`
 	PerRequestPrice *float64 `json:"per_request_price"`
 	SortOrder       int      `json:"sort_order"`
+
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	CacheCreation5mPrice *float64 `json:"cache_creation_5m_price"`
+	CacheCreation1hPrice *float64 `json:"cache_creation_1h_price"`
 }
 
 type accountStatsPricingRuleResponse struct {
@@ -241,6 +257,10 @@ func pricingToResponse(p *service.ChannelModelPricing) channelModelPricingRespon
 		ImageOutputPrice: p.ImageOutputPrice,
 		PerRequestPrice:  p.PerRequestPrice,
 		Intervals:        intervals,
+
+		// sudoapi: Channel TTL-specific cache creation pricing.
+		CacheCreation5mPrice: p.CacheCreation5mPrice,
+		CacheCreation1hPrice: p.CacheCreation1hPrice,
 	}
 }
 
@@ -256,6 +276,10 @@ func intervalToResponse(iv service.PricingInterval) pricingIntervalResponse {
 		CacheReadPrice:  iv.CacheReadPrice,
 		PerRequestPrice: iv.PerRequestPrice,
 		SortOrder:       iv.SortOrder,
+
+		// sudoapi: Channel TTL-specific cache creation pricing.
+		CacheCreation5mPrice: iv.CacheCreation5mPrice,
+		CacheCreation1hPrice: iv.CacheCreation1hPrice,
 	}
 }
 
@@ -279,6 +303,10 @@ func pricingRequestToService(reqs []channelModelPricingRequest) []service.Channe
 				CacheReadPrice:  iv.CacheReadPrice,
 				PerRequestPrice: iv.PerRequestPrice,
 				SortOrder:       iv.SortOrder,
+
+				// sudoapi: Channel TTL-specific cache creation pricing.
+				CacheCreation5mPrice: iv.CacheCreation5mPrice,
+				CacheCreation1hPrice: iv.CacheCreation1hPrice,
 			})
 		}
 		result = append(result, service.ChannelModelPricing{
@@ -292,6 +320,10 @@ func pricingRequestToService(reqs []channelModelPricingRequest) []service.Channe
 			ImageOutputPrice: r.ImageOutputPrice,
 			PerRequestPrice:  r.PerRequestPrice,
 			Intervals:        intervals,
+
+			// sudoapi: Channel TTL-specific cache creation pricing.
+			CacheCreation5mPrice: r.CacheCreation5mPrice,
+			CacheCreation1hPrice: r.CacheCreation1hPrice,
 		})
 	}
 	return result
@@ -575,6 +607,10 @@ func (h *ChannelHandler) GetModelDefaultPricing(c *gin.Context) {
 		"cache_write_price":  pricing.CacheCreationPricePerToken,
 		"cache_read_price":   pricing.CacheReadPricePerToken,
 		"image_output_price": pricing.ImageOutputPricePerToken,
+
+		// sudoapi: Channel TTL-specific cache creation pricing.
+		"cache_creation_5m_price": pricing.CacheCreation5mPrice,
+		"cache_creation_1h_price": pricing.CacheCreation1hPrice,
 	})
 }
 

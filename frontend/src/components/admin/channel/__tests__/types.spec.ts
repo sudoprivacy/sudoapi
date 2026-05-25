@@ -9,6 +9,9 @@ function makeInterval(over: Partial<IntervalFormEntry>): IntervalFormEntry {
     input_price: null,
     output_price: null,
     cache_write_price: null,
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    cache_creation_5m_price: null,
+    cache_creation_1h_price: null,
     cache_read_price: null,
     per_request_price: null,
     sort_order: 0,
