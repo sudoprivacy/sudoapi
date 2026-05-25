@@ -462,6 +462,26 @@ func TestCalculateCost_SupportsCacheBreakdown(t *testing.T) {
 	require.InDelta(t, expected5m+expected1h, cost.CacheCreationCost, 1e-10)
 }
 
+func TestCalculateCost_CacheBreakdownFallsBackToCacheWriteWithoutTTLUsage(t *testing.T) {
+	svc := &BillingService{
+		cfg: &config.Config{},
+		fallbackPrices: map[string]*ModelPricing{
+			"claude-sonnet-4": {
+				SupportsCacheBreakdown:     true,
+				CacheCreationPricePerToken: 3e-6,
+				CacheCreation5mPrice:       4e-6,
+				CacheCreation1hPrice:       6e-6,
+			},
+		},
+	}
+
+	tokens := UsageTokens{CacheCreationTokens: 100000}
+	cost, err := svc.CalculateCost("claude-sonnet-4", tokens, 1.0)
+	require.NoError(t, err)
+
+	require.InDelta(t, 0.3, cost.CacheCreationCost, 1e-10)
+}
+
 func TestCalculateCost_LargeTokenCount(t *testing.T) {
 	svc := newTestBillingService()
 
@@ -791,6 +811,22 @@ func TestGetModelPricingWithChannel_CacheWritePriceAffects5mAnd1h(t *testing.T) 
 	require.InDelta(t, 7e-6, pricing.CacheCreationPricePerToken, 1e-12)
 	require.InDelta(t, 7e-6, pricing.CacheCreation5mPrice, 1e-12)
 	require.InDelta(t, 7e-6, pricing.CacheCreation1hPrice, 1e-12)
+}
+
+func TestGetModelPricingWithChannel_CacheCreationTTLOverridesFallbackToCacheWrite(t *testing.T) {
+	svc := newTestBillingService()
+
+	chPricing := &ChannelModelPricing{
+		CacheWritePrice:      testPtrFloat64(7e-6),
+		CacheCreation1hPrice: testPtrFloat64(11e-6),
+	}
+	pricing, err := svc.GetModelPricingWithChannel("claude-sonnet-4", chPricing)
+	require.NoError(t, err)
+
+	require.True(t, pricing.SupportsCacheBreakdown)
+	require.InDelta(t, 7e-6, pricing.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, 7e-6, pricing.CacheCreation5mPrice, 1e-12)
+	require.InDelta(t, 11e-6, pricing.CacheCreation1hPrice, 1e-12)
 }
 
 func TestGetModelPricingWithChannel_CacheReadPriceAffectsPriority(t *testing.T) {

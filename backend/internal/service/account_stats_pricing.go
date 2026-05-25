@@ -194,6 +194,9 @@ func calculateTokenStatsCost(pricing *ChannelModelPricing, tokens UsageTokens) *
 				CacheWritePrice: iv.CacheWritePrice,
 				CacheReadPrice:  iv.CacheReadPrice,
 				PerRequestPrice: iv.PerRequestPrice,
+
+				CacheCreation5mPrice: iv.CacheCreation5mPrice,
+				CacheCreation1hPrice: iv.CacheCreation1hPrice,
 			}
 		}
 	}
@@ -203,9 +206,26 @@ func calculateTokenStatsCost(pricing *ChannelModelPricing, tokens UsageTokens) *
 		}
 		return *ptr
 	}
+	derefOr := func(ptr *float64, defaultValue float64) float64 {
+		if ptr == nil {
+			return defaultValue
+		}
+		return *ptr
+	}
+
+	var cacheCreationCost float64
+	cacheCreationPrice := deref(p.CacheWritePrice)
+	if tokens.CacheCreation5mTokens > 0 || tokens.CacheCreation1hTokens > 0 {
+		cacheCreation5mCost := derefOr(p.CacheCreation5mPrice, cacheCreationPrice) * float64(tokens.CacheCreation5mTokens)
+		cacheCreation1hCost := derefOr(p.CacheCreation1hPrice, cacheCreationPrice) * float64(tokens.CacheCreation1hTokens)
+		cacheCreationCost = cacheCreation5mCost + cacheCreation1hCost
+	} else {
+		cacheCreationCost = cacheCreationPrice * float64(tokens.CacheCreationTokens)
+	}
+
 	cost := float64(tokens.InputTokens)*deref(p.InputPrice) +
 		float64(tokens.OutputTokens)*deref(p.OutputPrice) +
-		float64(tokens.CacheCreationTokens)*deref(p.CacheWritePrice) +
+		cacheCreationCost +
 		float64(tokens.CacheReadTokens)*deref(p.CacheReadPrice) +
 		float64(tokens.ImageOutputTokens)*deref(p.ImageOutputPrice)
 	if cost <= 0 {

@@ -385,6 +385,14 @@ func (s *BillingService) GetModelPricingWithChannel(model string, channelPricing
 		pricing.CacheCreation5mPrice = *channelPricing.CacheWritePrice
 		pricing.CacheCreation1hPrice = *channelPricing.CacheWritePrice
 	}
+	if channelPricing.CacheCreation5mPrice != nil {
+		pricing.CacheCreation5mPrice = *channelPricing.CacheCreation5mPrice
+		pricing.SupportsCacheBreakdown = true
+	}
+	if channelPricing.CacheCreation1hPrice != nil {
+		pricing.CacheCreation1hPrice = *channelPricing.CacheCreation1hPrice
+		pricing.SupportsCacheBreakdown = true
+	}
 	if channelPricing.CacheReadPrice != nil {
 		pricing.CacheReadPricePerToken = *channelPricing.CacheReadPrice
 		pricing.CacheReadPricePerTokenPriority = *channelPricing.CacheReadPrice
@@ -546,8 +554,8 @@ func (s *BillingService) computeTokenBreakdown(
 func (s *BillingService) computeCacheCreationCost(pricing *ModelPricing, tokens UsageTokens) float64 {
 	if pricing.SupportsCacheBreakdown && (pricing.CacheCreation5mPrice > 0 || pricing.CacheCreation1hPrice > 0) {
 		if tokens.CacheCreation5mTokens == 0 && tokens.CacheCreation1hTokens == 0 && tokens.CacheCreationTokens > 0 {
-			// API 未返回 ephemeral 明细，回退到全部按 5m 单价计费
-			return float64(tokens.CacheCreationTokens) * pricing.CacheCreation5mPrice
+			// API 未返回 ephemeral 明细，回退到标准缓存写入价（渠道定价中即 CacheWritePrice）。
+			return float64(tokens.CacheCreationTokens) * pricing.CacheCreationPricePerToken
 		}
 		return float64(tokens.CacheCreation5mTokens)*pricing.CacheCreation5mPrice +
 			float64(tokens.CacheCreation1hTokens)*pricing.CacheCreation1hPrice
