@@ -471,7 +471,7 @@ func TestAuthService_Register_Success(t *testing.T) {
 
 func TestAuthService_ContributorLoginOrRegister_CreatesContributor(t *testing.T) {
 	repo := &userRepoStub{nextID: 71}
-	service := newAuthService(repo, map[string]string{SettingKeyRegistrationEnabled: "true"}, nil)
+	service := newAuthService(repo, map[string]string{SettingKeyRegistrationEnabled: "true"}, nil, nil)
 
 	token, user, err := service.ContributorLoginOrRegister(context.Background(), "contributor@test.com", "password")
 	require.NoError(t, err)
@@ -490,7 +490,7 @@ func TestAuthService_ContributorLoginOrRegister_CreatesContributor(t *testing.T)
 }
 
 func TestAuthService_ContributorLoginOrRegister_ExistingContributor(t *testing.T) {
-	service := newAuthService(&userRepoStub{}, nil, nil)
+	service := newAuthService(&userRepoStub{}, nil, nil, nil)
 	hash, err := service.HashPassword("password")
 	require.NoError(t, err)
 	existing := &User{
@@ -512,7 +512,7 @@ func TestAuthService_ContributorLoginOrRegister_ExistingContributor(t *testing.T
 }
 
 func TestAuthService_ContributorLoginOrRegister_WrongPassword(t *testing.T) {
-	service := newAuthService(&userRepoStub{}, nil, nil)
+	service := newAuthService(&userRepoStub{}, nil, nil, nil)
 	hash, err := service.HashPassword("password")
 	require.NoError(t, err)
 	service.userRepo = &userRepoStub{user: &User{
@@ -528,7 +528,7 @@ func TestAuthService_ContributorLoginOrRegister_WrongPassword(t *testing.T) {
 }
 
 func TestAuthService_ContributorLoginOrRegister_RejectsNonContributor(t *testing.T) {
-	service := newAuthService(&userRepoStub{}, nil, nil)
+	service := newAuthService(&userRepoStub{}, nil, nil, nil)
 	hash, err := service.HashPassword("password")
 	require.NoError(t, err)
 	service.userRepo = &userRepoStub{user: &User{

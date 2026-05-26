@@ -12,7 +12,7 @@ import (
 
 func TestUserHandler_BatchCreate_HappyPath(t *testing.T) {
 	router, _ := setupAdminRouter()
-	userHandler := NewUserHandler(newStubAdminService(), nil)
+	userHandler := NewUserHandler(newStubAdminService(), nil, nil, nil)
 	router.POST("/api/v1/admin/users/batch", userHandler.BatchCreate)
 
 	body, _ := json.Marshal(map[string]any{
@@ -44,7 +44,7 @@ func TestUserHandler_BatchCreate_HappyPath(t *testing.T) {
 
 func TestUserHandler_BatchCreate_EmptyUsersRejected(t *testing.T) {
 	router, _ := setupAdminRouter()
-	userHandler := NewUserHandler(newStubAdminService(), nil)
+	userHandler := NewUserHandler(newStubAdminService(), nil, nil, nil)
 	router.POST("/api/v1/admin/users/batch", userHandler.BatchCreate)
 
 	body, _ := json.Marshal(map[string]any{"users": []any{}})
