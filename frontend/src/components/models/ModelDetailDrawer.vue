@@ -264,6 +264,20 @@
                         unit="MTok"
                       />
                       <PricingRow
+                        v-if="row.billing_mode === 'token' && row.cache_creation_5m_price_per_mtok_usd != null"
+                        :label="t('modelSquare.detail.cacheCreation5mPrice')"
+                        :value="row.cache_creation_5m_price_per_mtok_usd"
+                        :mult="effectiveMultiplier(row)"
+                        unit="MTok"
+                      />
+                      <PricingRow
+                        v-if="row.billing_mode === 'token' && row.cache_creation_1h_price_per_mtok_usd != null"
+                        :label="t('modelSquare.detail.cacheCreation1hPrice')"
+                        :value="row.cache_creation_1h_price_per_mtok_usd"
+                        :mult="effectiveMultiplier(row)"
+                        unit="MTok"
+                      />
+                      <PricingRow
                         v-if="row.billing_mode === 'token' && row.image_output_price_per_mtok_usd != null"
                         :label="t('modelSquare.detail.imageOutputPrice')"
                         :value="row.image_output_price_per_mtok_usd"
@@ -287,7 +301,7 @@
                     <div class="border-b border-gray-100 px-2 py-1.5 text-[11px] font-medium text-gray-500 dark:border-dark-700 dark:text-dark-300">
                       {{ t('modelSquare.detail.intervalPrices') }}
                     </div>
-                    <table v-if="row.billing_mode === 'token'" class="min-w-[560px] w-full text-xs">
+                    <table v-if="row.billing_mode === 'token'" class="min-w-[720px] w-full text-xs">
                       <thead>
                         <tr class="border-b border-gray-100 text-left text-[11px] text-gray-400 dark:border-dark-700">
                           <th class="px-2 py-1">{{ t('modelSquare.detail.contextRange') }}</th>
@@ -295,6 +309,8 @@
                           <th class="px-2 py-1 text-right">{{ t('modelSquare.detail.outputPrice') }}</th>
                           <th class="px-2 py-1 text-right">{{ t('modelSquare.detail.cacheReadPrice') }}</th>
                           <th class="px-2 py-1 text-right">{{ t('modelSquare.detail.cacheWritePrice') }}</th>
+                          <th v-if="hasIntervalCacheCreation5m(row)" class="px-2 py-1 text-right">{{ t('modelSquare.detail.cacheCreation5mPrice') }}</th>
+                          <th v-if="hasIntervalCacheCreation1h(row)" class="px-2 py-1 text-right">{{ t('modelSquare.detail.cacheCreation1hPrice') }}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -317,6 +333,12 @@
                           </td>
                           <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
                             {{ formatIntervalPrice(iv.cache_write_price_per_mtok_usd, row, 'MTok') }}
+                          </td>
+                          <td v-if="hasIntervalCacheCreation5m(row)" class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                            {{ formatIntervalPrice(iv.cache_creation_5m_price_per_mtok_usd, row, 'MTok') }}
+                          </td>
+                          <td v-if="hasIntervalCacheCreation1h(row)" class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                            {{ formatIntervalPrice(iv.cache_creation_1h_price_per_mtok_usd, row, 'MTok') }}
                           </td>
                         </tr>
                       </tbody>
@@ -432,6 +454,14 @@ function sortedIntervals(row: ModelGroupPrice): ModelPriceInterval[] {
     if (a.min_tokens !== b.min_tokens) return a.min_tokens - b.min_tokens
     return (a.max_tokens ?? Number.MAX_SAFE_INTEGER) - (b.max_tokens ?? Number.MAX_SAFE_INTEGER)
   })
+}
+
+function hasIntervalCacheCreation5m(row: ModelGroupPrice): boolean {
+  return (row.intervals ?? []).some((iv) => iv.cache_creation_5m_price_per_mtok_usd != null)
+}
+
+function hasIntervalCacheCreation1h(row: ModelGroupPrice): boolean {
+  return (row.intervals ?? []).some((iv) => iv.cache_creation_1h_price_per_mtok_usd != null)
 }
 
 function formatIntervalRange(iv: ModelPriceInterval): string {

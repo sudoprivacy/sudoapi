@@ -62,6 +62,8 @@ type modelGroupPriceDTO struct {
 	PerRequestPriceUSD   *float64                `json:"per_request_price_usd"`
 	ChannelChain         []string                `json:"channel_chain"`
 	Intervals            []modelPriceIntervalDTO `json:"intervals"`
+	CacheCreation5mPMT   *float64                `json:"cache_creation_5m_price_per_mtok_usd"`
+	CacheCreation1hPMT   *float64                `json:"cache_creation_1h_price_per_mtok_usd"`
 }
 
 type modelPriceIntervalDTO struct {
@@ -74,6 +76,8 @@ type modelPriceIntervalDTO struct {
 	CacheWritePricePerMT *float64 `json:"cache_write_price_per_mtok_usd"`
 	PerRequestPriceUSD   *float64 `json:"per_request_price_usd"`
 	SortOrder            int      `json:"sort_order"`
+	CacheCreation5mPMT   *float64 `json:"cache_creation_5m_price_per_mtok_usd"`
+	CacheCreation1hPMT   *float64 `json:"cache_creation_1h_price_per_mtok_usd"`
 }
 
 type modelOfficialPriceDTO struct {
@@ -229,6 +233,8 @@ func toPlatformDTOs(in []service.ModelPlatformSection, rates map[int64]float64) 
 				PerRequestPriceUSD:   gp.PerRequestPrice,
 				ChannelChain:         gp.ChannelChain,
 				Intervals:            toPriceIntervalDTOs(gp.Intervals),
+				CacheCreation5mPMT:   gp.CacheCreation5mPerMTok,
+				CacheCreation1hPMT:   gp.CacheCreation1hPerMTok,
 			})
 		}
 		out = append(out, modelPlatformSectionDTO{
@@ -256,6 +262,8 @@ func toPriceIntervalDTOs(in []service.ModelGroupPriceInterval) []modelPriceInter
 			CacheWritePricePerMT: iv.CacheWritePricePerMTok,
 			PerRequestPriceUSD:   iv.PerRequestPrice,
 			SortOrder:            iv.SortOrder,
+			CacheCreation5mPMT:   iv.CacheCreation5mPerMTok,
+			CacheCreation1hPMT:   iv.CacheCreation1hPerMTok,
 		})
 	}
 	return out

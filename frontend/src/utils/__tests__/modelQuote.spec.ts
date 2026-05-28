@@ -92,9 +92,13 @@ describe('modelQuote', () => {
             cache_write_price_per_mtok_usd: null,
             per_request_price_usd: null,
             sort_order: 0,
+            cache_creation_5m_price_per_mtok_usd: null,
+            cache_creation_1h_price_per_mtok_usd: null,
           },
         ],
         channel_chain: ['hidden'],
+        cache_creation_5m_price_per_mtok_usd: null,
+        cache_creation_1h_price_per_mtok_usd: null,
       },
       {
         group_id: 2,
@@ -112,6 +116,8 @@ describe('modelQuote', () => {
         per_request_price_usd: 0.02,
         intervals: [],
         channel_chain: [],
+        cache_creation_5m_price_per_mtok_usd: null,
+        cache_creation_1h_price_per_mtok_usd: null,
       },
     ])
 

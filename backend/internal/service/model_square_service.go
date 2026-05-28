@@ -76,6 +76,9 @@ type ModelGroupPrice struct {
 
 	// 同模型在多渠道提供时记录调用链路（按渠道名稳定排序），仅展示用。
 	ChannelChain []string
+
+	CacheCreation5mPerMTok *float64
+	CacheCreation1hPerMTok *float64
 }
 
 // ModelGroupPriceInterval 单个分组价格下的上下文区间。
@@ -94,6 +97,9 @@ type ModelGroupPriceInterval struct {
 	PerRequestPrice *float64
 
 	SortOrder int
+
+	CacheCreation5mPerMTok *float64
+	CacheCreation1hPerMTok *float64
 }
 
 // ModelOfficialPrice is the LiteLLM reference price for a model.
@@ -683,6 +689,8 @@ func buildGroupPrice(g AvailableGroupRef, p *ChannelModelPricing) ModelGroupPric
 		row.PerRequestPrice = &v
 	}
 	row.Intervals = buildGroupPriceIntervals(p.Intervals)
+	row.CacheCreation5mPerMTok = scalePtrPerMillion(p.CacheCreation5mPrice)
+	row.CacheCreation1hPerMTok = scalePtrPerMillion(p.CacheCreation1hPrice)
 	return row
 }
 
@@ -705,6 +713,8 @@ func buildGroupPriceIntervals(intervals []PricingInterval) []ModelGroupPriceInte
 			CacheWritePricePerMTok: scaleIntervalPtrPerMillion(iv.CacheWritePrice),
 			PerRequestPrice:        cloneFloatPtr(iv.PerRequestPrice),
 			SortOrder:              iv.SortOrder,
+			CacheCreation5mPerMTok: scaleIntervalPtrPerMillion(iv.CacheCreation5mPrice),
+			CacheCreation1hPerMTok: scaleIntervalPtrPerMillion(iv.CacheCreation1hPrice),
 		})
 	}
 	return out
@@ -713,6 +723,7 @@ func buildGroupPriceIntervals(intervals []PricingInterval) []ModelGroupPriceInte
 func pricingIntervalHasPrice(iv PricingInterval) bool {
 	return iv.InputPrice != nil || iv.OutputPrice != nil ||
 		iv.CacheWritePrice != nil || iv.CacheReadPrice != nil ||
+		iv.CacheCreation5mPrice != nil || iv.CacheCreation1hPrice != nil ||
 		iv.PerRequestPrice != nil
 }
 

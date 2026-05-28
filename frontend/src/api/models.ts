@@ -29,6 +29,8 @@ export interface ModelPriceInterval {
   cache_write_price_per_mtok_usd: number | null
   per_request_price_usd: number | null
   sort_order: number
+  cache_creation_5m_price_per_mtok_usd: number | null
+  cache_creation_1h_price_per_mtok_usd: number | null
 }
 
 /** 单个分组下的定价行。
@@ -58,6 +60,8 @@ export interface ModelGroupPrice {
   intervals: ModelPriceInterval[]
   /** 同模型同分组在多个渠道下都有定价时的渠道名链路（已按字典序去重排序）。 */
   channel_chain: string[]
+  cache_creation_5m_price_per_mtok_usd: number | null
+  cache_creation_1h_price_per_mtok_usd: number | null
 }
 
 export interface ModelPlatformSection {
