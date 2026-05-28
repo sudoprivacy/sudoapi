@@ -63,6 +63,8 @@ type ModelGroupPrice struct {
 	OutputPricePerMTok      *float64
 	CacheReadPricePerMTok   *float64
 	CacheWritePricePerMTok  *float64
+	CacheCreation5mPerMTok  *float64
+	CacheCreation1hPerMTok  *float64
 	ImageOutputPricePerMTok *float64
 
 	// per_request / image：USD per call
@@ -87,6 +89,8 @@ type ModelGroupPriceInterval struct {
 	OutputPricePerMTok     *float64
 	CacheReadPricePerMTok  *float64
 	CacheWritePricePerMTok *float64
+	CacheCreation5mPerMTok *float64
+	CacheCreation1hPerMTok *float64
 
 	// per_request / image：USD per call
 	PerRequestPrice *float64
@@ -827,6 +831,8 @@ func buildGroupPrice(g AvailableGroupRef, p *ChannelModelPricing) ModelGroupPric
 	row.OutputPricePerMTok = scalePtrPerMillion(p.OutputPrice)
 	row.CacheReadPricePerMTok = scalePtrPerMillion(p.CacheReadPrice)
 	row.CacheWritePricePerMTok = scalePtrPerMillion(p.CacheWritePrice)
+	row.CacheCreation5mPerMTok = scalePtrPerMillion(p.CacheCreation5mPrice)
+	row.CacheCreation1hPerMTok = scalePtrPerMillion(p.CacheCreation1hPrice)
 	row.ImageOutputPricePerMTok = scalePtrPerMillion(p.ImageOutputPrice)
 	if p.PerRequestPrice != nil {
 		v := *p.PerRequestPrice
@@ -853,6 +859,8 @@ func buildGroupPriceIntervals(intervals []PricingInterval) []ModelGroupPriceInte
 			OutputPricePerMTok:     scaleIntervalPtrPerMillion(iv.OutputPrice),
 			CacheReadPricePerMTok:  scaleIntervalPtrPerMillion(iv.CacheReadPrice),
 			CacheWritePricePerMTok: scaleIntervalPtrPerMillion(iv.CacheWritePrice),
+			CacheCreation5mPerMTok: scaleIntervalPtrPerMillion(iv.CacheCreation5mPrice),
+			CacheCreation1hPerMTok: scaleIntervalPtrPerMillion(iv.CacheCreation1hPrice),
 			PerRequestPrice:        cloneFloatPtr(iv.PerRequestPrice),
 			SortOrder:              iv.SortOrder,
 		})
@@ -863,6 +871,7 @@ func buildGroupPriceIntervals(intervals []PricingInterval) []ModelGroupPriceInte
 func pricingIntervalHasPrice(iv PricingInterval) bool {
 	return iv.InputPrice != nil || iv.OutputPrice != nil ||
 		iv.CacheWritePrice != nil || iv.CacheReadPrice != nil ||
+		iv.CacheCreation5mPrice != nil || iv.CacheCreation1hPrice != nil ||
 		iv.PerRequestPrice != nil
 }
 

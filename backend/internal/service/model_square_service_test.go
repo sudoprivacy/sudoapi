@@ -148,11 +148,13 @@ func TestModelSquareService_PricePerMillionConversion(t *testing.T) {
 		GroupIDs: []int64{1},
 		ModelPricing: []ChannelModelPricing{{
 			Platform: PlatformAnthropic, Models: []string{"claude-opus-4-7"},
-			BillingMode:     BillingModeToken,
-			InputPrice:      msPtrFloat(1.75e-5),   // → 17.5 / MTok
-			OutputPrice:     msPtrFloat(8.75e-5),   // → 87.5 / MTok
-			CacheReadPrice:  msPtrFloat(1.75e-6),   // → 1.75 / MTok
-			CacheWritePrice: msPtrFloat(2.1875e-5), // → 21.875 / MTok
+			BillingMode:          BillingModeToken,
+			InputPrice:           msPtrFloat(1.75e-5),   // → 17.5 / MTok
+			OutputPrice:          msPtrFloat(8.75e-5),   // → 87.5 / MTok
+			CacheReadPrice:       msPtrFloat(1.75e-6),   // → 1.75 / MTok
+			CacheWritePrice:      msPtrFloat(2.1875e-5), // → 21.875 / MTok
+			CacheCreation5mPrice: msPtrFloat(2.5e-5),    // → 25 / MTok
+			CacheCreation1hPrice: msPtrFloat(3e-5),      // → 30 / MTok
 		}},
 	}}
 	svc := NewModelSquareService(stubChannelServiceProvider(t, channels, []Group{g}), nil)
@@ -165,6 +167,8 @@ func TestModelSquareService_PricePerMillionConversion(t *testing.T) {
 	require.InDelta(t, 87.5, *p.OutputPricePerMTok, 1e-6)
 	require.InDelta(t, 1.75, *p.CacheReadPricePerMTok, 1e-6)
 	require.InDelta(t, 21.875, *p.CacheWritePricePerMTok, 1e-6)
+	require.InDelta(t, 25, *p.CacheCreation5mPerMTok, 1e-6)
+	require.InDelta(t, 30, *p.CacheCreation1hPerMTok, 1e-6)
 }
 
 func TestModelSquareService_OfficialPriceFromLiteLLM(t *testing.T) {
@@ -278,13 +282,15 @@ func TestModelSquareService_ContextIntervalsConversion(t *testing.T) {
 			OutputPrice: msPtrFloat(2e-6),
 			Intervals: []PricingInterval{
 				{
-					MinTokens:       0,
-					MaxTokens:       msPtrInt(200000),
-					InputPrice:      msPtrFloat(3e-6),
-					OutputPrice:     msPtrFloat(1.5e-5),
-					CacheReadPrice:  msPtrFloat(3e-7),
-					CacheWritePrice: msPtrFloat(3.75e-6),
-					SortOrder:       0,
+					MinTokens:            0,
+					MaxTokens:            msPtrInt(200000),
+					InputPrice:           msPtrFloat(3e-6),
+					OutputPrice:          msPtrFloat(1.5e-5),
+					CacheReadPrice:       msPtrFloat(3e-7),
+					CacheWritePrice:      msPtrFloat(3.75e-6),
+					CacheCreation5mPrice: msPtrFloat(4e-6),
+					CacheCreation1hPrice: msPtrFloat(6e-6),
+					SortOrder:            0,
 				},
 				{
 					MinTokens:  200000,
@@ -313,6 +319,8 @@ func TestModelSquareService_ContextIntervalsConversion(t *testing.T) {
 	require.InDelta(t, 15, *intervals[0].OutputPricePerMTok, 1e-9)
 	require.InDelta(t, 0.3, *intervals[0].CacheReadPricePerMTok, 1e-9)
 	require.InDelta(t, 3.75, *intervals[0].CacheWritePricePerMTok, 1e-9)
+	require.InDelta(t, 4, *intervals[0].CacheCreation5mPerMTok, 1e-9)
+	require.InDelta(t, 6, *intervals[0].CacheCreation1hPerMTok, 1e-9)
 	require.Equal(t, 200000, intervals[1].MinTokens)
 	require.Nil(t, intervals[1].MaxTokens)
 	require.InDelta(t, 6, *intervals[1].InputPricePerMTok, 1e-9)

@@ -25,6 +25,8 @@ export interface ModelPriceInterval {
   output_price_per_mtok_usd: number | null
   cache_read_price_per_mtok_usd: number | null
   cache_write_price_per_mtok_usd: number | null
+  cache_creation_5m_price_per_mtok_usd: number | null
+  cache_creation_1h_price_per_mtok_usd: number | null
   per_request_price_usd: number | null
   sort_order: number
 }
@@ -49,6 +51,8 @@ export interface ModelGroupPrice {
   output_price_per_mtok_usd: number | null
   cache_read_price_per_mtok_usd: number | null
   cache_write_price_per_mtok_usd: number | null
+  cache_creation_5m_price_per_mtok_usd: number | null
+  cache_creation_1h_price_per_mtok_usd: number | null
   image_output_price_per_mtok_usd: number | null
   /** per_request / image 模式：每次调用价格（USD）。 */
   per_request_price_usd: number | null
