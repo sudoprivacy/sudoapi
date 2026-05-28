@@ -39,18 +39,22 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 				Endpoints: []service.ModelEndpoint{{Path: "/v1/messages", Method: "POST"}},
 				GroupPrices: []service.ModelGroupPrice{
 					{
-						GroupID:           1,
-						GroupName:         "auto",
-						SubscriptionType:  "standard",
-						IsExclusive:       false,
-						BaseRateMult:      1.0,
-						BillingMode:       service.BillingModeToken,
-						InputPricePerMTok: func() *float64 { v := 17.5; return &v }(),
+						GroupID:                1,
+						GroupName:              "auto",
+						SubscriptionType:       "standard",
+						IsExclusive:            false,
+						BaseRateMult:           1.0,
+						BillingMode:            service.BillingModeToken,
+						InputPricePerMTok:      func() *float64 { v := 17.5; return &v }(),
+						CacheCreation5mPerMTok: func() *float64 { v := 20.0; return &v }(),
+						CacheCreation1hPerMTok: func() *float64 { v := 25.0; return &v }(),
 						Intervals: []service.ModelGroupPriceInterval{{
-							MinTokens:          0,
-							MaxTokens:          func() *int { v := 200000; return &v }(),
-							InputPricePerMTok:  func() *float64 { v := 3.0; return &v }(),
-							OutputPricePerMTok: func() *float64 { v := 15.0; return &v }(),
+							MinTokens:              0,
+							MaxTokens:              func() *int { v := 200000; return &v }(),
+							InputPricePerMTok:      func() *float64 { v := 3.0; return &v }(),
+							OutputPricePerMTok:     func() *float64 { v := 15.0; return &v }(),
+							CacheCreation5mPerMTok: func() *float64 { v := 4.0; return &v }(),
+							CacheCreation1hPerMTok: func() *float64 { v := 6.0; return &v }(),
 						}},
 					},
 				},
@@ -100,6 +104,8 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 	require.Contains(t, row, "output_price_per_mtok_usd")
 	require.Contains(t, row, "cache_read_price_per_mtok_usd")
 	require.Contains(t, row, "cache_write_price_per_mtok_usd")
+	require.Contains(t, row, "cache_creation_5m_price_per_mtok_usd")
+	require.Contains(t, row, "cache_creation_1h_price_per_mtok_usd")
 	require.Contains(t, row, "intervals")
 	require.Contains(t, row, "channel_chain")
 	require.Contains(t, row, "base_rate_multiplier")
@@ -113,6 +119,8 @@ func TestToCardDTOs_FieldWhitelistShape(t *testing.T) {
 	require.Contains(t, interval, "max_tokens")
 	require.Contains(t, interval, "input_price_per_mtok_usd")
 	require.Contains(t, interval, "output_price_per_mtok_usd")
+	require.Contains(t, interval, "cache_creation_5m_price_per_mtok_usd")
+	require.Contains(t, interval, "cache_creation_1h_price_per_mtok_usd")
 }
 
 func TestToCardDTOs_UserRateMultiplierJoinsByGroupID(t *testing.T) {

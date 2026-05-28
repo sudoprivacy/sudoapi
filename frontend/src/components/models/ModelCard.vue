@@ -83,14 +83,33 @@
           {{ p.platform }}
         </span>
       </div>
-      <div v-if="minInputPriceLabel" class="text-right">
+      <div v-if="priceSummary.input || priceSummary.output" class="shrink-0 text-right">
         <div class="text-[10px] text-gray-500 dark:text-dark-400">
           {{ t("modelSquare.fromPrice") }}
         </div>
-        <div
-          class="text-xs font-semibold text-primary-600 dark:text-primary-400"
-        >
-          {{ minInputPriceLabel }}
+        <div class="space-y-0.5">
+          <div
+            v-if="priceSummary.input"
+            class="grid grid-cols-[auto_auto] gap-x-1 whitespace-nowrap text-[11px] leading-tight"
+          >
+            <span class="text-gray-500 dark:text-dark-400">{{ t("modelSquare.inputPriceShort") }}</span>
+            <span class="font-semibold text-primary-600 dark:text-primary-400">{{ priceSummary.input }}</span>
+          </div>
+          <div
+            v-if="priceSummary.output"
+            class="grid grid-cols-[auto_auto] gap-x-1 whitespace-nowrap text-[11px] leading-tight"
+          >
+            <span class="text-gray-500 dark:text-dark-400">{{ t("modelSquare.outputPriceShort") }}</span>
+            <span class="font-semibold text-primary-600 dark:text-primary-400">{{ priceSummary.output }}</span>
+          </div>
+        </div>
+      </div>
+      <div v-else-if="priceSummary.perRequest" class="shrink-0 text-right">
+        <div class="text-[10px] text-gray-500 dark:text-dark-400">
+          {{ t("modelSquare.fromPrice") }}
+        </div>
+        <div class="whitespace-nowrap text-xs font-semibold text-primary-600 dark:text-primary-400">
+          {{ priceSummary.perRequest }}
         </div>
       </div>
     </div>
@@ -151,12 +170,9 @@ function supportFlagLabel(key: string): string {
   return t(`modelSquare.capabilities.${key}`, humanizeKey(key));
 }
 
-/**
- * 「起步价」用于卡片右下角速览：取所有平台/分组中最便宜的 input_price_per_mtok_usd。
- * 若全为 null，则尝试 per_request_price_usd（按次模式）。完全无价时返回空串。
- */
-const minInputPriceLabel = computed(() => {
+const priceSummary = computed(() => {
   let minToken: number | null = null;
+  let minOutputToken: number | null = null;
   let minPerRequest: number | null = null;
   for (const platform of props.card.platforms ?? []) {
     for (const row of platform.group_prices ?? []) {
@@ -165,6 +181,11 @@ const minInputPriceLabel = computed(() => {
       if (row.input_price_per_mtok_usd != null) {
         const scaled = row.input_price_per_mtok_usd * effective;
         if (minToken == null || scaled < minToken) minToken = scaled;
+      }
+      if (row.output_price_per_mtok_usd != null) {
+        const scaled = row.output_price_per_mtok_usd * effective;
+        if (minOutputToken == null || scaled < minOutputToken)
+          minOutputToken = scaled;
       }
       if (row.per_request_price_usd != null) {
         const scaled = row.per_request_price_usd * effective;
@@ -176,6 +197,11 @@ const minInputPriceLabel = computed(() => {
           const scaled = iv.input_price_per_mtok_usd * effective;
           if (minToken == null || scaled < minToken) minToken = scaled;
         }
+        if (iv.output_price_per_mtok_usd != null) {
+          const scaled = iv.output_price_per_mtok_usd * effective;
+          if (minOutputToken == null || scaled < minOutputToken)
+            minOutputToken = scaled;
+        }
         if (iv.per_request_price_usd != null) {
           const scaled = iv.per_request_price_usd * effective;
           if (minPerRequest == null || scaled < minPerRequest)
@@ -184,12 +210,17 @@ const minInputPriceLabel = computed(() => {
       }
     }
   }
-  if (minToken != null) {
-    return `$${minToken.toFixed(2)} / MTok`;
-  }
-  if (minPerRequest != null) {
-    return `$${minPerRequest.toFixed(4)} / call`;
-  }
-  return "";
+  const input = minToken != null ? formatPrice(minToken, "MTok") : "";
+  const output =
+    minOutputToken != null ? formatPrice(minOutputToken, "MTok") : "";
+  const perRequest =
+    minPerRequest != null ? formatPrice(minPerRequest, "call") : "";
+  return { input, output, perRequest };
 });
+
+function formatPrice(value: number, unit: "MTok" | "call"): string {
+  const decimals = unit === "call" ? 4 : 2;
+  const formatted = value >= 0.01 ? value.toFixed(decimals) : value.toFixed(6);
+  return `$${formatted} / ${unit}`;
+}
 </script>

@@ -470,11 +470,11 @@ function toggleTheme() {
 
 function openModelSquare() {
   if (isAuthenticated.value) {
-    router.push('/model')
+    router.push('/models')
     return
   }
 
-  router.push({ path: '/login', query: { redirect: '/model' } })
+  router.push({ path: '/login', query: { redirect: '/models' } })
 }
 
 // Initialize theme

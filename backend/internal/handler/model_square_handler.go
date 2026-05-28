@@ -58,6 +58,8 @@ type modelGroupPriceDTO struct {
 	OutputPricePerMTok   *float64                `json:"output_price_per_mtok_usd"`
 	CacheReadPricePerMT  *float64                `json:"cache_read_price_per_mtok_usd"`
 	CacheWritePricePerMT *float64                `json:"cache_write_price_per_mtok_usd"`
+	CacheCreation5mPMT   *float64                `json:"cache_creation_5m_price_per_mtok_usd"`
+	CacheCreation1hPMT   *float64                `json:"cache_creation_1h_price_per_mtok_usd"`
 	ImageOutputPricePM   *float64                `json:"image_output_price_per_mtok_usd"`
 	PerRequestPriceUSD   *float64                `json:"per_request_price_usd"`
 	Intervals            []modelPriceIntervalDTO `json:"intervals"`
@@ -72,6 +74,8 @@ type modelPriceIntervalDTO struct {
 	OutputPricePerMTok   *float64 `json:"output_price_per_mtok_usd"`
 	CacheReadPricePerMT  *float64 `json:"cache_read_price_per_mtok_usd"`
 	CacheWritePricePerMT *float64 `json:"cache_write_price_per_mtok_usd"`
+	CacheCreation5mPMT   *float64 `json:"cache_creation_5m_price_per_mtok_usd"`
+	CacheCreation1hPMT   *float64 `json:"cache_creation_1h_price_per_mtok_usd"`
 	PerRequestPriceUSD   *float64 `json:"per_request_price_usd"`
 	SortOrder            int      `json:"sort_order"`
 }
@@ -344,6 +348,8 @@ func toPlatformDTOs(in []service.ModelPlatformSection, rates map[int64]float64) 
 				OutputPricePerMTok:   gp.OutputPricePerMTok,
 				CacheReadPricePerMT:  gp.CacheReadPricePerMTok,
 				CacheWritePricePerMT: gp.CacheWritePricePerMTok,
+				CacheCreation5mPMT:   gp.CacheCreation5mPerMTok,
+				CacheCreation1hPMT:   gp.CacheCreation1hPerMTok,
 				ImageOutputPricePM:   gp.ImageOutputPricePerMTok,
 				PerRequestPriceUSD:   gp.PerRequestPrice,
 				Intervals:            toPriceIntervalDTOs(gp.Intervals),
@@ -373,6 +379,8 @@ func toPriceIntervalDTOs(in []service.ModelGroupPriceInterval) []modelPriceInter
 			OutputPricePerMTok:   iv.OutputPricePerMTok,
 			CacheReadPricePerMT:  iv.CacheReadPricePerMTok,
 			CacheWritePricePerMT: iv.CacheWritePricePerMTok,
+			CacheCreation5mPMT:   iv.CacheCreation5mPerMTok,
+			CacheCreation1hPMT:   iv.CacheCreation1hPerMTok,
 			PerRequestPriceUSD:   iv.PerRequestPrice,
 			SortOrder:            iv.SortOrder,
 		})
