@@ -1,14 +1,14 @@
 <!-- sudoapi: Contributor account self-service authorization. -->
 
 <template>
-  <AuthLayout>
+  <ContributorAuthLayout>
     <div class="space-y-6">
       <div class="text-center">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
           {{ t('auth.welcomeBack') }}
         </h2>
         <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">
-          Claude 账号贡献者登录
+          {{ t('contributor.login.subtitle') }}
         </p>
       </div>
 
@@ -115,7 +115,7 @@
         </div>
       </form>
     </div>
-  </AuthLayout>
+  </ContributorAuthLayout>
 
   <TotpLoginModal
     v-if="show2FAModal"
@@ -131,7 +131,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { AuthLayout } from '@/components/layout'
+import ContributorAuthLayout from '@/components/layout/ContributorAuthLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import TotpLoginModal from '@/components/auth/TotpLoginModal.vue'
