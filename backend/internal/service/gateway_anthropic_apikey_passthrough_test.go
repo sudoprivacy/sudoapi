@@ -911,7 +911,9 @@ func TestGatewayService_AnthropicOAuthMimic_RewritesSystemWithBillingBlock(t *te
 			require.True(t, messages.IsArray())
 			firstMsg := messages.Array()[0]
 			require.Equal(t, "user", firstMsg.Get("role").String())
-			require.Contains(t, firstMsg.Get("content.0.text").String(), tt.wantOriginalSystem)
+			// sudoapi: Preserve system block cache control.
+			require.Equal(t, "[System Instructions]", firstMsg.Get("content.0.text").String())
+			require.Equal(t, tt.wantOriginalSystem, firstMsg.Get("content.1.text").String())
 
 			if tt.wantMetadataUserID != "" {
 				require.Equal(t, tt.wantMetadataUserID, gjson.GetBytes(upstream.lastBody, "metadata.user_id").String())

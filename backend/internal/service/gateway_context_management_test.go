@@ -353,7 +353,9 @@ func TestApplyClaudeCodeOAuthMimicryToBody_HaikuRewritesSystem(t *testing.T) {
 	require.Len(t, system, 3)
 	require.Contains(t, system[0].Get("text").String(), "x-anthropic-billing-header:")
 	require.Equal(t, claudeCodeSystemPrompt, system[1].Get("text").String())
-	require.Contains(t, gjson.GetBytes(out, "messages.0.content.0.text").String(), "Pi project instructions")
+	// sudoapi: Preserve system block cache control.
+	require.Equal(t, "[System Instructions]", gjson.GetBytes(out, "messages.0.content.0.text").String())
+	require.Equal(t, "Pi project instructions", gjson.GetBytes(out, "messages.0.content.1.text").String())
 	require.Equal(t, "claude-haiku-4-5-20251001", gjson.GetBytes(out, "model").String())
 }
 
