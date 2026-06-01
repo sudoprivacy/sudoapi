@@ -65,15 +65,29 @@
       </span>
     </div>
 
-    <!-- Footer: platforms + min price -->
-    <div class="mt-auto flex items-end justify-between gap-2 pt-2">
-      <div class="flex flex-wrap gap-1">
+    <!-- Footer: model stats + min price -->
+    <div class="mt-auto flex items-end justify-between gap-3 border-t border-gray-100 pt-3 dark:border-dark-700/60">
+      <div class="flex min-w-0 flex-wrap gap-1.5">
         <span
-          v-for="p in card.platforms"
-          :key="p.platform"
-          :class="['rounded border px-1.5 py-0.5 text-[10px] font-medium', platformBadgeClass(p.platform)]"
+          v-if="card.model_type"
+          class="max-w-[7rem] truncate rounded bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-dark-300"
+          :title="modelTypeLabel(card.model_type)"
         >
-          {{ p.platform }}
+          {{ modelTypeLabel(card.model_type) }}
+        </span>
+        <span
+          v-if="card.context_window > 0"
+          class="rounded bg-gray-50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-dark-300"
+          :title="t('modelSquare.detail.contextWindow')"
+        >
+          {{ formatTokens(card.context_window) }} ctx
+        </span>
+        <span
+          v-if="card.max_output > 0"
+          class="rounded bg-gray-50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-dark-300"
+          :title="t('modelSquare.detail.maxOutput')"
+        >
+          {{ formatTokens(card.max_output) }} out
         </span>
       </div>
       <div v-if="priceSummary.input || priceSummary.output" class="shrink-0 text-right">
@@ -113,7 +127,6 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelSquareCard } from '@/api/models'
-import { platformBadgeClass } from '@/utils/platformColors'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 
 const props = defineProps<{ card: ModelSquareCard }>()
@@ -148,7 +161,7 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   other: 'bg-gradient-to-br from-slate-400 to-slate-500',
 }
 const categoryGradient = computed(
-  () => CATEGORY_GRADIENTS[props.card.category] ?? CATEGORY_GRADIENTS.other,
+  () => CATEGORY_GRADIENTS[props.card.category?.toLowerCase()] ?? CATEGORY_GRADIENTS.other,
 )
 
 function humanizeKey(key: string): string {
@@ -161,6 +174,17 @@ function humanizeKey(key: string): string {
 
 function supportFlagLabel(key: string): string {
   return t(`modelSquare.capabilities.${key}`, humanizeKey(key));
+}
+
+function modelTypeLabel(key: string): string {
+  return t(`modelSquare.modelTypes.${key}`, humanizeKey(key))
+}
+
+function formatTokens(n: number): string {
+  if (!n || n <= 0) return '-'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1000) return `${Math.round(n / 1000)}K`
+  return String(n)
 }
 
 const priceSummary = computed(() => {
