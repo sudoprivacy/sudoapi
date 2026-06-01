@@ -124,7 +124,7 @@ type ModelPlatformSection struct {
 
 // ModelSquareCard 单个模型在广场上的展示卡片。
 //
-// Category 取值：claude / gpt / gemini / antigravity / image / embedding / other。
+// Category 默认由模型名或 LiteLLM mode 推断，也可被后台元数据覆盖为自定义展示分类。
 // ContextWindow / MaxOutput 来自 LiteLLM 的 max_input_tokens / max_output_tokens。
 // Capabilities 是派生标签（参见 deriveCapabilities），key 由前端 i18n 渲染。
 type ModelSquareCard struct {
@@ -356,8 +356,10 @@ func (s *ModelSquareService) build(
 		if cards[i].Featured != cards[j].Featured {
 			return cards[i].Featured // featured first
 		}
-		if cards[i].Category != cards[j].Category {
-			return cards[i].Category < cards[j].Category
+		leftCategory := strings.ToLower(cards[i].Category)
+		rightCategory := strings.ToLower(cards[j].Category)
+		if leftCategory != rightCategory {
+			return leftCategory < rightCategory
 		}
 		return cards[i].Name < cards[j].Name
 	})
