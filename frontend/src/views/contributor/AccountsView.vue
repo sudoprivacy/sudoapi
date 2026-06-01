@@ -1,7 +1,7 @@
 <!-- sudoapi: Account contributor review workflow. -->
 
 <template>
-  <AppLayout>
+  <ContributorLayout>
     <TablePageLayout>
       <template #filters>
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -92,13 +92,13 @@
       @close="showCreate = false"
       @created="handleCreated"
     />
-  </AppLayout>
+  </ContributorLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import AppLayout from '@/components/layout/AppLayout.vue'
+import ContributorLayout from '@/components/layout/ContributorLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
