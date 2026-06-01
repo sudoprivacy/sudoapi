@@ -107,7 +107,7 @@ func TestModelMetadataService_UpsertValidatesAndNormalizes(t *testing.T) {
 	require.NotNil(t, got)
 	require.Equal(t, "custom-model", got.ModelName)
 	require.Equal(t, "chat", got.ModelType)
-	require.Equal(t, "gpt", got.Category)
+	require.Equal(t, "GPT", got.Category)
 	require.Equal(t, []string{"reasoning", "function_calling"}, got.Capabilities)
 	require.Equal(t, []string{"text", "image"}, got.InputModalities)
 	require.Equal(t, []string{"text"}, got.OutputModalities)
@@ -115,4 +115,19 @@ func TestModelMetadataService_UpsertValidatesAndNormalizes(t *testing.T) {
 
 	_, err = svc.Upsert(context.Background(), &ModelMetadataOverride{ModelName: "x", Category: "bad value"})
 	require.ErrorIs(t, err, ErrModelMetadataInvalidField)
+}
+
+func TestModelMetadataService_UpsertPreservesCategoryCasing(t *testing.T) {
+	repo := &stubModelMetadataRepo{}
+	svc := NewModelMetadataService(repo, nil, nil)
+
+	_, err := svc.Upsert(context.Background(), &ModelMetadataOverride{
+		ModelName: "custom-model",
+		Category:  "OpenAI",
+	})
+	require.NoError(t, err)
+
+	got := repo.items["custom-model"]
+	require.NotNil(t, got)
+	require.Equal(t, "OpenAI", got.Category)
 }

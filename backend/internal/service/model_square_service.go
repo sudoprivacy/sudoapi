@@ -356,8 +356,10 @@ func (s *ModelSquareService) build(
 		if cards[i].Featured != cards[j].Featured {
 			return cards[i].Featured // featured first
 		}
-		if cards[i].Category != cards[j].Category {
-			return cards[i].Category < cards[j].Category
+		leftCategory := strings.ToLower(cards[i].Category)
+		rightCategory := strings.ToLower(cards[j].Category)
+		if leftCategory != rightCategory {
+			return leftCategory < rightCategory
 		}
 		return cards[i].Name < cards[j].Name
 	})
