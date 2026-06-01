@@ -818,6 +818,9 @@ func buildClaudeOAuthSystemPromptBlocksJSON(body []byte, expansionPrompt string,
 		blocks = defaultClaudeOAuthSystemPromptBlockConfig()
 	}
 
+	// sudoapi: Preserve system block cache control.
+	ttlForBody := systemCacheControlTTLForBody(body)
+
 	items := make([][]byte, 0, len(blocks))
 	for i, block := range blocks {
 		if block.Enabled != nil && !*block.Enabled {
@@ -837,10 +840,8 @@ func buildClaudeOAuthSystemPromptBlocksJSON(body []byte, expansionPrompt string,
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
-		cacheControl, err := decodeClaudeOAuthSystemPromptCacheControl(block.CacheControl)
-		if err != nil {
-			return nil, fmt.Errorf("system block %d cache_control: %w", i, err)
-		}
+		// sudoapi: Preserve system block cache control.
+		cacheControl := mixingCacheControl(block.CacheControl, ttlForBody)
 		raw, err := marshalAnthropicSystemTextBlockWithCacheControl(text, cacheControl)
 		if err != nil {
 			return nil, err
@@ -908,7 +909,7 @@ func rewriteSystemForNonClaudeCodeWithPromptBlocks(body []byte, system any, expa
 	expansionPrompt = defaultClaudeOAuthExpansionPrompt(expansionPrompt)
 
 	// 1. 提取原始 system prompt 文本及其缓存断点
-	originalSystemText, originalSystemCacheControl := extractSystemTextAndCacheControl(system)
+	originalSystemBlocks := extractSystemBlocks(system)
 
 	// 2. 构造 system 数组，对齐真实 Claude Code CLI 的 3-block 形态：
 	//    [0] billing attribution block（cc_version={cliVer}.{fp}; cc_entrypoint=cli;）
@@ -939,20 +940,11 @@ func rewriteSystemForNonClaudeCodeWithPromptBlocks(body []byte, system any, expa
 
 	// 3. 将原始 system prompt 作为 user/assistant 消息对注入到 messages 开头
 	//    模型仍通过 messages 接收完整指令，保留客户端功能
-	ccPromptTrimmed := strings.TrimSpace(claudeCodeSystemPrompt)
-	if originalSystemText != "" && originalSystemText != ccPromptTrimmed && !hasClaudeCodePrefix(originalSystemText) {
-		instructionBlock := map[string]any{
-			"type": "text",
-			"text": "[System Instructions]\n" + originalSystemText,
-		}
-		if originalSystemCacheControl != nil {
-			instructionBlock["cache_control"] = originalSystemCacheControl
-		}
+	// sudoapi: Preserve system block cache control.
+	if len(originalSystemBlocks) > 0 {
 		instrMsg, err1 := json.Marshal(map[string]any{
 			"role": "user",
-			"content": []map[string]any{
-				instructionBlock,
-			},
+			"content": originalSystemBlocks,
 		})
 		ackMsg, err2 := json.Marshal(map[string]any{
 			"role": "assistant",
