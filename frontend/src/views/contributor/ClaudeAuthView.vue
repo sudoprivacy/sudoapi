@@ -1,7 +1,7 @@
 <!-- sudoapi: Contributor account self-service authorization. -->
 
 <template>
-  <div class="min-h-screen bg-gray-50 px-4 py-6 dark:bg-dark-950 sm:px-6 lg:px-8">
+  <ContributorLayout content-class="px-4 py-6 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-3xl">
       <div
         v-if="submittedCurrentPlatform"
@@ -121,7 +121,7 @@
         </button>
       </div>
     </div>
-  </div>
+  </ContributorLayout>
 </template>
 
 <script setup lang="ts">
@@ -129,6 +129,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import OAuthAuthorizationFlow from '@/components/account/OAuthAuthorizationFlow.vue'
+import ContributorLayout from '@/components/layout/ContributorLayout.vue'
 import { contributorAPI } from '@/api/contributor'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'

@@ -1547,6 +1547,14 @@ export default {
 
   // sudoapi: Account contributor review workflow.
   contributor: {
+    // sudoapi: Contributor account self-service authorization.
+    login: {
+      title: 'Contributor Login',
+      subtitle: 'Account contributor login'
+    },
+    authorization: {
+      title: 'Account Authorization'
+    },
     accounts: {
       title: 'My Model Accounts',
       description: 'Add and maintain model accounts you submitted. They are scheduled only after admin approval.',

@@ -177,6 +177,15 @@ vi.mock('@/components/account/OAuthAuthorizationFlow.vue', () => ({
   })
 }))
 
+vi.mock('@/components/layout/ContributorLayout.vue', () => ({
+  default: defineComponent({
+    name: 'ContributorLayout',
+    setup(_, { slots }) {
+      return () => h('div', slots.default?.())
+    }
+  })
+}))
+
 const proxyA = {
   id: 10,
   name: 'proxy-a',

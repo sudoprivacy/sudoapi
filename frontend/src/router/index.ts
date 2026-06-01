@@ -54,7 +54,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/auth/ContributorLoginView.vue'),
     meta: {
       requiresAuth: false,
-      title: 'Contributor Login'
+      title: 'Contributor Login',
+      // sudoapi: Contributor account self-service authorization.
+      titleKey: 'contributor.login.title'
     }
   },
   {
@@ -550,7 +552,9 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAccountContributor: true,
-      title: 'Claude Account Authorization'
+      // sudoapi: Contributor account self-service authorization.
+      title: 'Account Authorization',
+      titleKey: 'contributor.authorization.title'
     }
   },
   {
