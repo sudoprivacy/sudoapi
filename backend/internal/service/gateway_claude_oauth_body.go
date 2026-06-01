@@ -799,6 +799,9 @@ func buildClaudeOAuthSystemPromptBlocksJSON(body []byte, expansionPrompt string,
 		blocks = defaultClaudeOAuthSystemPromptBlockConfig()
 	}
 
+	// sudoapi: Preserve system block cache control.
+	ttlForBody := systemCacheControlTTLForBody(body)
+
 	items := make([][]byte, 0, len(blocks))
 	for i, block := range blocks {
 		if block.Enabled != nil && !*block.Enabled {
@@ -818,11 +821,9 @@ func buildClaudeOAuthSystemPromptBlocksJSON(body []byte, expansionPrompt string,
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
-		cacheControl, err := decodeClaudeOAuthSystemPromptCacheControl(block.CacheControl)
-		if err != nil {
-			return nil, fmt.Errorf("system block %d cache_control: %w", i, err)
-		}
-		raw, err := marshalAnthropicSystemTextBlockWithCacheControl(text, cacheControl)
+		// sudoapi: Preserve system block cache control.
+		cacheControl := mixingCacheControlTTL(block.CacheControl, ttlForBody)
+		raw, err := marshalAnthropicSystemTextBlockWithTTL(text, cacheControl)
 		if err != nil {
 			return nil, err
 		}
@@ -858,21 +859,31 @@ func rewriteSystemForNonClaudeCodeWithPromptBlocks(body []byte, system any, expa
 	system = normalizeSystemParam(system)
 	expansionPrompt = defaultClaudeOAuthExpansionPrompt(expansionPrompt)
 
-	// 1. 提取原始 system prompt 文本
-	var originalSystemText string
+	// 1. 提取原始 system prompt 文本 和可迁移的 content blocks
+	originalSystemBlocks := []map[string]any{{"type": "text", "text": "[System Instructions]"}}
+	ccPromptTrimmed := strings.TrimSpace(claudeCodeSystemPrompt)
 	switch v := system.(type) {
 	case string:
-		originalSystemText = strings.TrimSpace(v)
+		textTrimmed := strings.TrimSpace(v)
+		if textTrimmed != "" && textTrimmed != ccPromptTrimmed && !hasClaudeCodePrefix(textTrimmed) {
+			originalSystemBlocks = append(originalSystemBlocks, map[string]any{"type": "text", "text": textTrimmed})
+		}
 	case []any:
-		var parts []string
 		for _, item := range v {
 			if m, ok := item.(map[string]any); ok {
 				if text, ok := m["text"].(string); ok && strings.TrimSpace(text) != "" {
-					parts = append(parts, text)
+					// sudoapi: Preserve system block cache control.
+					textTrimmed := strings.TrimSpace(text)
+					if textTrimmed != "" && textTrimmed != ccPromptTrimmed && !hasClaudeCodePrefix(textTrimmed) {
+						block := map[string]any{"type": "text", "text": textTrimmed}
+						if cacheControl, ok := m["cache_control"]; ok {
+							block["cache_control"] = cacheControl
+						}
+						originalSystemBlocks = append(originalSystemBlocks, block)
+					}
 				}
 			}
 		}
-		originalSystemText = strings.Join(parts, "\n\n")
 	}
 
 	// 2. 构造 system 数组，对齐真实 Claude Code CLI 的 3-block 形态：
@@ -904,14 +915,9 @@ func rewriteSystemForNonClaudeCodeWithPromptBlocks(body []byte, system any, expa
 
 	// 3. 将原始 system prompt 作为 user/assistant 消息对注入到 messages 开头
 	//    模型仍通过 messages 接收完整指令，保留客户端功能
-	ccPromptTrimmed := strings.TrimSpace(claudeCodeSystemPrompt)
-	if originalSystemText != "" && originalSystemText != ccPromptTrimmed && !hasClaudeCodePrefix(originalSystemText) {
-		instrMsg, err1 := json.Marshal(map[string]any{
-			"role": "user",
-			"content": []map[string]any{
-				{"type": "text", "text": "[System Instructions]\n" + originalSystemText},
-			},
-		})
+	// sudoapi: Preserve system block cache control.
+	if len(originalSystemBlocks) > 1 {
+		instrMsg, err1 := json.Marshal(map[string]any{"role": "user", "content": originalSystemBlocks})
 		ackMsg, err2 := json.Marshal(map[string]any{
 			"role": "assistant",
 			"content": []map[string]any{
@@ -1207,4 +1213,74 @@ func (s *GatewayService) claudeOAuthSystemPromptInjectionSettings(ctx context.Co
 		return true, "", ""
 	}
 	return s.settingService.GetClaudeOAuthSystemPromptInjectionSettings(ctx)
+}
+
+// sudoapi: Preserve system block cache control.
+// see decodeClaudeOAuthSystemPromptCacheControl
+func mixingCacheControlTTL(raw json.RawMessage, ttlForBody string) string {
+	cc := gjson.ParseBytes(raw)
+	if cc.Type == gjson.True {
+		if ttlForBody == cacheTTLTarget1h {
+			return cacheTTLTarget1h
+		}
+		return cacheTTLTarget5m
+	}
+	if ttl := cc.Get("ttl"); ttl.Exists() {
+		if ttlForBody == cacheTTLTarget1h {
+			return cacheTTLTarget1h
+		}
+		return ttl.String()
+	}
+	return ""
+}
+
+func marshalAnthropicSystemTextBlockWithTTL(text string, cacheControlTTL string) ([]byte, error) {
+	block := anthropicSystemTextBlockPayload{
+		Type: "text",
+		Text: text,
+	}
+	if cacheControlTTL != "" {
+		block.CacheControl = &anthropicCacheControlPayload{
+			Type: "ephemeral",
+			TTL:  cacheControlTTL,
+		}
+	}
+	return json.Marshal(block)
+}
+
+func systemCacheControlTTLForBody(body []byte) string {
+	if len(body) == 0 {
+		return cacheTTLTarget5m
+	}
+	if topCC := gjson.GetBytes(body, "cache_control"); topCC.Exists() && topCC.Get("type").String() == "ephemeral" && topCC.Get("ttl").String() == cacheTTLTarget1h {
+		return cacheTTLTarget1h
+	}
+	match1h := func(value gjson.Result) bool {
+		cc := value.Get("cache_control")
+		return cc.Exists() && cc.Get("type").String() == "ephemeral" && cc.Get("ttl").String() == cacheTTLTarget1h
+	}
+	if jsonArrayHasMatch(gjson.GetBytes(body, "system"), match1h) {
+		return cacheTTLTarget1h
+	}
+	if jsonArrayHasMatch(gjson.GetBytes(body, "tools"), match1h) {
+		return cacheTTLTarget1h
+	}
+	if jsonArrayHasMatch(gjson.GetBytes(body, "messages"), func(msg gjson.Result) bool {
+		return jsonArrayHasMatch(msg.Get("content"), match1h)
+	}) {
+		return cacheTTLTarget1h
+	}
+	return cacheTTLTarget5m
+}
+
+func jsonArrayHasMatch(array gjson.Result, matches func(gjson.Result) bool) bool {
+	if !array.IsArray() {
+		return false
+	}
+	found := false
+	array.ForEach(func(_, item gjson.Result) bool {
+		found = matches(item)
+		return !found
+	})
+	return found
 }
