@@ -1551,6 +1551,14 @@ export default {
 
   // sudoapi: Account contributor review workflow.
   contributor: {
+    // sudoapi: Contributor account self-service authorization.
+    login: {
+      title: '贡献者登录',
+      subtitle: '账号贡献者登录'
+    },
+    authorization: {
+      title: '账号授权'
+    },
     accounts: {
       title: '我的大模型账号',
       description: '添加和维护你提交的大模型账号，管理员审核通过后才会参与调度。',
