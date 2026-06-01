@@ -464,12 +464,12 @@ const columns = computed<Column[]>(() => [
 ])
 
 const categoryOptions = computed(() =>
-  sortedUnique([
+  sortedUniqueCaseInsensitive([
     ...rememberedCategoryOptions.value,
-    ...configuredPlatforms.value,
-    ...items.value.flatMap((item) => item.platforms || []),
     ...items.value.map((item) => item.metadata.category),
     ...items.value.map((item) => item.override?.category || ''),
+    ...configuredPlatforms.value,
+    ...items.value.flatMap((item) => item.platforms || []),
   ]).map((value) => ({
     value,
     label: categoryOptionLabel(value),
@@ -668,9 +668,9 @@ function selectCategoryOption(value: string) {
 }
 
 function rememberCategoryOption(value: string) {
-  const category = value.trim().toLowerCase()
+  const category = value.trim()
   if (!category) return
-  rememberedCategoryOptions.value = sortedUnique([
+  rememberedCategoryOptions.value = sortedUniqueCaseInsensitive([
     ...rememberedCategoryOptions.value,
     category,
   ])
@@ -716,6 +716,20 @@ function formatTokens(n: number): string {
 
 function sortedUnique(values: string[]): string[] {
   return Array.from(new Set(values.map((v) => v.trim().toLowerCase()).filter(Boolean))).sort()
+}
+
+function sortedUniqueCaseInsensitive(values: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of values) {
+    const value = raw.trim()
+    if (!value) continue
+    const key = value.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(value)
+  }
+  return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
 }
 
 function humanizeKey(key: string): string {

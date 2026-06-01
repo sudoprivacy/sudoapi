@@ -364,7 +364,7 @@ func TestModelSquareService_AppliesModelMetadataOverrides(t *testing.T) {
 			ModelName:     "custom-model",
 			DisplayName:   "Custom Model",
 			Description:   "Admin maintained description",
-			Category:      "gpt",
+			Category:      "OpenAI",
 			ContextWindow: 128000,
 			MaxOutput:     8192,
 			Capabilities:  []string{"reasoning", "function_calling"},
@@ -379,7 +379,7 @@ func TestModelSquareService_AppliesModelMetadataOverrides(t *testing.T) {
 	card := cards[0]
 	require.Equal(t, "Custom Model", card.DisplayName)
 	require.Equal(t, "Admin maintained description", card.Description)
-	require.Equal(t, "gpt", card.Category)
+	require.Equal(t, "OpenAI", card.Category)
 	require.Equal(t, 128000, card.ContextWindow)
 	require.Equal(t, 8192, card.MaxOutput)
 	require.Equal(t, []string{"reasoning", "function_calling"}, card.Capabilities)

@@ -208,7 +208,7 @@ func cleanModelMetadataOverride(in ModelMetadataOverride) (ModelMetadataOverride
 	}
 	in.DisplayName = strings.TrimSpace(in.DisplayName)
 	in.Description = strings.TrimSpace(in.Description)
-	in.Category = strings.TrimSpace(strings.ToLower(in.Category))
+	in.Category = strings.TrimSpace(in.Category)
 	in.ModelType = strings.TrimSpace(strings.ToLower(in.ModelType))
 	in.IconURL = strings.TrimSpace(in.IconURL)
 	if in.ContextWindow < 0 || in.MaxOutput < 0 {
@@ -256,11 +256,11 @@ func isValidModelMetadataCategory(category string) bool {
 		return false
 	}
 	for i, r := range category {
-		valid := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-'
+		valid := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-'
 		if !valid {
 			return false
 		}
-		if i == 0 && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+		if i == 0 && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
 			return false
 		}
 	}

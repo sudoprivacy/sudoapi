@@ -130,22 +130,11 @@
               {{ t('modelSquare.detail.endpointsHint') }}
             </p>
             <div class="space-y-3">
-              <div
-                v-for="platform in card.platforms"
-                :key="platform.platform"
-                class="rounded-lg border border-gray-200 p-3 dark:border-dark-700"
-              >
-                <div class="mb-2 flex items-center gap-2">
-                  <span
-                    :class="['rounded border px-1.5 py-0.5 text-[11px] font-medium', platformBadgeClass(platform.platform)]"
-                  >
-                    {{ platform.platform }}
-                  </span>
-                </div>
+              <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
                 <ul class="space-y-1.5">
                   <li
-                    v-for="ep in platform.endpoints"
-                    :key="`${platform.platform}-${ep.path}-${ep.method}`"
+                    v-for="ep in uniqueEndpoints"
+                    :key="`${ep.path}-${ep.method}`"
                     class="flex items-center gap-2 font-mono text-xs"
                   >
                     <span class="rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-700 dark:text-green-300">
@@ -171,13 +160,6 @@
                 v-for="platform in card.platforms"
                 :key="platform.platform"
               >
-                <div class="mb-1.5 flex items-center gap-2 text-xs text-gray-600 dark:text-dark-300">
-                  <span
-                    :class="['rounded border px-1.5 py-0.5 text-[11px] font-medium', platformBadgeClass(platform.platform)]"
-                  >
-                    {{ platform.platform }}
-                  </span>
-                </div>
                 <div v-if="!platform.group_prices.length" class="text-xs text-gray-500 dark:text-dark-400">
                   {{ t('modelSquare.detail.noPricing') }}
                 </div>
@@ -384,7 +366,6 @@
 import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelSquareCard, ModelGroupPrice, ModelPriceInterval } from '@/api/models'
-import { platformBadgeClass } from '@/utils/platformColors'
 import Icon from '@/components/icons/Icon.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import PricingRow from './PricingRow.vue'
@@ -414,13 +395,27 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   other: 'bg-gradient-to-br from-slate-400 to-slate-500',
 }
 const categoryGradient = computed(
-  () => CATEGORY_GRADIENTS[props.card?.category ?? 'other'] ?? CATEGORY_GRADIENTS.other,
+  () => CATEGORY_GRADIENTS[props.card?.category?.toLowerCase() ?? 'other'] ?? CATEGORY_GRADIENTS.other,
 )
 
 const supportFlags = computed(() => {
   const card = props.card
   if (!card) return []
   return card.support_flags?.length ? card.support_flags : (card.capabilities ?? [])
+})
+
+const uniqueEndpoints = computed(() => {
+  const seen = new Set<string>()
+  const out: Array<{ path: string; method: string }> = []
+  for (const platform of props.card?.platforms ?? []) {
+    for (const endpoint of platform.endpoints ?? []) {
+      const key = `${endpoint.method}:${endpoint.path}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(endpoint)
+    }
+  }
+  return out
 })
 
 function humanizeKey(key: string): string {
