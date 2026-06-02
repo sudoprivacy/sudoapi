@@ -4627,6 +4627,11 @@ export default {
       nameRequired: 'Please enter proxy name',
       hostRequired: 'Please enter host address',
       portInvalid: 'Port must be between 1-65535',
+      // sudoapi: Account contributor review workflow.
+      copyContributorLoginLink: 'Contributor link',
+      copyContributorLoginLinkTitle: 'Copy contributor authorization link',
+      contributorLoginLinkCopied: 'Contributor link copied',
+      countryCodeRequiredForContributorLink: 'Detect country code first',
       deleteConfirm:
         "Are you sure you want to delete '{name}'? Accounts using this proxy will have their proxy removed."
     },

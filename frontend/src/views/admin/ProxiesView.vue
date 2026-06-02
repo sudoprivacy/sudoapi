@@ -137,6 +137,7 @@
               <code class="code text-xs">{{ row.host }}:{{ row.port }}</code>
               <div class="relative">
                 <button
+                  data-test="copy-proxy-url"
                   type="button"
                   class="rounded p-0.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
                   :title="t('admin.proxies.copyProxyUrl')"
@@ -307,6 +308,17 @@
                 </svg>
                 <Icon v-else name="shield" size="sm" />
                 <span class="text-xs">{{ t('admin.proxies.qualityCheck') }}</span>
+              </button>
+              <!-- sudoapi: Account contributor review workflow. -->
+              <button
+                data-test="copy-contributor-login-link"
+                @click="copyContributorLoginLink(row)"
+                :disabled="!hasContributorCountry(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400"
+                :title="hasContributorCountry(row) ? t('admin.proxies.copyContributorLoginLinkTitle') : t('admin.proxies.countryCodeRequiredForContributorLink')"
+              >
+                <Icon name="link" size="sm" />
+                <span class="text-xs">{{ t('admin.proxies.copyContributorLoginLink') }}</span>
               </button>
               <button
                 @click="handleEdit(row)"
@@ -899,6 +911,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useSwipeSelect } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { buildContributorLoginLink as buildContributorLoginLinkUrl, normalizeContributorCountryCode } from '@/utils/contributorLoginLink'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -1869,6 +1882,27 @@ function toggleCopyMenu(id: number) {
 function copyFormat(value: string) {
   copyToClipboard(value, t('admin.proxies.urlCopied'))
   copyMenuProxyId.value = null
+}
+
+// sudoapi: Account contributor review workflow.
+function normalizedContributorCountry(row: Pick<Proxy, 'country_code'>): string {
+  return normalizeContributorCountryCode(row.country_code)
+}
+
+// sudoapi: Account contributor review workflow.
+function hasContributorCountry(row: Pick<Proxy, 'country_code'>): boolean {
+  return normalizedContributorCountry(row) !== ''
+}
+
+// sudoapi: Account contributor review workflow.
+function buildContributorLoginLink(row: Pick<Proxy, 'country_code'>): string {
+  return buildContributorLoginLinkUrl(row.country_code, window.location.origin) || ''
+}
+
+// sudoapi: Account contributor review workflow.
+function copyContributorLoginLink(row: Pick<Proxy, 'country_code'>) {
+  if (!hasContributorCountry(row)) return
+  copyToClipboard(buildContributorLoginLink(row), t('admin.proxies.contributorLoginLinkCopied'))
 }
 
 function closeCopyMenu() {
