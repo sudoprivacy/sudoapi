@@ -5,11 +5,16 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -147,4 +152,109 @@ func TestToCardDTOs_UserRateMultiplierJoinsByGroupID(t *testing.T) {
 	require.NotNil(t, prices[0].UserRateMultiplier)
 	require.InDelta(t, 0.8, *prices[0].UserRateMultiplier, 1e-9)
 	require.Nil(t, prices[1].UserRateMultiplier)
+}
+
+func TestModelSquareHandler_ListAuthenticatedJoinsUserGroupRates(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	inputPrice := 2e-6
+	group := service.Group{
+		ID:               7,
+		Name:             "vip",
+		Platform:         service.PlatformAnthropic,
+		SubscriptionType: service.SubscriptionTypeStandard,
+		IsExclusive:      true,
+		RateMultiplier:   0.5,
+		Status:           service.StatusActive,
+	}
+	channelRepo := &modelSquareHandlerChannelRepoStub{channels: []service.Channel{{
+		ID:       10,
+		Name:     "vip-channel",
+		Status:   service.StatusActive,
+		GroupIDs: []int64{group.ID},
+		ModelPricing: []service.ChannelModelPricing{{
+			Platform:    service.PlatformAnthropic,
+			Models:      []string{"claude-test"},
+			BillingMode: service.BillingModeToken,
+			InputPrice:  &inputPrice,
+		}},
+	}}}
+	groupRepo := &modelSquareHandlerGroupRepoStub{groups: []service.Group{group}}
+	channelSvc := service.NewChannelService(channelRepo, groupRepo, nil, nil)
+	modelSquareSvc := service.NewModelSquareService(channelSvc, nil)
+	userID := int64(77)
+	apiKeySvc := service.NewAPIKeyService(
+		nil,
+		&modelSquareHandlerUserRepoStub{user: &service.User{ID: userID, AllowedGroups: []int64{group.ID}}},
+		groupRepo,
+		&modelSquareHandlerSubscriptionRepoStub{},
+		&modelSquareHandlerRateRepoStub{rates: map[int64]float64{group.ID: 0.8}},
+		nil,
+		nil,
+	)
+	h := NewModelSquareHandler(modelSquareSvc, apiKeySvc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/models", nil)
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: userID})
+
+	h.ListAuthenticated(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var body struct {
+		Code int                  `json:"code"`
+		Data []modelSquareCardDTO `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Equal(t, 0, body.Code)
+	require.Len(t, body.Data, 1)
+	prices := body.Data[0].Platforms[0].GroupPrices
+	require.Len(t, prices, 1)
+	require.Equal(t, group.ID, prices[0].GroupID)
+	require.NotNil(t, prices[0].UserRateMultiplier)
+	require.InDelta(t, 0.8, *prices[0].UserRateMultiplier, 1e-9)
+}
+
+type modelSquareHandlerChannelRepoStub struct {
+	service.ChannelRepository
+	channels []service.Channel
+}
+
+func (s *modelSquareHandlerChannelRepoStub) ListAll(context.Context) ([]service.Channel, error) {
+	return s.channels, nil
+}
+
+type modelSquareHandlerGroupRepoStub struct {
+	service.GroupRepository
+	groups []service.Group
+}
+
+func (s *modelSquareHandlerGroupRepoStub) ListActive(context.Context) ([]service.Group, error) {
+	return s.groups, nil
+}
+
+type modelSquareHandlerUserRepoStub struct {
+	service.UserRepository
+	user *service.User
+}
+
+func (s *modelSquareHandlerUserRepoStub) GetByID(context.Context, int64) (*service.User, error) {
+	return s.user, nil
+}
+
+type modelSquareHandlerSubscriptionRepoStub struct {
+	service.UserSubscriptionRepository
+}
+
+func (s *modelSquareHandlerSubscriptionRepoStub) ListActiveByUserID(context.Context, int64) ([]service.UserSubscription, error) {
+	return nil, nil
+}
+
+type modelSquareHandlerRateRepoStub struct {
+	service.UserGroupRateRepository
+	rates map[int64]float64
+}
+
+func (s *modelSquareHandlerRateRepoStub) GetByUserID(context.Context, int64) (map[int64]float64, error) {
+	return s.rates, nil
 }

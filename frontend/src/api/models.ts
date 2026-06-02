@@ -37,7 +37,8 @@ export interface ModelPriceInterval {
  *
  *  调用方展示有效倍率：
  *    effective = base_rate_multiplier × (user_rate_multiplier ?? 1)
- *  effective × *_per_mtok_usd = 实际单价。
+ *  effective × *_per_mtok_usd = 实际单价。认证态 /models 响应会由后端
+ *  join 当前用户的专属分组倍率；公开 /public/models 始终为 null。
  */
 export interface ModelGroupPrice {
   group_id: number
@@ -45,7 +46,7 @@ export interface ModelGroupPrice {
   subscription_type: string
   is_exclusive: boolean
   base_rate_multiplier: number
-  /** 仅登录态且用户在 /groups/rates 上有专属倍率时填值，否则 null。 */
+  /** 仅认证态 /models 且当前用户有该分组专属倍率时填值，否则 null。 */
   user_rate_multiplier: number | null
   /** 'token' | 'per_request' | 'image'，对应 backend BillingMode。 */
   billing_mode: string

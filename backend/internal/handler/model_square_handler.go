@@ -149,9 +149,12 @@ func (h *ModelSquareHandler) ListAuthenticated(c *gin.Context) {
 		return
 	}
 
-	// 用户专属倍率（per-group）通过 /groups/rates 单独获取，这里不预 join，与 API
-	// 密钥页保持一致；前端展示时再叠加倍率，便于实时展示「base × user」拆解。
-	response.Success(c, toCardDTOs(cards, nil))
+	userRateMultipliers, err := h.apiKeyService.GetUserGroupRates(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toCardDTOs(cards, userRateMultipliers))
 }
 
 // toCardDTOs 把 service 层卡片转换为白名单 DTO。
