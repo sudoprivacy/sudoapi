@@ -365,6 +365,7 @@ import { useI18n } from 'vue-i18n'
 import type { ModelSquareCard, ModelGroupPrice, ModelPriceInterval } from '@/api/models'
 import Icon from '@/components/icons/Icon.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
+import { effectiveModelRateMultiplier } from '@/utils/modelRate'
 import ModelPriceValue from './ModelPriceValue.vue'
 import PricingRow from './PricingRow.vue'
 
@@ -436,9 +437,9 @@ function modelTypeLabel(key: string): string {
   return t(`modelSquare.modelTypes.${key}`, humanizeKey(key))
 }
 
-/** 有效倍率 = base × user（user 缺失时按 1 计）。 */
+/** 有效倍率与后端计费一致：用户专属倍率覆盖分组默认倍率。 */
 function effectiveMultiplier(row: ModelGroupPrice): number {
-  return row.base_rate_multiplier * (row.user_rate_multiplier ?? 1)
+  return effectiveModelRateMultiplier(row)
 }
 
 function discountLabel(row: ModelGroupPrice): string {

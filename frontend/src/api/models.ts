@@ -36,7 +36,7 @@ export interface ModelPriceInterval {
 /** 单个分组下的定价行。
  *
  *  调用方展示有效倍率：
- *    effective = base_rate_multiplier × (user_rate_multiplier ?? 1)
+ *    effective = user_rate_multiplier ?? base_rate_multiplier
  *  effective × *_per_mtok_usd = 实际单价。认证态 /models 响应会由后端
  *  join 当前用户的专属分组倍率；公开 /public/models 始终为 null。
  */

@@ -128,6 +128,33 @@ describe('modelQuote', () => {
     expect(price.imageOrRequest).toBe(0.02)
   })
 
+  it('uses user group rate as an override when calculating effective prices', () => {
+    const price = lowestPlatformPrice([
+      {
+        group_id: 1,
+        group_name: 'exclusive',
+        subscription_type: 'standard',
+        is_exclusive: true,
+        base_rate_multiplier: 0.5,
+        user_rate_multiplier: 0.8,
+        billing_mode: 'token',
+        input_price_per_mtok_usd: 10,
+        output_price_per_mtok_usd: 20,
+        cache_read_price_per_mtok_usd: null,
+        cache_write_price_per_mtok_usd: null,
+        image_output_price_per_mtok_usd: null,
+        per_request_price_usd: null,
+        intervals: [],
+        channel_chain: [],
+        cache_creation_5m_price_per_mtok_usd: null,
+        cache_creation_1h_price_per_mtok_usd: null,
+      },
+    ])
+
+    expect(price.input).toBe(8)
+    expect(price.output).toBe(16)
+  })
+
   it('calculates discount using input before later price dimensions', () => {
     const official: ModelQuotePriceSet = {
       ...emptyPriceSet(),

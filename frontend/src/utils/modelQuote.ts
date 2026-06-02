@@ -1,6 +1,7 @@
 // sudoapi: Model market.
 
 import type { ModelGroupPrice, ModelOfficialPrice, ModelSquareCard } from '@/api/models'
+import { effectiveModelRateMultiplier } from './modelRate'
 
 export type ModelQuoteSortKey =
   | 'modelAsc'
@@ -75,7 +76,7 @@ export function buildModelQuoteRows(cards: ModelSquareCard[]): ModelQuoteRow[] {
 export function lowestPlatformPrice(groupPrices: ModelGroupPrice[]): ModelQuotePriceSet {
   const out = emptyPriceSet()
   for (const row of groupPrices) {
-    const multiplier = finitePositive(row.base_rate_multiplier) ?? 1
+    const multiplier = effectiveModelRateMultiplier(row)
     takeLowest(out, 'input', applyMultiplier(row.input_price_per_mtok_usd, multiplier))
     takeLowest(out, 'output', applyMultiplier(row.output_price_per_mtok_usd, multiplier))
     takeLowest(out, 'cacheRead', applyMultiplier(row.cache_read_price_per_mtok_usd, multiplier))
@@ -188,10 +189,6 @@ function takeLowest(set: ModelQuotePriceSet, key: keyof ModelQuotePriceSet, valu
   if (set[key] == null || value < set[key]!) {
     set[key] = value
   }
-}
-
-function finitePositive(value: number): number | null {
-  return Number.isFinite(value) && value >= 0 ? value : null
 }
 
 function sortablePrice(row: ModelQuoteRow): number | null {
