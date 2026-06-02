@@ -23,7 +23,7 @@ const props = withDefaults(
   defineProps<{
     /** 后端已转为 USD per million tokens 或 USD per call。 */
     value: number | null
-    /** 有效倍率：base × user。 */
+    /** 有效倍率：用户专属倍率覆盖分组默认倍率后得到的最终值。 */
     mult: number
     /** 显示单位（MTok / call）。 */
     unit?: string

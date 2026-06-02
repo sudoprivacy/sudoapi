@@ -128,6 +128,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelSquareCard } from '@/api/models'
 import ModelIcon from '@/components/common/ModelIcon.vue'
+import { effectiveModelRateMultiplier } from '@/utils/modelRate'
 
 const props = defineProps<{ card: ModelSquareCard }>()
 defineEmits<{ (e: 'open', card: ModelSquareCard): void }>()
@@ -193,7 +194,7 @@ const priceSummary = computed(() => {
   let minPerRequest: number | null = null
   for (const platform of props.card.platforms ?? []) {
     for (const row of platform.group_prices ?? []) {
-      const effective = (row.user_rate_multiplier ?? 1) * row.base_rate_multiplier
+      const effective = effectiveModelRateMultiplier(row)
       if (row.input_price_per_mtok_usd != null) {
         const scaled = row.input_price_per_mtok_usd * effective
         if (minToken == null || scaled < minToken) minToken = scaled

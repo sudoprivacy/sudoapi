@@ -138,6 +138,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import modelSquareAPI, { type ModelSquareCard } from '@/api/models'
 import Icon from '@/components/icons/Icon.vue'
+import { effectiveModelRateMultiplier } from '@/utils/modelRate'
 import ModelCard from './ModelCard.vue'
 import ModelFilterBar, { type ModelFilterState } from './ModelFilterBar.vue'
 import ModelDetailDrawer from './ModelDetailDrawer.vue'
@@ -242,14 +243,12 @@ function minInputPrice(card: ModelSquareCard): number {
   for (const platform of card.platforms ?? []) {
     for (const row of platform.group_prices ?? []) {
       if (row.input_price_per_mtok_usd != null) {
-        const v =
-          row.input_price_per_mtok_usd * row.base_rate_multiplier * (row.user_rate_multiplier ?? 1)
+        const v = row.input_price_per_mtok_usd * effectiveModelRateMultiplier(row)
         if (min == null || v < min) min = v
       }
       for (const iv of row.intervals ?? []) {
         if (iv.input_price_per_mtok_usd != null) {
-          const v =
-            iv.input_price_per_mtok_usd * row.base_rate_multiplier * (row.user_rate_multiplier ?? 1)
+          const v = iv.input_price_per_mtok_usd * effectiveModelRateMultiplier(row)
           if (min == null || v < min) min = v
         }
       }
