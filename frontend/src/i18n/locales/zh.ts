@@ -4706,6 +4706,11 @@ export default {
       nameRequired: '请输入代理名称',
       hostRequired: '请输入主机地址',
       portInvalid: '端口必须在 1-65535 之间',
+      // sudoapi: Account contributor review workflow.
+      copyContributorLoginLink: '贡献者链接',
+      copyContributorLoginLinkTitle: '复制贡献者授权链接',
+      contributorLoginLinkCopied: '贡献者链接已复制',
+      countryCodeRequiredForContributorLink: '需先检测国家码',
       deleteConfirm: "确定要删除代理 '{name}' 吗？使用此代理的账号将被移除代理设置。"
     },
 
