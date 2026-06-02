@@ -179,10 +179,16 @@
                   </div>
 
                   <!-- 分组头 -->
-                  <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <div class="mb-2 flex flex-wrap items-center gap-2">
                     <div class="flex items-center gap-2">
                       <span class="text-sm font-semibold text-gray-900 dark:text-white">
                         {{ row.group_name }}
+                      </span>
+                      <span
+                        v-if="discountLabel(row)"
+                        class="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300"
+                      >
+                        {{ discountLabel(row) }}
                       </span>
                       <span
                         v-if="row.is_exclusive"
@@ -195,15 +201,6 @@
                         class="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
                       >
                         {{ t('modelSquare.detail.subscription') }}
-                      </span>
-                    </div>
-                    <div class="text-[11px] text-gray-500 dark:text-dark-400">
-                      {{ t('modelSquare.detail.rateMultiplier') }}:
-                      <span class="font-mono text-gray-700 dark:text-dark-200">
-                        {{ effectiveMultiplier(row).toFixed(2) }}×
-                      </span>
-                      <span v-if="row.user_rate_multiplier != null" class="ml-1">
-                        ({{ row.base_rate_multiplier }} × {{ row.user_rate_multiplier }})
                       </span>
                     </div>
                   </div>
@@ -305,22 +302,22 @@
                             {{ formatIntervalRange(iv) }}
                           </td>
                           <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
-                            {{ formatIntervalPrice(iv.input_price_per_mtok_usd, row, 'MTok') }}
+                            <ModelPriceValue :value="iv.input_price_per_mtok_usd" :mult="effectiveMultiplier(row)" unit="MTok" />
                           </td>
                           <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
-                            {{ formatIntervalPrice(iv.output_price_per_mtok_usd, row, 'MTok') }}
+                            <ModelPriceValue :value="iv.output_price_per_mtok_usd" :mult="effectiveMultiplier(row)" unit="MTok" />
                           </td>
                           <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
-                            {{ formatIntervalPrice(iv.cache_read_price_per_mtok_usd, row, 'MTok') }}
+                            <ModelPriceValue :value="iv.cache_read_price_per_mtok_usd" :mult="effectiveMultiplier(row)" unit="MTok" />
                           </td>
                           <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
-                            {{ formatIntervalPrice(iv.cache_write_price_per_mtok_usd, row, 'MTok') }}
+                            <ModelPriceValue :value="iv.cache_write_price_per_mtok_usd" :mult="effectiveMultiplier(row)" unit="MTok" />
                           </td>
                           <td v-if="hasIntervalCacheCreation5m(row)" class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
-                            {{ formatIntervalPrice(iv.cache_creation_5m_price_per_mtok_usd, row, 'MTok') }}
+                            <ModelPriceValue :value="iv.cache_creation_5m_price_per_mtok_usd" :mult="effectiveMultiplier(row)" unit="MTok" />
                           </td>
                           <td v-if="hasIntervalCacheCreation1h(row)" class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
-                            {{ formatIntervalPrice(iv.cache_creation_1h_price_per_mtok_usd, row, 'MTok') }}
+                            <ModelPriceValue :value="iv.cache_creation_1h_price_per_mtok_usd" :mult="effectiveMultiplier(row)" unit="MTok" />
                           </td>
                         </tr>
                       </tbody>
@@ -346,7 +343,7 @@
                             {{ formatIntervalRange(iv) }}
                           </td>
                           <td class="px-2 py-1.5 text-right font-mono text-gray-900 dark:text-white">
-                            {{ formatIntervalPrice(iv.per_request_price_usd, row, 'call') }}
+                            <ModelPriceValue :value="iv.per_request_price_usd" :mult="effectiveMultiplier(row)" unit="call" />
                           </td>
                         </tr>
                       </tbody>
@@ -368,6 +365,7 @@ import { useI18n } from 'vue-i18n'
 import type { ModelSquareCard, ModelGroupPrice, ModelPriceInterval } from '@/api/models'
 import Icon from '@/components/icons/Icon.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
+import ModelPriceValue from './ModelPriceValue.vue'
 import PricingRow from './PricingRow.vue'
 
 const props = defineProps<{
@@ -443,6 +441,18 @@ function effectiveMultiplier(row: ModelGroupPrice): number {
   return row.base_rate_multiplier * (row.user_rate_multiplier ?? 1)
 }
 
+function discountLabel(row: ModelGroupPrice): string {
+  const mult = effectiveMultiplier(row)
+  if (!Number.isFinite(mult) || mult >= 1) return ''
+  return t('modelSquare.detail.discountValue', { fold: formatDiscountFold(mult) })
+}
+
+function formatDiscountFold(mult: number): string {
+  const fold = mult * 10
+  if (Number.isInteger(fold)) return String(fold)
+  return fold.toFixed(2).replace(/\.?0+$/, '')
+}
+
 function sortedIntervals(row: ModelGroupPrice): ModelPriceInterval[] {
   return [...(row.intervals ?? [])].sort((a, b) => {
     if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
@@ -463,17 +473,6 @@ function formatIntervalRange(iv: ModelPriceInterval): string {
   const min = formatTokenBoundary(iv.min_tokens)
   const max = iv.max_tokens == null ? '∞' : formatTokenBoundary(iv.max_tokens)
   return `(${min}, ${max}]`
-}
-
-function formatIntervalPrice(value: number | null, row: ModelGroupPrice, unit: 'MTok' | 'call'): string {
-  if (value == null) return '-'
-  return `$${formatMoney(value * effectiveMultiplier(row))} / ${unit}`
-}
-
-function formatMoney(v: number): string {
-  if (v >= 1) return v.toFixed(2)
-  if (v >= 0.01) return v.toFixed(4)
-  return v.toFixed(6)
 }
 
 function formatTokenBoundary(n: number): string {
