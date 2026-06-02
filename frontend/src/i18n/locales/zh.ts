@@ -1160,7 +1160,7 @@ export default {
       endpoints: 'API 端点',
       endpointsHint: '该模型支持的入站接口与方法。',
       groupPrices: '分组价格',
-      groupPricesHint: '价格已按所在分组折扣换算后展示；折扣价后方会以删除线展示原价。',
+      groupPricesHint: '实际扣费以 API Key 绑定的分组价格为准。',
       noPricing: '该平台暂未配置价格',
       exclusive: '专属',
       subscription: '订阅',

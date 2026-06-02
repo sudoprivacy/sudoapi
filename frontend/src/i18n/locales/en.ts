@@ -1156,7 +1156,7 @@ export default {
       endpoints: 'API endpoints',
       endpointsHint: 'Inbound paths and HTTP methods this model accepts.',
       groupPrices: 'Group pricing',
-      groupPricesHint: 'Prices include the group discount; discounted rows show the original price with a strikethrough.',
+      groupPricesHint: 'Billing uses the pricing of the group bound to your API key.',
       noPricing: 'No pricing configured on this platform',
       exclusive: 'Exclusive',
       subscription: 'Subscription',
