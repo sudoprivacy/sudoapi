@@ -143,7 +143,7 @@ func TestAdminService_BatchCreateUsers_NegativeBalance(t *testing.T) {
 
 	out, err := svc.BatchCreateUsers(context.Background(), &BatchCreateUsersInput{
 		Rows: []CreateUserInput{
-			{Email: "a@test.com", Password: "passwd1", Balance: -1},
+			{Email: "a@test.com", Password: "passwd1", Balance: new(float64(-1))},
 		},
 		SkipOnError: true,
 	})

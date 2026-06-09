@@ -13,12 +13,12 @@ import (
 // Validation is intentionally lenient here; the service layer reports per-row
 // errors so the client can surface them instead of failing the whole request.
 type BatchCreateUserRow struct {
-	Email       string  `json:"email"`
-	Password    string  `json:"password"`
-	Username    string  `json:"username"`
-	Balance     float64 `json:"balance"`
-	Concurrency int     `json:"concurrency"`
-	RPMLimit    int     `json:"rpm_limit"`
+	Email       string   `json:"email"`
+	Password    string   `json:"password"`
+	Username    string   `json:"username"`
+	Balance     *float64 `json:"balance"`
+	Concurrency int      `json:"concurrency"`
+	RPMLimit    int      `json:"rpm_limit"`
 }
 
 // BatchCreateUsersRequest is the request body for POST /admin/users/batch.

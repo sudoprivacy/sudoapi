@@ -78,7 +78,7 @@ func (s *adminServiceImpl) BatchCreateUsers(ctx context.Context, input *BatchCre
 		case len(row.Password) < 6:
 			result.ErrorCode = "WEAK_PASSWORD"
 			result.ErrorMsg = "password must be at least 6 characters"
-		case row.Balance < 0:
+		case row.Balance != nil && *row.Balance < 0:
 			result.ErrorCode = "INVALID_BALANCE"
 			result.ErrorMsg = "balance must be >= 0"
 		case row.Concurrency < 0:
