@@ -31,6 +31,11 @@ type ProxyRepository interface {
 	CountAccountsByProxyID(ctx context.Context, proxyID int64) (int64, error)
 	ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error)
 
+	SweepExpiredProxies(ctx context.Context, now time.Time) (changed int64, err error)
+	ListAllForFallback(ctx context.Context) ([]Proxy, error)
+	CountExpired(ctx context.Context) (int64, error)
+	CountExpiringSoon(ctx context.Context, now time.Time) (int64, error)
+
 	// sudoapi: Contributor account self-service authorization.
 	ExpireContributorProxyReservations(ctx context.Context, now time.Time) error
 	GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*ContributorProxyReservation, error)

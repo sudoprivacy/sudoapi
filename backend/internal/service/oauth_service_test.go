@@ -98,6 +98,18 @@ func (m *mockProxyRepoForOAuth) CountAccountsByProxyID(ctx context.Context, prox
 func (m *mockProxyRepoForOAuth) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
 	panic("ListAccountSummariesByProxyID not implemented")
 }
+func (m *mockProxyRepoForOAuth) SweepExpiredProxies(ctx context.Context, now time.Time) (int64, error) {
+	panic("SweepExpiredProxies not implemented")
+}
+func (m *mockProxyRepoForOAuth) ListAllForFallback(ctx context.Context) ([]Proxy, error) {
+	panic("ListAllForFallback not implemented")
+}
+func (m *mockProxyRepoForOAuth) CountExpired(ctx context.Context) (int64, error) {
+	panic("CountExpired not implemented")
+}
+func (m *mockProxyRepoForOAuth) CountExpiringSoon(ctx context.Context, now time.Time) (int64, error) {
+	panic("CountExpiringSoon not implemented")
+}
 func (m *mockProxyRepoForOAuth) ExpireContributorProxyReservations(ctx context.Context, now time.Time) error {
 	panic("ExpireContributorProxyReservations not implemented")
 }
