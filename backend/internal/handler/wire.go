@@ -39,6 +39,8 @@ func ProvideAdminHandlers(
 	contentModerationHandler *admin.ContentModerationHandler,
 	paymentHandler *admin.PaymentHandler,
 	affiliateHandler *admin.AffiliateHandler,
+	complianceHandler *admin.ComplianceHandler,
+	// sudoapi: Model market.
 	modelMetadataHandler *admin.ModelMetadataHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
@@ -72,7 +74,9 @@ func ProvideAdminHandlers(
 		ContentModeration:      contentModerationHandler,
 		Payment:                paymentHandler,
 		Affiliate:              affiliateHandler,
-		ModelMetadata:          modelMetadataHandler,
+		Compliance:             complianceHandler,
+		// sudoapi: Model market.
+		ModelMetadata: modelMetadataHandler,
 	}
 }
 
@@ -198,6 +202,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewContentModerationHandler,
 	admin.NewPaymentHandler,
 	admin.NewAffiliateHandler,
+	admin.NewComplianceHandler,
 	admin.NewModelMetadataHandler,
 
 	// AdminHandlers and Handlers constructors

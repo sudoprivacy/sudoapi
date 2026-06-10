@@ -36,7 +36,9 @@ type AdminHandlers struct {
 	ContentModeration      *admin.ContentModerationHandler
 	Payment                *admin.PaymentHandler
 	Affiliate              *admin.AffiliateHandler
-	ModelMetadata          *admin.ModelMetadataHandler
+	Compliance             *admin.ComplianceHandler
+	// sudoapi: Model market.
+	ModelMetadata *admin.ModelMetadataHandler
 }
 
 // Handlers contains all HTTP handlers
