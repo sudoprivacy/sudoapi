@@ -7831,6 +7831,7 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			}
 		}
 
+		// sudoapi: Deduct proxy-injected Claude Code system prompt usage.
 		if systemRewriteTokens := c.GetInt(systemRewriteTokensKey); systemRewriteTokens > 0 {
 			if eventType == "message_start" {
 				if msg, ok := event["message"].(map[string]any); ok {
@@ -8292,6 +8293,7 @@ func (s *GatewayService) handleNonStreamingResponse(ctx context.Context, resp *h
 		}
 	}
 
+	// sudoapi: Deduct proxy-injected Claude Code system prompt usage.
 	if applySystemRewriteUsage(&response.Usage, c.GetInt(systemRewriteTokensKey)) {
 		if newBody, err := sjson.SetBytes(body, "usage.input_tokens", response.Usage.InputTokens); err == nil {
 			body = newBody
