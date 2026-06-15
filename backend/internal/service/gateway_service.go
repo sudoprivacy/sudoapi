@@ -9933,24 +9933,19 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 }
 
 func sanitizeCountTokensRequestBody(body []byte) []byte {
-	out := []byte("{}")
+	out := body
 	for _, path := range []string{
-		"messages",
-		"model",
-		"speed",
-		"cache_control",
-		"context_management",
-		"mcp_servers",
-		"output_config",
-		"output_format",
-		"system",
-		"thinking",
-		"tool_choice",
-		"tools",
+		"temperature",
+		"top_p",
+		"top_k",
+		"stream",
+		"stop_sequences",
+		"stop",
 	} {
-		value := gjson.GetBytes(body, path)
-		if value.Exists() {
-			out, _ = sjson.SetRawBytes(out, path, []byte(value.Raw))
+		if gjson.GetBytes(out, path).Exists() {
+			if next, ok := deleteJSONPathBytes(out, path); ok {
+				out = next
+			}
 		}
 	}
 	return out
