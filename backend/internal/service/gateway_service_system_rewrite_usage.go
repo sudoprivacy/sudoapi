@@ -4,24 +4,108 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"sync"
+	"encoding/json"
+	"log/slog"
+	"sync/atomic"
 	"time"
 
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
-const systemRewriteUsageFixTimeout = 10 * time.Second
+const (
+	systemRewriteTokensKey   = "system_rewrite_tokens"
+	systemRewriteTokensUsage = "system_rewrite_tokens_usage"
 
-const systemRewriteTokensKey = "sudoapi_system_rewrite_tokens"
+	systemRewriteTokensUsageCacheTTL  = 60 * time.Second
+	systemRewriteTokensUsageErrorTTL  = 5 * time.Second
+	systemRewriteTokensUsageDBTimeout = 5 * time.Second
+)
 
-const fallbackSystemRewriteTokens = 0
+func defaultSystemRewriteTokenConfig() *systemRewriteTokenConfig {
+	return &systemRewriteTokenConfig{
+		Models: map[string]int{
+			"claude-fable-5":  500,
+			"claude-opus-4-7": 500,
+			"claude-opus-4-8": 500,
+		},
+		Default: 360,
+	}
+}
 
-var systemRewriteUsageCache sync.Map
+type systemRewriteTokenConfig struct {
+	Models    map[string]int
+	Default   int
+	expiresAt int64
+}
+
+var (
+	systemRewriteTokenConfigCache atomic.Value
+	systemRewriteTokenConfigSF    singleflight.Group
+)
+
+func (s *SettingService) getSystemRewriteTokenConfig(ctx context.Context) *systemRewriteTokenConfig {
+	if s == nil || s.settingRepo == nil {
+		return defaultSystemRewriteTokenConfig()
+	}
+	if cached, ok := systemRewriteTokenConfigCache.Load().(*systemRewriteTokenConfig); ok && cached != nil {
+		if time.Now().UnixNano() < cached.expiresAt {
+			return cached
+		}
+	}
+	val, _, _ := systemRewriteTokenConfigSF.Do(systemRewriteTokensUsage, func() (any, error) {
+		if cached, ok := systemRewriteTokenConfigCache.Load().(*systemRewriteTokenConfig); ok && cached != nil {
+			if time.Now().UnixNano() < cached.expiresAt {
+				return cached, nil
+			}
+		}
+		config := defaultSystemRewriteTokenConfig()
+		dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), systemRewriteTokensUsageDBTimeout)
+		defer cancel()
+		value, err := s.settingRepo.GetValue(dbCtx, systemRewriteTokensUsage)
+		if err != nil {
+			slog.Warn("failed to get system rewrite tokens settings", "error", err)
+			config.expiresAt = time.Now().Add(systemRewriteTokensUsageErrorTTL).UnixNano()
+			systemRewriteTokenConfigCache.Store(config)
+			return config, nil
+		}
+		overrides := map[string]int{}
+		if err = json.Unmarshal([]byte(value), &overrides); err != nil {
+			slog.Warn("failed to parse system rewrite tokens settings", "error", err)
+			config.expiresAt = time.Now().Add(systemRewriteTokensUsageErrorTTL).UnixNano()
+			systemRewriteTokenConfigCache.Store(config)
+			return config, nil
+		}
+		if defaultValue, ok := overrides["default"]; ok {
+			config.Default = defaultValue
+			delete(overrides, "default")
+		}
+		for model, tokens := range overrides {
+			config.Models[model] = tokens
+		}
+		config.expiresAt = time.Now().Add(systemRewriteTokensUsageCacheTTL).UnixNano()
+		systemRewriteTokenConfigCache.Store(config)
+		return config, nil
+	})
+	if cfg, ok := val.(*systemRewriteTokenConfig); ok {
+		return cfg
+	}
+	return defaultSystemRewriteTokenConfig()
+}
+
+func (s *GatewayService) systemRewriteInputTokens(ctx context.Context, model string) int {
+	var config *systemRewriteTokenConfig
+	if s == nil || s.settingService == nil {
+		config = defaultSystemRewriteTokenConfig()
+	} else {
+		config = s.settingService.getSystemRewriteTokenConfig(ctx)
+	}
+	if tokens, ok := config.Models[model]; ok {
+		return tokens
+	}
+	return config.Default
+}
 
 func applySystemRewriteUsage(usage *ClaudeUsage, systemTokens int) bool {
 	if usage == nil {
@@ -31,13 +115,17 @@ func applySystemRewriteUsage(usage *ClaudeUsage, systemTokens int) bool {
 	if usage.CacheReadInputTokens > 0 {
 		return false
 	}
-	if systemTokens <= 0 || usage.InputTokens <= systemTokens {
+	if systemTokens <= 0 {
 		return false
 	}
+	systemTokens = min(systemTokens, usage.InputTokens)
 	before := usage.InputTokens
 	usage.InputTokens -= systemTokens
-	logger.LegacyPrintf("service.gateway", "system rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
-		before, usage.InputTokens, systemTokens)
+	logger.LegacyPrintf(
+		"service.gateway",
+		"system rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
+		before, usage.InputTokens, systemTokens,
+	)
 	return true
 }
 
@@ -53,87 +141,16 @@ func applySystemRewriteUsageMap(usage map[string]any, systemTokens int) bool {
 	if !ok {
 		return false
 	}
-	if systemTokens <= 0 || inputTokens <= systemTokens {
+	if systemTokens <= 0 {
 		return false
 	}
+	systemTokens = min(systemTokens, inputTokens)
 	after := inputTokens - systemTokens
 	usage["input_tokens"] = after
-	logger.LegacyPrintf("service.gateway", "system rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
-		inputTokens, after, systemTokens)
+	logger.LegacyPrintf(
+		"service.gateway",
+		"system rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
+		inputTokens, after, systemTokens,
+	)
 	return true
-}
-
-func (s *GatewayService) countSystemRewriteInputTokens(
-	ctx context.Context,
-	account *Account,
-	body []byte,
-	token string,
-	tokenType string,
-	model string,
-) (int, error) {
-	rewriteSystemMsg := []byte("{}")
-	rewriteSystemMsg, _ = sjson.SetRawBytes(rewriteSystemMsg, "model", []byte(gjson.GetBytes(body, "model").Raw))
-	rewriteSystemMsg, _ = sjson.SetRawBytes(rewriteSystemMsg, "system", []byte(gjson.GetBytes(body, "system").Raw))
-	rewriteSystemMsg, _ = sjson.SetRawBytes(rewriteSystemMsg, "messages", []byte(`[{"role":"user","content":"."}]`))
-
-	cacheKey := string(rewriteSystemMsg)
-	if cached, ok := systemRewriteUsageCache.Load(cacheKey); ok {
-		if tokens, ok := cached.(int); ok {
-			return tokens, nil
-		}
-	}
-
-	countCtx, cancel := context.WithTimeout(ctx, systemRewriteUsageFixTimeout)
-	defer cancel()
-	tokens, err := s.countInputTokensForBody(countCtx, account, rewriteSystemMsg, token, tokenType, model, true)
-	if err != nil {
-		return 0, fmt.Errorf("count proxy-added body: %w", err)
-	}
-
-	systemRewriteUsageCache.Store(cacheKey, tokens)
-	return tokens, nil
-}
-
-func (s *GatewayService) countInputTokensForBody(
-	ctx context.Context,
-	account *Account,
-	body []byte,
-	token string,
-	tokenType string,
-	model string,
-	mimicClaudeCode bool,
-) (int, error) {
-	req, _, err := s.buildCountTokensRequest(ctx, nil, account, body, token, tokenType, model, mimicClaudeCode)
-	if err != nil {
-		return 0, fmt.Errorf("build count_tokens request: %w", err)
-	}
-
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		if !account.IsCustomBaseURLEnabled() || account.GetCustomBaseURL() == "" {
-			proxyURL = account.Proxy.URL()
-		}
-	}
-
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, nil)
-	if err != nil {
-		return 0, fmt.Errorf("count_tokens request failed: %w", err)
-	}
-	if resp == nil || resp.Body == nil {
-		return 0, fmt.Errorf("count_tokens response is empty")
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, fmt.Errorf("read count_tokens response: %w", err)
-	}
-	if resp.StatusCode >= 400 {
-		return 0, fmt.Errorf("count_tokens upstream status=%d message=%s", resp.StatusCode, sanitizeUpstreamErrorMessage(extractUpstreamErrorMessage(respBody)))
-	}
-	inputTokens := int(gjson.GetBytes(respBody, "input_tokens").Int())
-	if inputTokens <= 0 {
-		return 0, fmt.Errorf("count_tokens response missing input_tokens")
-	}
-	return inputTokens, nil
 }

@@ -5133,16 +5133,9 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 	// sudoapi: Deduct proxy-injected Claude Code system prompt usage.
 	if systemRewritten {
-		systemTokens, countErr := s.countSystemRewriteInputTokens(ctx, account, body, token, tokenType, mappedModel)
-		if countErr != nil {
-			systemTokens = fallbackSystemRewriteTokens
-			logger.LegacyPrintf(
-				"service.gateway",
-				"system rewrite usage count_tokens failed: account=%d model=%s error=%v",
-				account.ID, mappedModel, systemTokens,
-			)
+		if systemTokens := s.systemRewriteInputTokens(ctx, mappedModel); systemTokens > 0 {
+			c.Set(systemRewriteTokensKey, systemTokens)
 		}
-		c.Set(systemRewriteTokensKey, systemTokens)
 	}
 
 	var usage *ClaudeUsage
@@ -7838,18 +7831,17 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			}
 		}
 
-		systemRewriteUsage := c.GetInt(systemRewriteTokensKey)
-		if systemRewriteUsage > 0 {
+		if systemRewriteTokens := c.GetInt(systemRewriteTokensKey); systemRewriteTokens > 0 {
 			if eventType == "message_start" {
 				if msg, ok := event["message"].(map[string]any); ok {
 					if u, ok := msg["usage"].(map[string]any); ok {
-						eventChanged = applySystemRewriteUsageMap(u, systemRewriteUsage) || eventChanged
+						eventChanged = applySystemRewriteUsageMap(u, systemRewriteTokens) || eventChanged
 					}
 				}
 			}
 			if eventType == "message_delta" {
 				if u, ok := event["usage"].(map[string]any); ok {
-					eventChanged = applySystemRewriteUsageMap(u, systemRewriteUsage) || eventChanged
+					eventChanged = applySystemRewriteUsageMap(u, systemRewriteTokens) || eventChanged
 				}
 			}
 		}

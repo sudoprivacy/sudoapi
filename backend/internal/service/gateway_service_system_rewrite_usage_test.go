@@ -3,81 +3,86 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"io"
-	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tidwall/gjson"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 )
 
-type systemRewriteUsageHTTPUpstream struct {
-	responses []string
-	bodies    [][]byte
+type systemRewriteTokenSettingRepoStub struct {
+	values        map[string]string
+	getValueCalls int
 }
 
-func (u *systemRewriteUsageHTTPUpstream) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
-	if req != nil && req.Body != nil {
-		body, _ := io.ReadAll(req.Body)
-		u.bodies = append(u.bodies, body)
-		_ = req.Body.Close()
-		req.Body = io.NopCloser(bytes.NewReader(body))
-	}
-	body := `{"input_tokens":0}`
-	if len(u.responses) > 0 {
-		body = u.responses[0]
-		u.responses = u.responses[1:]
-	}
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(bytes.NewBufferString(body)),
-	}, nil
+func (s *systemRewriteTokenSettingRepoStub) Get(context.Context, string) (*Setting, error) {
+	panic("unexpected Get call")
 }
 
-func (u *systemRewriteUsageHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
-	return u.Do(req, proxyURL, accountID, accountConcurrency)
+func (s *systemRewriteTokenSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {
+	s.getValueCalls++
+	if value, ok := s.values[key]; ok {
+		return value, nil
+	}
+	return "", ErrSettingNotFound
 }
 
-func TestGatewayService_DeductSystemRewriteUsage_DeductsCountTokensDelta(t *testing.T) {
-	systemRewriteUsageCache.Clear()
+func (s *systemRewriteTokenSettingRepoStub) Set(context.Context, string, string) error {
+	panic("unexpected Set call")
+}
 
-	originalSystem := "respond tersely"
-	originalBody := []byte(`{"model":"claude-sonnet-4-5","system":"respond tersely","messages":[{"role":"user","content":"hello"}],"max_tokens":16}`)
-	rewrittenBody := rewriteSystemForNonClaudeCode(originalBody, originalSystem)
-	upstream := &systemRewriteUsageHTTPUpstream{
-		responses: []string{`{"input_tokens":20}`},
-	}
-	svc := &GatewayService{
-		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
-		httpUpstream: upstream,
-	}
-	account := &Account{
-		ID:          1,
-		Platform:    PlatformAnthropic,
-		Type:        AccountTypeAPIKey,
-		Concurrency: 1,
-		Credentials: map[string]any{},
-	}
-	usage := &ClaudeUsage{InputTokens: 150}
+func (s *systemRewriteTokenSettingRepoStub) GetMultiple(context.Context, []string) (map[string]string, error) {
+	panic("unexpected GetMultiple call")
+}
 
-	systemTokens, err := svc.countSystemRewriteInputTokens(context.Background(), account, rewrittenBody, "test-key", "apikey", "claude-sonnet-4-5")
-	require.NoError(t, err)
-	require.True(t, applySystemRewriteUsage(usage, systemTokens))
+func (s *systemRewriteTokenSettingRepoStub) SetMultiple(context.Context, map[string]string) error {
+	panic("unexpected SetMultiple call")
+}
 
-	require.Equal(t, 130, usage.InputTokens)
-	require.Len(t, upstream.bodies, 1)
-	require.Contains(t, gjson.GetBytes(upstream.bodies[0], "system.0.text").String(), "cc_version=")
+func (s *systemRewriteTokenSettingRepoStub) GetAll(context.Context) (map[string]string, error) {
+	panic("unexpected GetAll call")
+}
+
+func (s *systemRewriteTokenSettingRepoStub) Delete(context.Context, string) error {
+	panic("unexpected Delete call")
+}
+
+func TestGatewayService_SystemRewriteInputTokens_Defaults(t *testing.T) {
+	systemRewriteTokenConfigCache.Store((*systemRewriteTokenConfig)(nil))
+	svc := &GatewayService{}
+
+	require.Equal(t, 500, svc.systemRewriteInputTokens(context.Background(), "claude-opus-4-7"))
+	require.Equal(t, 360, svc.systemRewriteInputTokens(context.Background(), "claude-sonnet-4-5"))
+}
+
+func TestSettingService_GetSystemRewriteInputTokens_UsesDatabaseConfig(t *testing.T) {
+	systemRewriteTokenConfigCache.Store((*systemRewriteTokenConfig)(nil))
+	repo := &systemRewriteTokenSettingRepoStub{values: map[string]string{
+		systemRewriteTokensUsage: `{"default":333,"claude-opus-4-7":777,"claude-fable-5":555}`,
+	}}
+	svc := &GatewayService{settingService: NewSettingService(repo, &config.Config{})}
+
+	require.Equal(t, 777, svc.systemRewriteInputTokens(context.Background(), "claude-opus-4-7"))
+	require.Equal(t, 555, svc.systemRewriteInputTokens(context.Background(), "claude-fable-5"))
+	require.Equal(t, 333, svc.systemRewriteInputTokens(context.Background(), "claude-sonnet-4-5"))
+	require.Equal(t, 1, repo.getValueCalls)
+}
+
+func TestSettingService_GetSystemRewriteInputTokens_MergesDatabaseConfigWithDefaults(t *testing.T) {
+	systemRewriteTokenConfigCache.Store((*systemRewriteTokenConfig)(nil))
+	repo := &systemRewriteTokenSettingRepoStub{values: map[string]string{
+		systemRewriteTokensUsage: `{"claude-sonnet-4-5":444}`,
+	}}
+	svc := &GatewayService{settingService: NewSettingService(repo, &config.Config{})}
+
+	require.Equal(t, 444, svc.systemRewriteInputTokens(context.Background(), "claude-sonnet-4-5"))
+	require.Equal(t, 500, svc.systemRewriteInputTokens(context.Background(), "claude-opus-4-7"))
+	require.Equal(t, 360, svc.systemRewriteInputTokens(context.Background(), "unknown-model"))
+	require.Equal(t, 1, repo.getValueCalls)
 }
 
 func TestGatewayService_DeductSystemRewriteUsage_SkipsWhenCacheReadHit(t *testing.T) {
-	systemRewriteUsageCache.Clear()
-
 	usage := &ClaudeUsage{InputTokens: 150, CacheReadInputTokens: 10}
 
 	require.False(t, applySystemRewriteUsage(usage, 20))
@@ -85,29 +90,10 @@ func TestGatewayService_DeductSystemRewriteUsage_SkipsWhenCacheReadHit(t *testin
 	require.Equal(t, 150, usage.InputTokens)
 }
 
-func TestGatewayService_DeductSystemRewriteUsage_CachesByProxyAddedBody(t *testing.T) {
-	systemRewriteUsageCache.Clear()
+func TestGatewayService_DeductSystemRewriteUsage_AppliesTokens(t *testing.T) {
+	usage := &ClaudeUsage{InputTokens: 500}
 
-	originalSystem := "respond tersely"
-	originalBody := []byte(`{"model":"claude-sonnet-4-5","system":"respond tersely","messages":[{"role":"user","content":"hello"}]}`)
-	rewrittenBody := rewriteSystemForNonClaudeCode(originalBody, originalSystem)
-	upstream := &systemRewriteUsageHTTPUpstream{responses: []string{`{"input_tokens":20}`}}
-	svc := &GatewayService{
-		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
-		httpUpstream: upstream,
-	}
-	account := &Account{ID: 1, Platform: PlatformAnthropic, Type: AccountTypeAPIKey, Credentials: map[string]any{}}
-	first := &ClaudeUsage{InputTokens: 150}
-	second := &ClaudeUsage{InputTokens: 90}
+	require.True(t, applySystemRewriteUsage(usage, 360))
 
-	firstTokens, err := svc.countSystemRewriteInputTokens(context.Background(), account, rewrittenBody, "test-key", "apikey", "claude-sonnet-4-5")
-	require.NoError(t, err)
-	secondTokens, err := svc.countSystemRewriteInputTokens(context.Background(), account, rewrittenBody, "test-key", "apikey", "claude-sonnet-4-5")
-	require.NoError(t, err)
-	require.True(t, applySystemRewriteUsage(first, firstTokens))
-	require.True(t, applySystemRewriteUsage(second, secondTokens))
-
-	require.Equal(t, 130, first.InputTokens)
-	require.Equal(t, 70, second.InputTokens)
-	require.Len(t, upstream.bodies, 1)
+	require.Equal(t, 140, usage.InputTokens)
 }
