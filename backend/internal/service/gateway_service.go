@@ -4566,13 +4566,13 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	isClaudeCode := IsClaudeCodeClient(ctx) || isClaudeCodeClient(c.GetHeader("User-Agent"), parsed.MetadataUserID)
 	shouldMimicClaudeCode := account.IsOAuth() && !isClaudeCode
 
+	systemRewritten := false
 	if shouldMimicClaudeCode {
 		// 与 Parrot 对齐：OAuth 账号无条件重写 system（即使客户端已发了 Claude Code
 		// 风格的 system prompt）。原因：第三方工具（opencode 等）会发 "You are Claude
 		// Code..." system prompt 但缺少 billing attribution block，导致 Anthropic
 		// 检测到"有 CC prompt 但无 billing block"的不一致而判为 third-party。
 		// Parrot 的 transform_request 从不检查客户端 system 内容，直接覆盖。
-		systemRewritten := false
 		if !strings.Contains(strings.ToLower(reqModel), "haiku") {
 			systemRaw, _ := parsed.SystemValue()
 			if err := replaceBody(rewriteSystemForNonClaudeCode(body, systemRaw)); err != nil {
@@ -5129,6 +5129,13 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	// 触发上游接受回调（提前释放串行锁，不等流完成）
 	if parsed.OnUpstreamAccepted != nil {
 		parsed.OnUpstreamAccepted()
+	}
+
+	// sudoapi: Deduct proxy-injected Claude Code system prompt usage.
+	if systemRewritten {
+		if systemTokens := s.systemRewriteInputTokens(ctx, mappedModel); systemTokens > 0 {
+			c.Set(systemRewriteTokensKey, systemTokens)
+		}
 	}
 
 	var usage *ClaudeUsage
@@ -7824,6 +7831,22 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			}
 		}
 
+		// sudoapi: Deduct proxy-injected Claude Code system prompt usage.
+		if systemRewriteTokens := c.GetInt(systemRewriteTokensKey); systemRewriteTokens > 0 {
+			if eventType == "message_start" {
+				if msg, ok := event["message"].(map[string]any); ok {
+					if u, ok := msg["usage"].(map[string]any); ok {
+						eventChanged = applySystemRewriteUsageMap(u, systemRewriteTokens) || eventChanged
+					}
+				}
+			}
+			if eventType == "message_delta" {
+				if u, ok := event["usage"].(map[string]any); ok {
+					eventChanged = applySystemRewriteUsageMap(u, systemRewriteTokens) || eventChanged
+				}
+			}
+		}
+
 		usagePatch := s.extractSSEUsagePatch(event)
 		if anthropicStreamEventIsTerminal(eventName, dataLine) {
 			sawTerminalEvent = true
@@ -8267,6 +8290,13 @@ func (s *GatewayService) handleNonStreamingResponse(ctx context.Context, resp *h
 			if newBody, err := sjson.SetBytes(body, "usage.cache_creation.ephemeral_1h_input_tokens", response.Usage.CacheCreation1hTokens); err == nil {
 				body = newBody
 			}
+		}
+	}
+
+	// sudoapi: Deduct proxy-injected Claude Code system prompt usage.
+	if applySystemRewriteUsage(&response.Usage, c.GetInt(systemRewriteTokensKey)) {
+		if newBody, err := sjson.SetBytes(body, "usage.input_tokens", response.Usage.InputTokens); err == nil {
+			body = newBody
 		}
 	}
 
