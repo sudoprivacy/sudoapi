@@ -130,6 +130,31 @@ describe('BulkEditAccountModal', () => {
     })
   })
 
+  // sudoapi: Bulk custom whitelist input.
+  it('批量编辑自定义模型名称可按空格拆分后写入白名单', async () => {
+    const wrapper = mountModal({
+      selectedPlatforms: ['anthropic'],
+      selectedTypes: ['apikey']
+    })
+
+    await wrapper.get('#bulk-edit-model-restriction-enabled').setValue(true)
+    const selector = wrapper.findComponent(ModelWhitelistSelector)
+    await selector.find('input[placeholder="admin.accounts.enterCustomModelName"]').setValue('claude-a  claude-b\tclaude-a')
+    await selector.findAll('button').find((btn) => btn.text().includes('admin.accounts.addModel'))!.trigger('click')
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledTimes(1)
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], {
+      credentials: {
+        model_mapping: {
+          'claude-a': 'claude-a',
+          'claude-b': 'claude-b'
+        }
+      }
+    })
+  })
+
   it('OpenAI 账号批量编辑可开启自动透传', async () => {
     const wrapper = mountModal({
       selectedPlatforms: ['openai'],

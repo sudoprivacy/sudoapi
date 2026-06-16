@@ -111,7 +111,7 @@
           v-model="customModel"
           type="text"
           class="input flex-1"
-          :placeholder="t('admin.accounts.enterCustomModelName')"
+          :placeholder="t('admin.accounts.enterCustomModelNames')"
           @keydown.enter.prevent="handleEnter"
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
@@ -233,14 +233,22 @@ const toggleModel = (model: string) => {
   }
 }
 
+// sudoapi: Bulk custom whitelist input.
 const addCustom = () => {
-  const model = customModel.value.trim()
-  if (!model) return
-  if (props.modelValue.includes(model)) {
+  const models = customModel.value.trim().split(/\s+/).filter(Boolean)
+  if (models.length === 0) return
+
+  const existingModels = new Set(props.modelValue)
+  const modelsToAdd = models.filter(model => {
+    if (existingModels.has(model)) return false
+    existingModels.add(model)
+    return true
+  })
+  if (modelsToAdd.length === 0) {
     appStore.showInfo(t('admin.accounts.modelExists'))
     return
   }
-  emit('update:modelValue', [...props.modelValue, model])
+  emit('update:modelValue', [...props.modelValue, ...modelsToAdd])
   customModel.value = ''
 }
 

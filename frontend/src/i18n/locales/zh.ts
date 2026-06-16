@@ -4028,6 +4028,7 @@ export default {
       clearAllModels: '清除所有模型',
       customModelName: '自定义模型名称',
       enterCustomModelName: '输入自定义模型名称',
+      enterCustomModelNames: '输入自定义模型名称，多个模型之间空格分割',
       addModel: '填入',
       modelExists: '该模型已存在',
       modelCount: '{count} 个模型',

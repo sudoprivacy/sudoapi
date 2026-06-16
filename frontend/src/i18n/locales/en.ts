@@ -3888,6 +3888,7 @@ export default {
       clearAllModels: 'Clear all models',
       customModelName: 'Custom model name',
       enterCustomModelName: 'Enter custom model name',
+      enterCustomModelNames: 'Enter custom model name, split spaces between multiple models',
       addModel: 'Add',
       modelExists: 'Model already exists',
       modelCount: '{count} models',
