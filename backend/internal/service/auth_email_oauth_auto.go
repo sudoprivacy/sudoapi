@@ -25,26 +25,31 @@ type EmailOAuthIdentityInput struct {
 	UpstreamMetadata map[string]any
 }
 
+// Deprecated: use LoginOrRegisterVerifiedEmailOAuthWithSignupCodes instead
 func (s *AuthService) LoginOrRegisterVerifiedEmailOAuth(ctx context.Context, input EmailOAuthIdentityInput) (*TokenPair, *User, error) {
-	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, "", "", RoleUser)
+	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, "", "", "", "")
 }
 
+// Deprecated: use LoginOrRegisterVerifiedEmailOAuthWithSignupCodes instead
 func (s *AuthService) LoginOrRegisterVerifiedEmailOAuthWithInvitation(
 	ctx context.Context,
 	input EmailOAuthIdentityInput,
 	invitationCode string,
 	affiliateCode string,
 ) (*TokenPair, *User, error) {
-	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, invitationCode, affiliateCode, RoleUser)
+	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, invitationCode, affiliateCode, "", "")
 }
 
-func (s *AuthService) LoginOrRegisterVerifiedEmailOAuthContributor(
+func (s *AuthService) LoginOrRegisterVerifiedEmailOAuthWithSignupCodes(
 	ctx context.Context,
 	input EmailOAuthIdentityInput,
 	invitationCode string,
 	affiliateCode string,
+	promoCode string,
+	// sudoapi: Contributor account self-service authorization.
+	accountRole string,
 ) (*TokenPair, *User, error) {
-	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, invitationCode, affiliateCode, RoleAccountContributor)
+	return s.loginOrRegisterVerifiedEmailOAuth(ctx, input, invitationCode, affiliateCode, promoCode, accountRole)
 }
 
 func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
@@ -52,6 +57,8 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 	input EmailOAuthIdentityInput,
 	invitationCode string,
 	affiliateCode string,
+	promoCode string,
+	// sudoapi: Contributor account self-service authorization.
 	accountRole string,
 ) (*TokenPair, *User, error) {
 	if s == nil || s.userRepo == nil || s.entClient == nil {
@@ -145,6 +152,8 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 		if err := s.ApplyProviderDefaultSettingsOnFirstBind(ctx, user.ID, providerType); err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to apply %s first bind defaults: %v", providerType, err)
 		}
+	} else {
+		user = s.applyOAuthSignupPromoCode(ctx, user, promoCode)
 	}
 	s.RecordSuccessfulLogin(ctx, user.ID)
 
