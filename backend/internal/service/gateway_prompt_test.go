@@ -310,6 +310,7 @@ func TestRewriteSystemForNonClaudeCode(t *testing.T) {
 		body                string
 		system              any
 		wantSystemText      string           // system array 第一个 block 的 text
+		wantSystemTTL       string           // system 中最后一个静态块（扩充块）的 ttl
 		wantMessagesLen     int              // messages 数组长度
 		wantFirstMsgRole    string           // 第一条消息的 role
 		wantFirstMsgContent []map[string]any // 第一条消息的 content
@@ -334,6 +335,20 @@ func TestRewriteSystemForNonClaudeCode(t *testing.T) {
 			body:             `{"model":"claude-3","messages":[{"role":"user","content":"hello"}]}`,
 			system:           "You are a personal assistant running inside OpenClaw.",
 			wantSystemText:   claudeCodeSystemPrompt,
+			wantMessagesLen:  3, // instruction + ack + original
+			wantFirstMsgRole: "user",
+			wantFirstMsgContent: []map[string]any{
+				{"type": "text", "text": "[System Instructions]"},
+				{"type": "text", "text": "You are a personal assistant running inside OpenClaw."},
+			},
+			wantAckMsgText: "Understood. I will follow these instructions.",
+		},
+		{ // sudoapi: Claude cache TTL mixing guard.
+			name:             "system expansion cache ttl follows request 1h cache ttl",
+			body:             `{"model":"claude-3","messages":[{"role":"user","content":[{"type":"text","text":"hello","cache_control":{"type":"ephemeral","ttl":"1h"}}]}]}`,
+			system:           "You are a personal assistant running inside OpenClaw.",
+			wantSystemText:   claudeCodeSystemPrompt,
+			wantSystemTTL:    cacheTTLTarget1h,
 			wantMessagesLen:  3, // instruction + ack + original
 			wantFirstMsgRole: "user",
 			wantFirstMsgContent: []map[string]any{
@@ -463,6 +478,11 @@ func TestRewriteSystemForNonClaudeCode(t *testing.T) {
 			cc, ok := expansionBlock["cache_control"].(map[string]any)
 			require.True(t, ok, "expansion block should have cache_control")
 			require.Equal(t, "ephemeral", cc["type"])
+
+			if tt.wantSystemTTL == "" {
+				tt.wantSystemTTL = cacheTTLTarget5m
+			}
+			require.Equal(t, tt.wantSystemTTL, cc["ttl"])
 
 			// 检查 messages
 			messages, ok := parsed["messages"].([]any)
