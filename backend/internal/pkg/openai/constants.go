@@ -73,7 +73,7 @@ func CodexBaseInstructionsForModel(model string) string {
 		if v := strings.TrimSpace(instructionsGPT52); v != "" {
 			return instructionsGPT52
 		}
-	case strings.HasPrefix(m, "gpt-5.1"), strings.HasPrefix(m, "gpt-5"):
+	case strings.HasPrefix(m, "gpt-5.1"):
 		if v := strings.TrimSpace(instructionsGPT51); v != "" {
 			return instructionsGPT51
 		}

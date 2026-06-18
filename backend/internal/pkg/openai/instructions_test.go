@@ -26,7 +26,7 @@ func TestCodexBaseInstructionsForModel(t *testing.T) {
 		{"gpt-5.2-codex", "You are Codex, based on GPT-5"},
 		{"gpt-5.2", "You are GPT-5.2 running in the Codex CLI"},
 		{"gpt-5.1", "You are GPT-5.1 running in the Codex CLI"},
-		{"gpt-5", "You are GPT-5.1 running in the Codex CLI"},
+		{"gpt-5", "You are Codex, based on GPT-5"},
 		{"", "You are Codex, based on GPT-5"}, // 回退
 	}
 	for _, c := range cases {

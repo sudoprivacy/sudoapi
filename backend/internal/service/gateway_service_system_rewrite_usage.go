@@ -6,11 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"golang.org/x/sync/singleflight"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
@@ -29,6 +33,9 @@ func defaultSystemRewriteTokenConfig() *systemRewriteTokenConfig {
 			"claude-fable-5":  500,
 			"claude-opus-4-7": 500,
 			"claude-opus-4-8": 500,
+			"gpt-5.2":         4400,
+			"gpt-5.1":         4700,
+			"default_openai":  1300,
 		},
 		Default: 360,
 	}
@@ -153,4 +160,146 @@ func applySystemRewriteUsageMap(usage map[string]any, systemTokens int) bool {
 		inputTokens, after, systemTokens,
 	)
 	return true
+}
+
+func (s *OpenAIGatewayService) instructionsRewriteInputTokens(ctx context.Context, model string) int {
+	var config *systemRewriteTokenConfig
+	if s == nil || s.settingService == nil {
+		config = defaultSystemRewriteTokenConfig()
+	} else {
+		config = s.settingService.getSystemRewriteTokenConfig(ctx)
+	}
+
+	m := strings.ToLower(strings.TrimSpace(model))
+	if tokens, ok := config.Models[m]; ok {
+		return tokens
+	}
+
+	// see openai.CodexBaseInstructionsForModel
+	switch {
+	case strings.HasPrefix(m, "gpt-5.2"):
+		m = "gpt-5.2"
+	case strings.HasPrefix(m, "gpt-5.1"):
+		m = "gpt-5.1"
+	}
+	if tokens, ok := config.Models[m]; ok {
+		return tokens
+	}
+	if tokens, ok := config.Models["default_openai"]; ok {
+		return tokens
+	}
+	return config.Default
+}
+
+func applyOpenAIResponsesSystemRewriteUsage(usage *apicompat.ResponsesUsage, systemTokens int) bool {
+	if usage == nil || systemTokens <= 0 {
+		return false
+	}
+	// 无论是不是首轮, 一定包含 instructions
+	before := usage.InputTokens
+	if usage.InputTokens > systemTokens {
+		usage.InputTokens -= systemTokens
+	}
+	// 缓存命中则扣减
+	if usage.InputTokensDetails != nil {
+		if usage.InputTokensDetails.CachedTokens >= systemTokens {
+			usage.InputTokensDetails.CachedTokens -= systemTokens
+		} else {
+			usage.InputTokensDetails.CachedTokens = 0
+		}
+	}
+	usage.TotalTokens = usage.InputTokens + usage.OutputTokens
+
+	logger.LegacyPrintf(
+		"service.openai_gateway",
+		"openai instructions rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
+		before, usage.InputTokens, systemTokens,
+	)
+	return true
+}
+
+func applyOpenAISystemRewriteUsageJSON(body []byte, systemTokens int) ([]byte, bool) {
+	if systemTokens <= 0 {
+		return body, false
+	}
+
+	usage, ok := extractOpenAIUsageFromJSONBytes(body)
+	if !ok {
+		return body, false
+	}
+
+	// 无论是不是首轮, 一定包含 instructions
+	before := usage.InputTokens
+	if usage.InputTokens > systemTokens {
+		usage.InputTokens -= systemTokens
+	}
+	// 缓存命中则扣减
+	if usage.CacheReadInputTokens >= systemTokens {
+		usage.CacheReadInputTokens -= systemTokens
+	} else {
+		usage.CacheReadInputTokens = 0
+	}
+
+	inputPath := "usage.input_tokens"
+	totalPath := "usage.total_tokens"
+	cacheReadPath := "usage.input_tokens_details.cached_tokens"
+	if !gjson.GetBytes(body, "usage").Exists() && gjson.GetBytes(body, "response.usage").Exists() {
+		inputPath = "response.usage.input_tokens"
+		totalPath = "response.usage.total_tokens"
+		cacheReadPath = "response.usage.input_tokens_details.cached_tokens"
+	}
+	updated, err := sjson.SetBytes(body, inputPath, usage.InputTokens)
+	if err != nil {
+		slog.Warn("failed to set input tokens", "error", err)
+		return body, false
+	}
+	if gjson.GetBytes(updated, totalPath).Exists() {
+		updated, err = sjson.SetBytes(updated, totalPath, usage.InputTokens+usage.OutputTokens)
+		if err != nil {
+			slog.Warn("failed to set total tokens", "error", err)
+			return body, false
+		}
+	}
+	if gjson.GetBytes(updated, cacheReadPath).Exists() {
+		updated, err = sjson.SetBytes(updated, cacheReadPath, usage.CacheReadInputTokens)
+		if err != nil {
+			slog.Warn("failed to set cached tokens", "error", err)
+			return body, false
+		}
+	}
+
+	logger.LegacyPrintf(
+		"service.openai_gateway",
+		"openai instructions rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
+		before, usage.InputTokens, systemTokens,
+	)
+	return updated, true
+}
+
+func rewriteOpenAISSEBodySystemRewriteUsage(body string, systemTokens int) (string, bool) {
+	if systemTokens <= 0 || strings.TrimSpace(body) == "" {
+		return body, false
+	}
+	lines := strings.Split(body, "\n")
+	changed := false
+	for i, line := range lines {
+		data, ok := extractOpenAISSEDataLine(line)
+		if !ok {
+			continue
+		}
+		updated, lineChanged := applyOpenAISystemRewriteUsageJSON([]byte(data), systemTokens)
+		if !lineChanged {
+			continue
+		}
+		prefix := "data:"
+		if strings.HasPrefix(line, "data: ") {
+			prefix = "data: "
+		}
+		lines[i] = prefix + string(updated)
+		changed = true
+	}
+	if !changed {
+		return body, false
+	}
+	return strings.Join(lines, "\n"), true
 }

@@ -1113,17 +1113,6 @@ func marshalAnthropicSystemTextBlock(text string, includeCacheControl bool) ([]b
 	return json.Marshal(block)
 }
 
-func marshalAnthropicSystemTextBlockWithCacheControl(text string, cacheControl any) ([]byte, error) {
-	block := map[string]any{
-		"type": "text",
-		"text": text,
-	}
-	if cacheControl != nil {
-		block["cache_control"] = cacheControl
-	}
-	return json.Marshal(block)
-}
-
 func marshalAnthropicMetadata(userID string) ([]byte, error) {
 	return json.Marshal(anthropicMetadataPayload{UserID: userID})
 }
