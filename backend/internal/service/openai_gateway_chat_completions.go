@@ -187,6 +187,10 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		if codexResult.NormalizedModel != "" {
 			upstreamModel = codexResult.NormalizedModel
 		}
+		// sudoapi: Deduct proxy-injected openai prompt usage.
+		if codexResult.SystemRewrite && c != nil {
+			c.Set(systemRewriteTokensKey, s.instructionsRewriteInputTokens(ctx, upstreamModel))
+		}
 		if codexResult.PromptCacheKey != "" {
 			promptCacheKey = codexResult.PromptCacheKey
 		} else if promptCacheKey != "" {
@@ -472,6 +476,11 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 	// accumulated delta events so the client receives the full content.
 	acc.SupplementResponseOutput(finalResponse)
 
+	// sudoapi: Deduct proxy-injected openai prompt usage.
+	if applyOpenAIResponsesSystemRewriteUsage(finalResponse.Usage, c.GetInt(systemRewriteTokensKey)) {
+		usage = copyOpenAIUsageFromResponsesUsage(finalResponse.Usage)
+	}
+
 	chatResp := apicompat.ResponsesToChatCompletions(finalResponse, originalModel)
 
 	if s.responseHeaderFilter != nil {
@@ -593,6 +602,14 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 
 		isTerminalEvent := isOpenAICompatResponsesTerminalEvent(event.Type)
 		if isTerminalEvent {
+			// sudoapi: Deduct proxy-injected openai prompt usage.
+			systemRewriteTokens := c.GetInt(systemRewriteTokensKey)
+			if event.Response != nil && event.Response.Usage != nil {
+				applyOpenAIResponsesSystemRewriteUsage(event.Response.Usage, systemRewriteTokens)
+			}
+			if event.Usage != nil {
+				applyOpenAIResponsesSystemRewriteUsage(event.Usage, systemRewriteTokens)
+			}
 			if event.Usage != nil {
 				usage = copyOpenAIUsageFromResponsesUsage(event.Usage)
 			}

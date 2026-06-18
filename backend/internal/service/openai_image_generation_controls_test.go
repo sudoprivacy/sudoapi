@@ -61,7 +61,7 @@ func TestOpenAIGatewayServiceForward_DisabledGroupAllowsTextOnlyResponses(t *tes
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_text","model":"gpt-5.4","usage":{"input_tokens":3,"output_tokens":2}}`)),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_text","model":"gpt-5.4","usage":{"input_tokens":5003,"output_tokens":2}}`)),
 		},
 	}
 	svc := newOpenAIImageGenerationControlTestService(upstream)

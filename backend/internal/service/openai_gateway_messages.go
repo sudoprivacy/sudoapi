@@ -158,6 +158,10 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 			SkipDefaultInstructions: true,
 			PreserveToolCallIDs:     true,
 		})
+		// sudoapi: Deduct proxy-injected openai prompt usage.
+		if codexResult.SystemRewrite {
+			c.Set(systemRewriteTokensKey, s.instructionsRewriteInputTokens(ctx, upstreamModel))
+		}
 		forcedTemplateText := ""
 		if s.cfg != nil {
 			forcedTemplateText = s.cfg.Gateway.ForcedCodexInstructionsTemplate
@@ -170,14 +174,19 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		if strings.TrimSpace(existingInstructions) == "" {
 			existingInstructions = extractPromptLikeInstructionsFromInput(reqBody)
 		}
-		if _, err := applyForcedCodexInstructionsTemplate(reqBody, forcedTemplateText, forcedCodexInstructionsTemplateData{
+		forcedInstructions, err := applyForcedCodexInstructionsTemplate(reqBody, forcedTemplateText, forcedCodexInstructionsTemplateData{
 			ExistingInstructions: strings.TrimSpace(existingInstructions),
 			OriginalModel:        originalModel,
 			NormalizedModel:      normalizedModel,
 			BillingModel:         billingModel,
 			UpstreamModel:        templateUpstreamModel,
-		}); err != nil {
+		})
+		if err != nil {
 			return nil, err
+		}
+		// sudoapi: Deduct proxy-injected openai prompt usage.
+		if forcedInstructions {
+			c.Set(systemRewriteTokensKey, s.instructionsRewriteInputTokens(ctx, templateUpstreamModel))
 		}
 		ensureCodexOAuthInstructionsField(reqBody)
 		if shouldAutoInjectPromptCacheKeyForCompat(upstreamModel) {
@@ -478,6 +487,11 @@ func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 	// When the terminal event has an empty output array, reconstruct from
 	// accumulated delta events so the client receives the full content.
 	acc.SupplementResponseOutput(finalResponse)
+
+	// sudoapi: Deduct proxy-injected openai prompt usage.
+	if applyOpenAIResponsesSystemRewriteUsage(finalResponse.Usage, c.GetInt(systemRewriteTokensKey)) {
+		usage = copyOpenAIUsageFromResponsesUsage(finalResponse.Usage)
+	}
 
 	anthropicResp := apicompat.ResponsesToAnthropic(finalResponse, originalModel)
 
@@ -790,6 +804,14 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 
 		isTerminalEvent := isOpenAICompatResponsesTerminalEvent(event.Type)
 		if isTerminalEvent {
+			// sudoapi: Deduct proxy-injected openai prompt usage.
+			systemRewriteTokens := c.GetInt(systemRewriteTokensKey)
+			if event.Response != nil && event.Response.Usage != nil {
+				applyOpenAIResponsesSystemRewriteUsage(event.Response.Usage, systemRewriteTokens)
+			}
+			if event.Usage != nil {
+				applyOpenAIResponsesSystemRewriteUsage(event.Usage, systemRewriteTokens)
+			}
 			if event.Response != nil {
 				if id := strings.TrimSpace(event.Response.ID); id != "" {
 					responseID = id

@@ -2520,6 +2520,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	instructionsEmpty := !instructions.Exists() || instructions.Type != gjson.String || strings.TrimSpace(instructions.String()) == ""
 	if instructionsEmpty && !compatMessagesBridge {
 		markPatchSet("instructions", defaultCodexSynthInstructions(reqModel))
+		// sudoapi: Deduct proxy-injected openai prompt usage.
+		c.Set(systemRewriteTokensKey, s.instructionsRewriteInputTokens(ctx, reqModel))
 	}
 
 	billingModel := account.GetMappedModel(reqModel)
@@ -2627,6 +2629,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			markDecodedModified()
 		} else {
 			codexResult = applyCodexOAuthTransform(decoded, isCodexCLI, isCompactRequest)
+		}
+		// sudoapi: Deduct proxy-injected openai prompt usage.
+		if codexResult.SystemRewrite {
+			c.Set(systemRewriteTokensKey, s.instructionsRewriteInputTokens(ctx, upstreamModel))
 		}
 		if codexResult.Modified {
 			markDecodedModified()
@@ -4904,6 +4910,15 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 			if needModelReplace && mappedModel != "" && strings.Contains(line, mappedModel) {
 				line = s.replaceModelInSSELine(line, mappedModel, originalModel)
 			}
+			// sudoapi: Deduct proxy-injected openai prompt usage.
+			if rewrittenData, rewritten := applyOpenAISystemRewriteUsageJSON(dataBytes, c.GetInt(systemRewriteTokensKey)); rewritten {
+				dataBytes = rewrittenData
+				data = string(rewrittenData)
+				line = "data: " + data
+				if needModelReplace && mappedModel != "" && strings.Contains(line, mappedModel) {
+					line = s.replaceModelInSSELine(line, mappedModel, originalModel)
+				}
+			}
 			startsClientOutput := forceFlushFailedEvent || openAIStreamDataStartsClientOutput(data, eventType)
 
 			// 写入客户端（客户端断开后继续 drain 上游）
@@ -5309,6 +5324,14 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, r
 	}
 	usage := &usageValue
 
+	// sudoapi: Deduct proxy-injected codex system prompt usage.
+	if newBody, ok := applyOpenAISystemRewriteUsageJSON(body, c.GetInt(systemRewriteTokensKey)); ok {
+		body = newBody
+		if updatedUsage, parsed := extractOpenAIUsageFromJSONBytes(body); parsed {
+			*usage = updatedUsage
+		}
+	}
+
 	// Replace model in response if needed
 	if originalModel != mappedModel {
 		body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
@@ -5359,6 +5382,13 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 			}
 		}
 		body = finalResponse
+		// sudoapi: Deduct proxy-injected openai prompt usage.
+		if newBody, changed := applyOpenAISystemRewriteUsageJSON(body, c.GetInt(systemRewriteTokensKey)); changed {
+			body = newBody
+			if updatedUsage, parsed := extractOpenAIUsageFromJSONBytes(body); parsed {
+				*usage = updatedUsage
+			}
+		}
 		if originalModel != mappedModel {
 			body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
 		}
@@ -5374,6 +5404,11 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 			return nil, s.writeOpenAINonStreamingProtocolError(resp, c, msg)
 		}
 		usage = s.parseSSEUsageFromBody(bodyText)
+		// sudoapi: Deduct proxy-injected openai prompt usage.
+		if rewrittenBody, rewritten := rewriteOpenAISSEBodySystemRewriteUsage(bodyText, c.GetInt(systemRewriteTokensKey)); rewritten {
+			bodyText = rewrittenBody
+			usage = s.parseSSEUsageFromBody(bodyText)
+		}
 		if originalModel != mappedModel {
 			bodyText = s.replaceModelInSSEBody(bodyText, mappedModel, originalModel)
 		}
