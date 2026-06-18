@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -61,6 +62,16 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	promptCacheKey string,
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
+	if c != nil && c.Request != nil {
+		s.debugGatewayBodyFile.LogGatewaySnapshot("OPENAI_CC_CLIENT_ORIGINAL", c.Request.Header, body, map[string]string{
+			"account":      fmt.Sprintf("%d(%s)", account.ID, account.Name),
+			"account_type": account.Type,
+			"model":        gjson.GetBytes(body, "model").String(),
+			"path":         c.Request.URL.Path,
+			"stream":       strconv.FormatBool(gjson.GetBytes(body, "stream").Bool()),
+		})
+	}
+
 	// 入口分流：APIKey 账号 + 强制或已探测确认上游不支持 Responses，走 CC 直转。
 	// 自动模式下标记缺失（未探测）按"现状即证据"原则继续走下方原 Responses 转换路径。
 	if account.Type == AccountTypeAPIKey && !openai_compat.ShouldUseResponsesAPI(account.Extra) {
@@ -216,7 +227,7 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	responsesBody = updatedBody
 
 	// 5. Get access token
-	token, _, err := s.GetAccessToken(ctx, account)
+	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, fmt.Errorf("get access token: %w", err)
 	}
@@ -233,6 +244,21 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		apiKeyID := getAPIKeyIDFromContext(c)
 		upstreamReq.Header.Set("session_id", generateSessionUUID(isolateOpenAISessionID(apiKeyID, promptCacheKey)))
 	}
+	s.debugGatewayBodyFile.LogGatewaySnapshot("OPENAI_CC_UPSTREAM_FORWARD", upstreamReq.Header, responsesBody, map[string]string{
+		"account":                fmt.Sprintf("%d(%s)", account.ID, account.Name),
+		"account_type":           account.Type,
+		"billing_model":          billingModel,
+		"client_stream":          strconv.FormatBool(clientStream),
+		"endpoint":               "responses",
+		"original_model":         originalModel,
+		"prompt_cache":           strconv.FormatBool(strings.TrimSpace(promptCacheKey) != ""),
+		"raw_chat_completions":   "false",
+		"responses_shape":        strconv.FormatBool(isResponsesShape),
+		"token_type":             tokenType,
+		"upstream_forced_stream": "true",
+		"upstream_model":         upstreamModel,
+		"url":                    upstreamReq.URL.String(),
+	})
 
 	// 7. Send request
 	proxyURL := ""

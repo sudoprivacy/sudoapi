@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -160,6 +161,17 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 	if customUA != "" {
 		upstreamReq.Header.Set("user-agent", customUA)
 	}
+	s.debugGatewayBodyFile.LogGatewaySnapshot("OPENAI_CC_UPSTREAM_FORWARD_RAW", upstreamReq.Header, upstreamBody, map[string]string{
+		"account":              fmt.Sprintf("%d(%s)", account.ID, account.Name),
+		"account_type":         account.Type,
+		"billing_model":        billingModel,
+		"client_stream":        strconv.FormatBool(clientStream),
+		"endpoint":             "chat_completions",
+		"original_model":       originalModel,
+		"raw_chat_completions": "true",
+		"upstream_model":       upstreamModel,
+		"url":                  upstreamReq.URL.String(),
+	})
 
 	// 6. Send request
 	proxyURL := ""

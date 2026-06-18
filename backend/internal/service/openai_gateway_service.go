@@ -376,6 +376,7 @@ type OpenAIGatewayService struct {
 	codexSnapshotThrottle               *accountWriteThrottle
 	openaiCompatSessionResponses        sync.Map
 	openaiCompatAnthropicDigestSessions sync.Map
+	debugGatewayBodyFile                *DebugGatewayBodyFile
 }
 
 // NewOpenAIGatewayService creates a new OpenAIGatewayService
@@ -435,6 +436,7 @@ func NewOpenAIGatewayService(
 		userPlatformQuotaRepo: userPlatformQuotaRepo,
 		responseHeaderFilter:  compileResponseHeaderFilter(cfg),
 		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
+		debugGatewayBodyFile:  NewDebugGatewayBodyFile(),
 	}
 	if rateLimitService != nil {
 		rateLimitService.SetAccountRuntimeBlocker(svc)
@@ -2398,6 +2400,17 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	setOpenAICompatMessagesBridgeContext(c, compatMessagesBridge)
 
 	isCodexCLI := openai.IsCodexOfficialClientByHeaders(c.GetHeader("User-Agent"), c.GetHeader("originator")) || (s.cfg != nil && s.cfg.Gateway.ForceCodexCLI)
+	if c != nil && c.Request != nil {
+		s.debugGatewayBodyFile.LogGatewaySnapshot("OPENAI_CLIENT_ORIGINAL", c.Request.Header, originalBody, map[string]string{
+			"account":                fmt.Sprintf("%d(%s)", account.ID, account.Name),
+			"account_type":           account.Type,
+			"compat_messages_bridge": strconv.FormatBool(compatMessagesBridge),
+			"is_codex_cli":           strconv.FormatBool(isCodexCLI),
+			"model":                  originalModel,
+			"path":                   c.Request.URL.Path,
+			"stream":                 strconv.FormatBool(reqStream),
+		})
+	}
 	wsDecision := s.getOpenAIWSProtocolResolver().Resolve(account)
 	clientTransport := GetOpenAIClientTransport(c)
 	// 仅允许 WS 入站请求走 WS 上游，避免出现 HTTP -> WS 协议混用。
@@ -2746,7 +2759,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 
 	// Get access token
-	token, _, err := s.GetAccessToken(ctx, account)
+	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, err
 	}
@@ -2974,6 +2987,16 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if err != nil {
 			return nil, err
 		}
+		s.debugGatewayBodyFile.LogGatewaySnapshot("OPENAI_UPSTREAM_FORWARD", upstreamReq.Header, body, map[string]string{
+			"token_type":   tokenType,
+			"account":      fmt.Sprintf("%d(%s)", account.ID, account.Name),
+			"account_type": account.Type,
+			"is_codex_cli": strconv.FormatBool(isCodexCLI),
+			"model":        reqModel,
+			"prompt_cache": strconv.FormatBool(strings.TrimSpace(promptCacheKey) != ""),
+			"stream":       strconv.FormatBool(reqStream),
+			"url":          upstreamReq.URL.String(),
+		})
 
 		// Get proxy URL
 		proxyURL := ""
@@ -3262,6 +3285,14 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 	if err != nil {
 		return nil, err
 	}
+	s.debugGatewayBodyFile.LogGatewaySnapshot("OPENAI_UPSTREAM_FORWARD_PASSTHROUGH", upstreamReq.Header, body, map[string]string{
+		"account":      fmt.Sprintf("%d(%s)", account.ID, account.Name),
+		"account_type": account.Type,
+		"model":        reqModel,
+		"passthrough":  "true",
+		"stream":       strconv.FormatBool(reqStream),
+		"url":          upstreamReq.URL.String(),
+	})
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
