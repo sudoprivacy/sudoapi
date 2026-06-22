@@ -33,9 +33,9 @@ func defaultSystemRewriteTokenConfig() *systemRewriteTokenConfig {
 			"claude-fable-5":  500,
 			"claude-opus-4-7": 500,
 			"claude-opus-4-8": 500,
-			"codex":           1300,
 			"gpt-5.2":         4400,
-			"gpt-5":           5000,
+			"gpt-5.1":         4700,
+			"default_openai":  1300,
 		},
 		Default: 360,
 	}
@@ -177,14 +177,10 @@ func (s *OpenAIGatewayService) instructionsRewriteInputTokens(ctx context.Contex
 
 	// see openai.CodexBaseInstructionsForModel
 	switch {
-	case strings.Contains(m, "codex"):
-		m = "codex"
 	case strings.HasPrefix(m, "gpt-5.2"):
 		m = "gpt-5.2"
 	case strings.HasPrefix(m, "gpt-5.1"):
 		m = "gpt-5.1"
-	case strings.HasPrefix(m, "gpt-5"):
-		m = "gpt-5"
 	}
 	if tokens, ok := config.Models[m]; ok {
 		return tokens
@@ -195,46 +191,28 @@ func (s *OpenAIGatewayService) instructionsRewriteInputTokens(ctx context.Contex
 	return config.Default
 }
 
-func applyOpenAISystemRewriteUsage(usage *OpenAIUsage, systemTokens int) bool {
-	if usage == nil {
-		return false
-	}
-	// cache read 命中时，代理注入的静态 system 已经按缓存读取计费；这里不再修正。
-	if usage.CacheReadInputTokens > 0 {
-		return false
-	}
-	if systemTokens <= 0 {
-		return false
-	}
-	systemTokens = min(systemTokens, usage.InputTokens)
-	before := usage.InputTokens
-	usage.InputTokens -= systemTokens
-	logger.LegacyPrintf(
-		"service.openai_gateway",
-		"openai instructions rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
-		before, usage.InputTokens, systemTokens,
-	)
-	return true
-}
-
 func applyOpenAIResponsesSystemRewriteUsage(usage *apicompat.ResponsesUsage, systemTokens int) bool {
-	if usage == nil {
+	if usage == nil || systemTokens <= 0 {
 		return false
 	}
 	cacheReadInputTokens := 0
 	if usage.InputTokensDetails != nil {
 		cacheReadInputTokens = usage.InputTokensDetails.CachedTokens
 	}
-	if cacheReadInputTokens > 0 {
-		return false
-	}
-	if systemTokens <= 0 {
-		return false
-	}
-	systemTokens = min(systemTokens, usage.InputTokens)
+
+	// 无论是不是首轮, 一定包含 instructions
 	before := usage.InputTokens
-	usage.InputTokens -= systemTokens
+	if usage.InputTokens > systemTokens {
+		usage.InputTokens -= systemTokens
+	}
+	// 缓存命中则扣减
+	if cacheReadInputTokens >= systemTokens {
+		usage.InputTokensDetails.CachedTokens -= systemTokens
+	} else {
+		usage.InputTokensDetails.CachedTokens = 0
+	}
 	usage.TotalTokens = usage.InputTokens + usage.OutputTokens
+
 	logger.LegacyPrintf(
 		"service.openai_gateway",
 		"openai instructions rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
@@ -244,29 +222,60 @@ func applyOpenAIResponsesSystemRewriteUsage(usage *apicompat.ResponsesUsage, sys
 }
 
 func applyOpenAISystemRewriteUsageJSON(body []byte, systemTokens int) ([]byte, bool) {
+	if systemTokens <= 0 {
+		return body, false
+	}
+
 	usage, ok := extractOpenAIUsageFromJSONBytes(body)
 	if !ok {
 		return body, false
 	}
-	if !applyOpenAISystemRewriteUsage(&usage, systemTokens) {
-		return body, false
+
+	// 无论是不是首轮, 一定包含 instructions
+	before := usage.InputTokens
+	if usage.InputTokens > systemTokens {
+		usage.InputTokens -= systemTokens
+	}
+	// 缓存命中则扣减
+	if usage.CacheReadInputTokens >= systemTokens {
+		usage.CacheReadInputTokens -= systemTokens
+	} else {
+		usage.CacheReadInputTokens = 0
 	}
 
-	path := "usage.input_tokens"
+	inputPath := "usage.input_tokens"
 	totalPath := "usage.total_tokens"
+	cacheReadPath := "usage.input_tokens_details.cached_tokens"
 	if !gjson.GetBytes(body, "usage").Exists() && gjson.GetBytes(body, "response.usage").Exists() {
-		path = "response.usage.input_tokens"
+		inputPath = "response.usage.input_tokens"
 		totalPath = "response.usage.total_tokens"
+		cacheReadPath = "response.usage.input_tokens_details.cached_tokens"
 	}
-	updated, err := sjson.SetBytes(body, path, usage.InputTokens)
+	updated, err := sjson.SetBytes(body, inputPath, usage.InputTokens)
 	if err != nil {
+		slog.Warn("failed to set input tokens", "error", err)
 		return body, false
 	}
 	if gjson.GetBytes(updated, totalPath).Exists() {
-		if updatedTotal, err := sjson.SetBytes(updated, totalPath, usage.InputTokens+usage.OutputTokens); err == nil {
-			updated = updatedTotal
+		updated, err = sjson.SetBytes(updated, totalPath, usage.InputTokens+usage.OutputTokens)
+		if err != nil {
+			slog.Warn("failed to set total tokens", "error", err)
+			return body, false
 		}
 	}
+	if gjson.GetBytes(updated, cacheReadPath).Exists() {
+		updated, err = sjson.SetBytes(updated, cacheReadPath, usage.CacheReadInputTokens)
+		if err != nil {
+			slog.Warn("failed to set cached tokens", "error", err)
+			return body, false
+		}
+	}
+
+	logger.LegacyPrintf(
+		"service.openai_gateway",
+		"openai instructions rewrite usage deducted: input_tokens %d -> %d deducted_tokens=%d",
+		before, usage.InputTokens, systemTokens,
+	)
 	return updated, true
 }
 

@@ -2518,7 +2518,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	instructions := gjson.GetBytes(body, "instructions")
 	instructionsEmpty := !instructions.Exists() || instructions.Type != gjson.String || strings.TrimSpace(instructions.String()) == ""
-	if instructionsEmpty && !compatMessagesBridge {
+	if account.Type == AccountTypeOAuth && instructionsEmpty && !compatMessagesBridge {
 		markPatchSet("instructions", defaultCodexSynthInstructions(reqModel))
 		// sudoapi: Deduct proxy-injected openai prompt usage.
 		c.Set(systemRewriteTokensKey, s.instructionsRewriteInputTokens(ctx, reqModel))
