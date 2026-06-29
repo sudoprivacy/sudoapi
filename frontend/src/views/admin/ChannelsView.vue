@@ -761,7 +761,7 @@ let abortController: AbortController | null = null
 
 // ── Platform config ──
 // sudoapi: Model market.
-const fallbackPlatformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity']
+const fallbackPlatformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok']
 const platformOrder = ref<GroupPlatform[]>([...fallbackPlatformOrder])
 
 async function loadConfiguredPlatforms() {

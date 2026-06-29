@@ -33,6 +33,7 @@ func defaultSystemRewriteTokenConfig() *systemRewriteTokenConfig {
 			"claude-fable-5":  500,
 			"claude-opus-4-7": 500,
 			"claude-opus-4-8": 500,
+			"gpt-5.5":         4300,
 			"gpt-5.2":         4400,
 			"gpt-5.1":         4700,
 			"default_openai":  1300,
@@ -177,6 +178,8 @@ func (s *OpenAIGatewayService) instructionsRewriteInputTokens(ctx context.Contex
 
 	// see openai.CodexBaseInstructionsForModel
 	switch {
+	case strings.HasPrefix(m, "gpt-5.5"):
+		m = "gpt-5.5"
 	case strings.HasPrefix(m, "gpt-5.2"):
 		m = "gpt-5.2"
 	case strings.HasPrefix(m, "gpt-5.1"):
