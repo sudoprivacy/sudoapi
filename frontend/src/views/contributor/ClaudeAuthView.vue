@@ -134,6 +134,7 @@ import { contributorAPI } from '@/api/contributor'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import type { Proxy } from '@/types'
+import type { AuthInputMethod } from '@/composables/useAccountOAuth'
 
 type OAuthFlowExposed = {
   authCode: string
@@ -145,7 +146,6 @@ type OAuthFlowExposed = {
 
 // sudoapi: Contributor account OpenAI OAuth self-service authorization.
 type ContributorPlatform = 'anthropic' | 'openai'
-type AuthInputMethod = 'manual' | 'cookie' | 'refresh_token' | 'mobile_refresh_token' | 'session_token' | 'access_token' | 'codex_session'
 
 // sudoapi: Contributor account OpenAI OAuth self-service authorization.
 const OPENAI_MOBILE_RT_CLIENT_ID = 'app_LlGpXReQgckcGGUo2JrYvtJK'
