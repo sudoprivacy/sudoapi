@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/gin-gonic/gin"
+	"github.com/magiconair/properties/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
@@ -397,6 +398,11 @@ func TestForwardAsChatCompletions_ClientDisconnectDrainsUpstreamUsage(t *testing
 	require.Equal(t, 11, result.Usage.InputTokens)
 	require.Equal(t, 5, result.Usage.OutputTokens)
 	require.Equal(t, 4, result.Usage.CacheReadInputTokens)
+
+	// sudoapi: Inject instructions only for openai oauth account.
+	instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+	assert.Equal(t, gjson.String, instructions.Type)
+	assert.Equal(t, "", instructions.Str)
 }
 
 func TestForwardAsChatCompletions_BufferedContextWindowResponseFailedReturnsErrorWithoutFailover(t *testing.T) {
@@ -584,6 +590,11 @@ func TestForwardAsChatCompletions_StreamsUsageWithoutClientStreamOptions(t *test
 	require.Contains(t, responseBody, `"prompt_tokens":13`)
 	require.Contains(t, responseBody, `"completion_tokens":7`)
 	require.Contains(t, responseBody, `"cached_tokens":5`)
+
+	// sudoapi: Inject instructions only for openai oauth account.
+	instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+	assert.Equal(t, gjson.String, instructions.Type)
+	assert.Equal(t, "", instructions.Str)
 }
 
 func TestForwardAsChatCompletions_StreamsTopLevelTerminalUsage(t *testing.T) {
@@ -684,6 +695,11 @@ func TestForwardAsChatCompletions_BufferedTopLevelTerminalUsage(t *testing.T) {
 	require.Contains(t, responseBody, `"prompt_tokens":18`)
 	require.Contains(t, responseBody, `"completion_tokens":6`)
 	require.Contains(t, responseBody, `"cached_tokens":3`)
+
+	// sudoapi: Inject instructions only for openai oauth account.
+	instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+	assert.Equal(t, gjson.String, instructions.Type)
+	assert.Equal(t, "", instructions.Str)
 }
 
 func TestForwardAsChatCompletions_TerminalUsageWithoutUpstreamCloseReturns(t *testing.T) {
@@ -737,6 +753,11 @@ func TestForwardAsChatCompletions_TerminalUsageWithoutUpstreamCloseReturns(t *te
 		require.Equal(t, 17, got.result.Usage.InputTokens)
 		require.Equal(t, 8, got.result.Usage.OutputTokens)
 		require.Equal(t, 6, got.result.Usage.CacheReadInputTokens)
+
+		// sudoapi: Inject instructions only for openai oauth account.
+		instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+		assert.Equal(t, gjson.String, instructions.Type)
+		assert.Equal(t, "", instructions.Str)
 	case <-time.After(time.Second):
 		require.Fail(t, "ForwardAsChatCompletions should return after terminal usage event even if upstream keeps the connection open")
 	}
@@ -804,6 +825,11 @@ func TestForwardAsChatCompletions_EventNamedTerminalWithoutUpstreamCloseReturns(
 		require.Equal(t, 8, got.result.Usage.OutputTokens)
 		require.Equal(t, 6, got.result.Usage.CacheReadInputTokens)
 		require.Contains(t, rec.Body.String(), `"content":"ok"`)
+
+		// sudoapi: Inject instructions only for openai oauth account.
+		instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+		assert.Equal(t, gjson.String, instructions.Type)
+		assert.Equal(t, "", instructions.Str)
 	case <-time.After(time.Second):
 		require.Fail(t, "ForwardAsChatCompletions should use SSE event names when data payloads omit type")
 	}
@@ -907,6 +933,11 @@ func TestForwardAsChatCompletions_BufferedTerminalWithoutUpstreamCloseReturns(t 
 		require.Equal(t, 8, got.result.Usage.OutputTokens)
 		require.Equal(t, 6, got.result.Usage.CacheReadInputTokens)
 		require.Contains(t, rec.Body.String(), `"finish_reason":"stop"`)
+
+		// sudoapi: Inject instructions only for openai oauth account.
+		instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+		assert.Equal(t, gjson.String, instructions.Type)
+		assert.Equal(t, "", instructions.Str)
 	case <-time.After(time.Second):
 		require.Fail(t, "ForwardAsChatCompletions buffered response should return after terminal usage event even if upstream keeps the connection open")
 	}
