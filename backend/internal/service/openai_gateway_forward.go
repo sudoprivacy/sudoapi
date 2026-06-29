@@ -238,7 +238,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	instructions := gjson.GetBytes(body, "instructions")
 	instructionsEmpty := !instructions.Exists() || instructions.Type != gjson.String || strings.TrimSpace(instructions.String()) == ""
-	if instructionsEmpty && !compatMessagesBridge {
+	// sudoapi: Inject instructions only for openai oauth account.
+	if account.Type == AccountTypeOAuth && instructionsEmpty && !compatMessagesBridge {
 		markPatchSet("instructions", defaultCodexSynthInstructions(reqModel))
 	}
 
