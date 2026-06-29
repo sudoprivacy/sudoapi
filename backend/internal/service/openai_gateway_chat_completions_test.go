@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/magiconair/properties/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 
@@ -238,7 +239,7 @@ func TestForwardAsChatCompletions_ClientDisconnectDrainsUpstreamUsage(t *testing
 		"",
 		`data: {"type":"response.output_text.delta","delta":"ok"}`,
 		"",
-		`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":1311,"output_tokens":5,"total_tokens":1316,"input_tokens_details":{"cached_tokens":1304}}}}`,
+		`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":11,"output_tokens":5,"total_tokens":16,"input_tokens_details":{"cached_tokens":4}}}}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -268,6 +269,10 @@ func TestForwardAsChatCompletions_ClientDisconnectDrainsUpstreamUsage(t *testing
 	require.Equal(t, 11, result.Usage.InputTokens)
 	require.Equal(t, 5, result.Usage.OutputTokens)
 	require.Equal(t, 4, result.Usage.CacheReadInputTokens)
+
+	instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+	assert.Equal(t, gjson.String, instructions.Type)
+	assert.Equal(t, "", instructions.Str)
 }
 
 func TestForwardAsChatCompletions_BufferedResponseFailedTriggersFailover(t *testing.T) {
@@ -417,7 +422,7 @@ func TestForwardAsChatCompletions_StreamsUsageWithoutClientStreamOptions(t *test
 		"",
 		`data: {"type":"response.output_text.delta","delta":"ok"}`,
 		"",
-		`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":1313,"output_tokens":7,"total_tokens":1320,"input_tokens_details":{"cached_tokens":1305}}}}`,
+		`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":13,"output_tokens":7,"total_tokens":20,"input_tokens_details":{"cached_tokens":5}}}}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -453,6 +458,10 @@ func TestForwardAsChatCompletions_StreamsUsageWithoutClientStreamOptions(t *test
 	require.Contains(t, responseBody, `"prompt_tokens":13`)
 	require.Contains(t, responseBody, `"completion_tokens":7`)
 	require.Contains(t, responseBody, `"cached_tokens":5`)
+
+	instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+	assert.Equal(t, gjson.String, instructions.Type)
+	assert.Equal(t, "", instructions.Str)
 }
 
 func TestForwardAsChatCompletions_StreamsTopLevelTerminalUsage(t *testing.T) {
@@ -469,7 +478,7 @@ func TestForwardAsChatCompletions_StreamsTopLevelTerminalUsage(t *testing.T) {
 		"",
 		`data: {"type":"response.output_text.delta","delta":"ok"}`,
 		"",
-		`data: {"type":"response.completed","response":{"id":"resp_top","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}]},"usage":{"input_tokens":1321,"output_tokens":9,"total_tokens":1330,"input_tokens_details":{"cached_tokens":1304}}}`,
+		`data: {"type":"response.completed","response":{"id":"resp_top","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}]},"usage":{"input_tokens":21,"output_tokens":9,"total_tokens":30,"input_tokens_details":{"cached_tokens":4}}}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -517,7 +526,7 @@ func TestForwardAsChatCompletions_BufferedTopLevelTerminalUsage(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	upstreamBody := strings.Join([]string{
-		`data: {"type":"response.completed","response":{"id":"resp_top_buffered","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}]},"usage":{"input_tokens":1318,"output_tokens":6,"total_tokens":1324,"input_tokens_details":{"cached_tokens":1303}}}`,
+		`data: {"type":"response.completed","response":{"id":"resp_top_buffered","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}]},"usage":{"input_tokens":18,"output_tokens":6,"total_tokens":24,"input_tokens_details":{"cached_tokens":3}}}`,
 		"",
 		"data: [DONE]",
 		"",
@@ -553,6 +562,10 @@ func TestForwardAsChatCompletions_BufferedTopLevelTerminalUsage(t *testing.T) {
 	require.Contains(t, responseBody, `"prompt_tokens":18`)
 	require.Contains(t, responseBody, `"completion_tokens":6`)
 	require.Contains(t, responseBody, `"cached_tokens":3`)
+
+	instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+	assert.Equal(t, gjson.String, instructions.Type)
+	assert.Equal(t, "", instructions.Str)
 }
 
 func TestForwardAsChatCompletions_TerminalUsageWithoutUpstreamCloseReturns(t *testing.T) {
@@ -565,7 +578,7 @@ func TestForwardAsChatCompletions_TerminalUsageWithoutUpstreamCloseReturns(t *te
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	upstreamBody := []byte(`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":1317,"output_tokens":8,"total_tokens":1325,"input_tokens_details":{"cached_tokens":1306}}}}` + "\n\n")
+	upstreamBody := []byte(`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":17,"output_tokens":8,"total_tokens":25,"input_tokens_details":{"cached_tokens":6}}}}` + "\n\n")
 	upstreamStream := newOpenAICompatBlockingReadCloser(upstreamBody)
 	defer func() {
 		require.NoError(t, upstreamStream.Close())
@@ -606,6 +619,9 @@ func TestForwardAsChatCompletions_TerminalUsageWithoutUpstreamCloseReturns(t *te
 		require.Equal(t, 17, got.result.Usage.InputTokens)
 		require.Equal(t, 8, got.result.Usage.OutputTokens)
 		require.Equal(t, 6, got.result.Usage.CacheReadInputTokens)
+		instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+		assert.Equal(t, gjson.String, instructions.Type)
+		assert.Equal(t, "", instructions.Str)
 	case <-time.After(time.Second):
 		require.Fail(t, "ForwardAsChatCompletions should return after terminal usage event even if upstream keeps the connection open")
 	}
@@ -628,7 +644,7 @@ func TestForwardAsChatCompletions_EventNamedTerminalWithoutUpstreamCloseReturns(
 		`data: {"delta":"ok"}`,
 		``,
 		`event: response.completed`,
-		`data: {"response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":1317,"output_tokens":8,"total_tokens":1325,"input_tokens_details":{"cached_tokens":1306}}}}`,
+		`data: {"response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":17,"output_tokens":8,"total_tokens":25,"input_tokens_details":{"cached_tokens":6}}}}`,
 		``,
 		``,
 	}, "\n"))
@@ -673,6 +689,9 @@ func TestForwardAsChatCompletions_EventNamedTerminalWithoutUpstreamCloseReturns(
 		require.Equal(t, 8, got.result.Usage.OutputTokens)
 		require.Equal(t, 6, got.result.Usage.CacheReadInputTokens)
 		require.Contains(t, rec.Body.String(), `"content":"ok"`)
+		instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+		assert.Equal(t, gjson.String, instructions.Type)
+		assert.Equal(t, "", instructions.Str)
 	case <-time.After(time.Second):
 		require.Fail(t, "ForwardAsChatCompletions should use SSE event names when data payloads omit type")
 	}
@@ -734,7 +753,7 @@ func TestForwardAsChatCompletions_BufferedTerminalWithoutUpstreamCloseReturns(t 
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	upstreamBody := []byte(`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":1317,"output_tokens":8,"total_tokens":1325,"input_tokens_details":{"cached_tokens":1306}}}}` + "\n\n")
+	upstreamBody := []byte(`data: {"type":"response.completed","response":{"id":"resp_1","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":17,"output_tokens":8,"total_tokens":25,"input_tokens_details":{"cached_tokens":6}}}}` + "\n\n")
 	upstreamStream := newOpenAICompatBlockingReadCloser(upstreamBody)
 	defer func() {
 		require.NoError(t, upstreamStream.Close())
@@ -776,6 +795,9 @@ func TestForwardAsChatCompletions_BufferedTerminalWithoutUpstreamCloseReturns(t 
 		require.Equal(t, 8, got.result.Usage.OutputTokens)
 		require.Equal(t, 6, got.result.Usage.CacheReadInputTokens)
 		require.Contains(t, rec.Body.String(), `"finish_reason":"stop"`)
+		instructions := gjson.GetBytes(upstream.lastBody, "instructions")
+		assert.Equal(t, gjson.String, instructions.Type)
+		assert.Equal(t, "", instructions.Str)
 	case <-time.After(time.Second):
 		require.Fail(t, "ForwardAsChatCompletions buffered response should return after terminal usage event even if upstream keeps the connection open")
 	}
