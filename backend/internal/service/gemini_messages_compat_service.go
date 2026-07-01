@@ -15,6 +15,7 @@ import (
 	mathrand "math/rand"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,6 +55,7 @@ type GeminiMessagesCompatService struct {
 	antigravityGatewayService *AntigravityGatewayService
 	cfg                       *config.Config
 	responseHeaderFilter      *responseheaders.CompiledHeaderFilter
+	debugGatewayBodyFile      *DebugGatewayBodyFile
 }
 
 func (s *GeminiMessagesCompatService) readUpstreamErrorBody(resp *http.Response) []byte {
@@ -90,6 +92,7 @@ func NewGeminiMessagesCompatService(
 		antigravityGatewayService: antigravityGatewayService,
 		cfg:                       cfg,
 		responseHeaderFilter:      compileResponseHeaderFilter(cfg),
+		debugGatewayBodyFile:      NewDebugGatewayBodyFile(),
 	}
 }
 
@@ -1121,6 +1124,16 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 	if len(body) == 0 {
 		return nil, s.writeGoogleError(c, http.StatusBadRequest, "Request body is empty")
 	}
+	if c != nil && c.Request != nil {
+		s.debugGatewayBodyFile.LogGatewaySnapshot("GEMINI_CLIENT_ORIGINAL", c.Request.Header, body, map[string]string{
+			"account":      fmt.Sprintf("%d(%s)", account.ID, account.Name),
+			"account_type": account.Type,
+			"action":       action,
+			"model":        originalModel,
+			"path":         c.Request.URL.Path,
+			"stream":       strconv.FormatBool(stream),
+		})
+	}
 
 	// 过滤掉 parts 为空的消息（Gemini API 不接受空 parts）
 	if filteredBody, err := filterEmptyPartsFromGeminiRequest(body); err == nil {
@@ -1159,6 +1172,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 
 	var requestIDHeader string
 	var buildReq func(ctx context.Context) (*http.Request, string, error)
+	upstreamReqBody := body
 
 	switch account.Type {
 	case AccountTypeAPIKey:
@@ -1233,6 +1247,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 				upstreamReq.Header.Set("Content-Type", "application/json")
 				upstreamReq.Header.Set("Authorization", "Bearer "+accessToken)
 				upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				upstreamReqBody = wrappedBytes
 				return upstreamReq, "x-request-id", nil
 			} else {
 				// Mode 2: AI Studio API with OAuth (like API key mode, but using Bearer token)
@@ -1301,6 +1316,17 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			return nil, s.writeGoogleError(c, http.StatusBadGateway, err.Error())
 		}
 		requestIDHeader = idHeader
+		s.debugGatewayBodyFile.LogGatewaySnapshot("GEMINI_UPSTREAM_FORWARD", upstreamReq.Header, upstreamReqBody, map[string]string{
+			"account":         fmt.Sprintf("%d(%s)", account.ID, account.Name),
+			"account_type":    account.Type,
+			"action":          action,
+			"model":           originalModel,
+			"stream":          strconv.FormatBool(stream),
+			"upstream_action": upstreamAction,
+			"upstream_model":  mappedModel,
+			"upstream_stream": strconv.FormatBool(useUpstreamStream),
+			"url":             upstreamReq.URL.String(),
+		})
 
 		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 		if err != nil {
