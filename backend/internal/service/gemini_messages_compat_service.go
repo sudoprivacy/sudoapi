@@ -1130,6 +1130,9 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		body = filteredBody
 	}
 
+	// sudoapi: Gemini native request role normalization.
+	body = ensureGeminiContentRoles(body)
+
 	switch action {
 	case "generateContent", "streamGenerateContent", "countTokens":
 		// ok
