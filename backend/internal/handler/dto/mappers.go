@@ -234,6 +234,8 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		SessionWindowEnd:        a.SessionWindowEnd,
 		SessionWindowStatus:     a.SessionWindowStatus,
 		GroupIDs:                a.GroupIDs,
+		ParentAccountID:         a.ParentAccountID,
+		QuotaDimension:          a.QuotaDimension,
 		OwnerUserID:             a.OwnerUserID,
 		OwnerUser:               AccountOwnerUserFromService(a.OwnerUser),
 		ReviewStatus:            a.ReviewStatus,
@@ -756,6 +758,7 @@ func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscrip
 		MonthlyUsageUSD:    sub.MonthlyUsageUSD,
 		CreatedAt:          sub.CreatedAt,
 		UpdatedAt:          sub.UpdatedAt,
+		RevokedAt:          sub.DeletedAt,
 		User:               UserFromServiceShallow(sub.User),
 		Group:              GroupFromServiceShallow(sub.Group),
 	}

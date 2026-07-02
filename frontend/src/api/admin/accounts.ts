@@ -781,6 +781,18 @@ export async function resetOpenAIQuota(id: number): Promise<OpenAIQuotaResetResu
   return data
 }
 
+export interface SparkShadowCreatePayload {
+  name?: string
+  priority?: number
+  concurrency?: number
+  group_ids?: number[]
+}
+
+export async function createSparkShadow(parentId: number, payload: SparkShadowCreatePayload): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/accounts/${parentId}/shadow`, payload)
+  return data
+}
+
 // sudoapi: Account contributor review workflow.
 export async function updateReviewStatus(id: number, reviewStatus: 'pending' | 'approved' | 'rejected'): Promise<Account> {
   const { data } = await apiClient.put<Account>(`/admin/accounts/${id}/review-status`, {
@@ -834,6 +846,7 @@ export const accountsAPI = {
   revertProxyFallback,
   queryOpenAIQuota,
   resetOpenAIQuota,
+  createSparkShadow,
   updateReviewStatus
 }
 
