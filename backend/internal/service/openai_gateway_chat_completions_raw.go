@@ -178,6 +178,9 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 		"url":                  upstreamReq.URL.String(),
 	})
 
+	// 账号级请求头覆写（仅 openai api_key 账号启用时生效）
+	account.ApplyHeaderOverrides(upstreamReq.Header)
+
 	// 6. Send request
 	proxyURL := ""
 	if account.Proxy != nil {
