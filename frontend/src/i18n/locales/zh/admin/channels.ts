@@ -114,6 +114,9 @@ export default {
         outputPrice: '输出',
         cacheWritePrice: '缓存写入',
         cacheReadPrice: '缓存读取',
+        cacheCreation5mPrice: '缓存5m',
+        cacheCreation1hPrice: '缓存1h',
+        cacheWriteFallback: '回退缓存写入',
         cacheWritePriceShort: '缓存写',
         cacheReadPriceShort: '缓存读',
         imageTokenPrice: '图片输出',
@@ -183,6 +186,29 @@ export default {
         syncModelsAlreadyUpToDate: '模型列表已是最新',
         syncModelsError: '同步模型失败'
       }
+    },
+
+    modelSetting: {
+      title: '模型白名单设置',
+      description: '上传 CSV 控制 /model 页面展示范围与最新优先排序。',
+      currentStatus: '当前状态',
+      modelCount: '白名单模型数',
+      source: '来源',
+      fileName: '文件名',
+      filePath: '文件路径',
+      updatedAt: '更新时间',
+      uploadLabel: '白名单 CSV',
+      upload: '上传并热更新',
+      uploading: '上传中...',
+      uploadHint: 'CSV 必须包含 serial_number 和 id 列；上传成功后会覆盖 data/model_setting/models_grouped_id_desc.csv 并立即生效。',
+      uploadSuccess: '上传成功，已加载 {count} 个模型',
+      uploadFailed: '上传失败',
+      loadFailed: '加载模型白名单状态失败',
+      parseSummary: '解析摘要',
+      loadedRows: '已加载行',
+      totalRows: '数据行',
+      duplicateRows: '重复行',
+      skippedRows: '跳过空行'
     },
 
     riskControl: {

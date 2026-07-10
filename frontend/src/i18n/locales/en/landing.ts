@@ -103,6 +103,12 @@ export default {
       antigravity: 'Antigravity',
       more: 'More'
     },
+    modelSquare: {
+      title: 'Model Square',
+      subtitle: 'Browse every available model, API endpoint, and group pricing',
+      menuEntry: 'Models',
+      cta: 'Browse all models & pricing'
+    },
     // CTA section
     cta: {
       title: 'Ready to Get Started?',

@@ -40,10 +40,10 @@ export default {
       dataImportIgnoredFiles: 'Ignored {count} non-JSON file(s)',
       dataImportFailed: 'Data import failed',
       dataImportResult: 'Import Result',
-      dataImportResultSummary: 'Proxies created {proxy_created}, reused {proxy_reused}, failed {proxy_failed}; Accounts created {account_created}, failed {account_failed}',
+      dataImportResultSummary: 'Proxies created {proxy_created}, reused {proxy_reused}, failed {proxy_failed}; Accounts created {account_created}, skipped {account_skipped}, failed {account_failed}',
       dataImportErrors: 'Error Details',
-      dataImportSuccess: 'Import completed: accounts {account_created}, failed {account_failed}',
-      dataImportCompletedWithErrors: 'Import completed with errors: account failed {account_failed}, proxy failed {proxy_failed}',
+      dataImportSuccess: 'Import completed: accounts created {account_created}, skipped {account_skipped}, failed {account_failed}',
+      dataImportCompletedWithErrors: 'Import completed with errors: account skipped {account_skipped}, account failed {account_failed}, proxy failed {proxy_failed}',
       syncFromCrsTitle: 'Sync Accounts from CRS',
       syncFromCrsDesc:
         'Sync accounts from claude-relay-service (CRS) into this system (CRS is called server-to-server).',
@@ -152,6 +152,7 @@ export default {
         notes: 'Notes',
         priority: 'Priority',
         billingRateMultiplier: 'Billing Rate',
+        reviewStatus: 'Review',
         weight: 'Weight',
         schedulerScore: 'Scheduler Score',
         status: 'Status',
@@ -165,6 +166,23 @@ export default {
         expiresAt: 'Expires At',
         actions: 'Actions'
       },
+      review: {
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected'
+      },
+      reviewFilters: {
+        pending: 'Pending Review',
+        approved: 'Approved',
+        rejected: 'Rejected',
+        external: 'External Submissions'
+      },
+      externalSubmission: 'External submitter',
+      approve: 'Approve',
+      reject: 'Reject',
+      reviewApproved: 'Account approved',
+      reviewRejected: 'Account rejected',
+      reviewUpdateFailed: 'Failed to update review status',
       schedulerScore: {
         baseShort: 'Base',
         stickyShort: 'Sticky',
@@ -532,6 +550,7 @@ export default {
       clearAllModels: 'Clear all models',
       customModelName: 'Custom model name',
       enterCustomModelName: 'Enter custom model name',
+      enterCustomModelNames: 'Enter custom model name, split spaces between multiple models',
       addModel: 'Add',
       modelExists: 'Model already exists',
       modelCount: '{count} models',
@@ -775,6 +794,8 @@ export default {
         authCode: 'Authorization Code',
         authCodePlaceholder: 'Paste the Authorization Code from Claude page...',
         authCodeHint: 'Paste the Authorization Code copied from the Claude page',
+        copyUrl: 'Copy URL',
+        urlCopied: 'URL copied to clipboard',
         completeAuth: 'Complete Authorization',
         verifying: 'Verifying...',
         pleaseEnterSessionKey: 'Please enter at least one valid sessionKey',
@@ -812,7 +833,10 @@ export default {
               'No proxy is configured and this server could not reach OpenAI directly, so the OpenAI OAuth request failed. Select a proxy that can access OpenAI and retry; if the authorization code has expired, regenerate the authorization URL.'
           },
           // Refresh Token auth
+          accessTokenAuth: 'Manual AT Input',
+          mobileRefreshTokenAuth: 'Manual Mobile RT Input',
           refreshTokenAuth: 'Manual RT Input',
+          refreshTokenLabel: 'Refresh Token',
           refreshTokenDesc: 'Enter your existing OpenAI Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
           refreshTokenPlaceholder: 'Paste your OpenAI Refresh Token...\nSupports multiple, one per line',
           codexSessionAuth: 'Codex JSON / AT Batch Input',
@@ -962,6 +986,7 @@ export default {
                     failedToExchangeCode: 'Failed to exchange Antigravity auth code',
                     // Refresh Token auth
                     refreshTokenAuth: 'Manual RT',
+                    refreshTokenLabel: 'Refresh Token',
                     refreshTokenDesc: 'Enter your existing Antigravity Refresh Token. Supports batch input (one per line). The system will automatically validate and create accounts.',
                     refreshTokenPlaceholder: 'Paste your Antigravity Refresh Token...\nSupports multiple tokens, one per line',
                     validating: 'Validating...',

@@ -114,6 +114,9 @@ export default {
         outputPrice: 'Output',
         cacheWritePrice: 'Cache Write',
         cacheReadPrice: 'Cache Read',
+        cacheCreation5mPrice: 'Cache Creation 5m',
+        cacheCreation1hPrice: 'Cache Creation 1h',
+        cacheWriteFallback: 'Fallback to Cache Write Price',
         cacheWritePriceShort: 'Cache W',
         cacheReadPriceShort: 'Cache R',
         imageTokenPrice: 'Image Output',
@@ -184,6 +187,29 @@ export default {
          syncModelsError: 'Failed to sync models'
        }
      },
+
+    modelSetting: {
+      title: 'Model Whitelist Settings',
+      description: 'Upload a CSV to control /model visibility and newest-first ordering.',
+      currentStatus: 'Current Status',
+      modelCount: 'Whitelisted Models',
+      source: 'Source',
+      fileName: 'File Name',
+      filePath: 'File Path',
+      updatedAt: 'Updated At',
+      uploadLabel: 'Whitelist CSV',
+      upload: 'Upload and Hot Reload',
+      uploading: 'Uploading...',
+      uploadHint: 'CSV must contain serial_number and id columns. A successful upload replaces data/model_setting/models_grouped_id_desc.csv and takes effect immediately.',
+      uploadSuccess: 'Upload complete. Loaded {count} models.',
+      uploadFailed: 'Upload failed',
+      loadFailed: 'Failed to load model whitelist status',
+      parseSummary: 'Parse Summary',
+      loadedRows: 'Loaded Rows',
+      totalRows: 'Data Rows',
+      duplicateRows: 'Duplicate Rows',
+      skippedRows: 'Skipped Blank Rows'
+    },
 
     riskControl: {
       title: 'Risk Control',

@@ -103,6 +103,12 @@ export default {
       antigravity: 'Antigravity',
       more: '更多'
     },
+    modelSquare: {
+      title: '模型广场',
+      subtitle: '浏览所有可用模型、API 端点和分组定价',
+      menuEntry: '模型广场',
+      cta: '浏览全部模型与价格'
+    },
     // CTA 区块
     cta: {
       title: '准备好开始了吗？',

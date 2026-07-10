@@ -40,10 +40,10 @@ export default {
       dataImportIgnoredFiles: '已忽略 {count} 个非 JSON 文件',
       dataImportFailed: '数据导入失败',
       dataImportResult: '导入结果',
-      dataImportResultSummary: '代理创建 {proxy_created}，复用 {proxy_reused}，失败 {proxy_failed}；账号创建 {account_created}，失败 {account_failed}',
+      dataImportResultSummary: '代理创建 {proxy_created}，复用 {proxy_reused}，失败 {proxy_failed}；账号创建 {account_created}，跳过 {account_skipped}，失败 {account_failed}',
       dataImportErrors: '失败详情',
-      dataImportSuccess: '导入完成：账号 {account_created}，失败 {account_failed}',
-      dataImportCompletedWithErrors: '导入完成但有错误：账号失败 {account_failed}，代理失败 {proxy_failed}',
+      dataImportSuccess: '导入完成：账号创建 {account_created}，跳过 {account_skipped}，失败 {account_failed}',
+      dataImportCompletedWithErrors: '导入完成但有错误：账号跳过 {account_skipped}，账号失败 {account_failed}，代理失败 {proxy_failed}',
       syncFromCrsTitle: '从 CRS 同步账号',
       syncFromCrsDesc:
         '将 claude-relay-service（CRS）中的账号同步到当前系统（不会在浏览器侧直接请求 CRS）。',
@@ -108,6 +108,7 @@ export default {
         notes: '备注',
         priority: '优先级',
         billingRateMultiplier: '账号倍率',
+        reviewStatus: '审核状态',
         weight: '权重',
         schedulerScore: '调度权值',
         status: '状态',
@@ -121,6 +122,23 @@ export default {
         expiresAt: '过期时间',
         actions: '操作'
       },
+      review: {
+        pending: '待审核',
+        approved: '已通过',
+        rejected: '已拒绝'
+      },
+      reviewFilters: {
+        pending: '待审核',
+        approved: '已通过',
+        rejected: '已拒绝',
+        external: '外部提交'
+      },
+      externalSubmission: '外部提交者',
+      approve: '通过',
+      reject: '拒绝',
+      reviewApproved: '账号已审核通过',
+      reviewRejected: '账号已拒绝',
+      reviewUpdateFailed: '更新审核状态失败',
       schedulerScore: {
         baseShort: '普通',
         stickyShort: '粘性',
@@ -629,6 +647,7 @@ export default {
       clearAllModels: '清除所有模型',
       customModelName: '自定义模型名称',
       enterCustomModelName: '输入自定义模型名称',
+      enterCustomModelNames: '输入自定义模型名称，多个模型之间空格分割',
       addModel: '填入',
       modelExists: '该模型已存在',
       modelCount: '{count} 个模型',
@@ -864,6 +883,8 @@ export default {
         authCode: '授权码',
         authCodePlaceholder: '粘贴 Claude 页面的授权码...',
         authCodeHint: '粘贴从 Claude 页面复制的授权码',
+        copyUrl: '复制链接',
+        urlCopied: '链接已复制到剪贴板',
         completeAuth: '完成授权',
         verifying: '验证中...',
         pleaseEnterSessionKey: '请输入至少一个有效的 sessionKey',
@@ -899,7 +920,10 @@ export default {
               '未设置代理，当前服务器无法直连 OpenAI，导致 OpenAI OAuth 请求失败。请先选择可访问 OpenAI 的代理后重试；如果授权码已失效，请重新生成授权链接。'
           },
           // Refresh Token auth
+          mobileRefreshTokenAuth: '手动输入 Mobile RT',
+          accessTokenAuth: '手动输入 AT',
           refreshTokenAuth: '手动输入 RT',
+          refreshTokenLabel: 'Refresh Token',
           refreshTokenDesc: '输入您已有的 OpenAI Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
           refreshTokenPlaceholder: '粘贴您的 OpenAI Refresh Token...\n支持多个，每行一个',
           codexSessionAuth: 'Codex JSON / AT 批量输入',
@@ -1045,6 +1069,7 @@ export default {
           failedToExchangeCode: 'Antigravity 授权码兑换失败',
           // Refresh Token auth
           refreshTokenAuth: '手动输入 RT',
+          refreshTokenLabel: 'Refresh Token',
           refreshTokenDesc: '输入您已有的 Antigravity Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
           refreshTokenPlaceholder: '粘贴您的 Antigravity Refresh Token...\n支持多个，每行一个',
           validating: '验证中...',
