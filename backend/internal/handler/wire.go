@@ -123,6 +123,7 @@ func ProvideHandlers(
 	modelSquareHandler *ModelSquareHandler,
 	// sudoapi: Account contributor review workflow.
 	contributorAccountHandler *ContributorAccountHandler,
+	batchImageHandler *BatchImageHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -147,6 +148,7 @@ func ProvideHandlers(
 		ModelSquare: modelSquareHandler,
 		// sudoapi: Account contributor review workflow.
 		ContributorAccount: contributorAccountHandler,
+		BatchImage:         batchImageHandler,
 	}
 }
 
@@ -172,6 +174,7 @@ var ProviderSet = wire.NewSet(
 	NewModelSquareHandler,
 	// sudoapi: Account contributor review workflow.
 	NewContributorAccountHandler,
+	NewBatchImageHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

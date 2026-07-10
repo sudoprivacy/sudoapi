@@ -19,6 +19,7 @@ type ChannelHandler struct {
 	billingService *service.BillingService
 	pricingService *service.PricingService
 
+	// sudoapi: Model market.
 	endpointConfigService *service.ModelEndpointConfigService
 	modelSquareSvc        *service.ModelSquareService
 }
@@ -368,6 +369,7 @@ func (h *ChannelHandler) List(c *gin.Context) {
 	response.Paginated(c, out, pag.Total, page, pageSize)
 }
 
+// sudoapi: Model market.
 // ListPlatforms handles listing configured platforms.
 // GET /api/v1/admin/channels/platforms
 func (h *ChannelHandler) ListPlatforms(c *gin.Context) {
@@ -379,14 +381,17 @@ func (h *ChannelHandler) ListPlatforms(c *gin.Context) {
 	response.Success(c, channelPlatformsResponse{Platforms: emptyStringSliceIfNil(platforms)})
 }
 
+// sudoapi: Model market.
 type channelPlatformsResponse struct {
 	Platforms []string `json:"platforms"`
 }
 
+// sudoapi: Model market.
 type channelEndpointConfigRequest struct {
 	Platforms map[string]map[string][]service.ModelEndpoint `json:"platforms"`
 }
 
+// sudoapi: Model market.
 // GetEndpointConfig handles getting global model endpoint config.
 // GET /api/v1/admin/channels/endpoint-config
 func (h *ChannelHandler) GetEndpointConfig(c *gin.Context) {
@@ -398,6 +403,7 @@ func (h *ChannelHandler) GetEndpointConfig(c *gin.Context) {
 	response.Success(c, cfg)
 }
 
+// sudoapi: Model market.
 // UpdateEndpointConfig handles replacing global model endpoint config.
 // PUT /api/v1/admin/channels/endpoint-config
 func (h *ChannelHandler) UpdateEndpointConfig(c *gin.Context) {

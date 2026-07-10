@@ -424,18 +424,23 @@ export const useAuthStore = defineStore('auth', () => {
    * Clears all authentication state and persisted data
    */
   async function logout(): Promise<void> {
-    if (user.value?.role === 'account_contributor') {
-      try {
-        await contributorAPI.accounts.releaseProxyReservation()
-      } catch {
-        // Logout can continue; stale reservations are cleared by TTL.
+    try {
+      if (user.value?.role === 'account_contributor') {
+        try {
+          await contributorAPI.accounts.releaseProxyReservation()
+        } catch {
+          // Logout can continue; stale reservations are cleared by TTL.
+        }
       }
+      // Call API logout (revokes refresh token on server)
+      await authAPI.logout()
+    } catch (err) {
+      // 服务端吊销失败（网络/5xx/超时）不应阻止本地登出，否则用户点了退出仍处于登录态。
+      console.warn('Logout API call failed, clearing local session anyway', err)
+    } finally {
+      // Always clear local state (tokens, user data, refresh timers)
+      clearAuth()
     }
-    // Call API logout (revokes refresh token on server)
-    await authAPI.logout()
-
-    // Clear state
-    clearAuth()
   }
 
   /**

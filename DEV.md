@@ -92,7 +92,40 @@ ALTER TABLE accounts ADD COLUMN review_status text;
 - 如果 diff 块是新增的,或者是较多行数的修改(不包括删除),则在该块的起始处带上`sudoapi`标记.
 - 对现有文件新增逻辑时,优先聚合成连续的 diff 块.
 
-### 2.3 代码生成
+### 2.3 合并 upstream 时以上游形态为主
+
+合并 upstream 更新时,优先保留 upstream 当前代码形态,只把本仓库仍然需要的业务语义作为最小补丁叠加上去.
+
+具体规则:
+
+- 如果 upstream 修改了组件、布局、文件拆分、函数签名、调用方式、路由组织或配置结构,默认接受 upstream 的新形态.
+- 不因为本仓库曾经改过某段代码,就把 upstream 的新形态改回本仓库旧实现.
+- 只恢复仍有业务价值的 sudoapi 增量,例如权限角色、计费字段、审核状态、业务入口等.
+- 本地增量应尽量表现为在 upstream 代码上追加字段、选项、分支、集成点,而不是替换 upstream 整块实现.
+- 如果必须替换 upstream 代码块,需要确认这是明确业务功能所必需,并在 diff 附近使用`sudoapi`标记说明业务语义.
+- 不恢复已被 upstream 当前代码覆盖的旧结构、旧入口、旧端点或旧交互兼容.
+
+例如 upstream 使用:
+
+```vue
+<select v-model="form.role" class="input">
+  <option value="user">{{ t('admin.users.roles.user') }}</option>
+  <option value="admin">{{ t('admin.users.roles.admin') }}</option>
+</select>
+```
+
+而本仓库旧实现使用自定义`<Select :options="roleOptions" />`.
+合并时应保留 upstream 的`<select>`形态,只补充本仓库业务需要的选项:
+
+```vue
+<select v-model="form.role" class="input">
+  <option value="user">{{ t('admin.users.roles.user') }}</option>
+  <option value="admin">{{ t('admin.users.roles.admin') }}</option>
+  <option value="account_contributor">{{ t('admin.users.roles.account_contributor') }}</option>
+</select>
+```
+
+### 2.4 代码生成
 
 对于以下代码,不应该直接修改,而是使用代码生成,工作目录是`backend`:
 
@@ -111,7 +144,7 @@ ALTER TABLE accounts ADD COLUMN review_status text;
 
 解决冲突时,先解决源文件冲突,再重新生成生成文件.不要手工把业务逻辑写进生成文件.
 
-### 2.4 测试
+### 2.5 测试
 
 #### 添加受影响行为的回归测试,至少覆盖相关影响面:
 
@@ -137,5 +170,3 @@ go test -tags=unit ./internal/service -run "<FeatureTest>" -count=1
 pnpm run typecheck
 pnpm run test:run <test-file>
 ```
-
-

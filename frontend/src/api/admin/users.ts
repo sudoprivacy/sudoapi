@@ -122,12 +122,12 @@ export async function create(userData: {
   password: string
   username?: string
   notes?: string
+  // sudoapi: Account contributor review workflow.
+  role?: 'admin' | 'user' | 'account_contributor'
   balance?: number
   concurrency?: number
   rpm_limit?: number
   allowed_groups?: number[] | null
-  // sudoapi: Account contributor review workflow.
-  role?: 'user' | 'account_contributor'
 }): Promise<AdminUser> {
   const { data } = await apiClient.post<AdminUser>('/admin/users', userData)
   return data

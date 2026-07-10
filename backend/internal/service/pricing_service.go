@@ -88,10 +88,15 @@ type LiteLLMModelPricing struct {
 	SupportsToolChoice      bool `json:"supports_tool_choice"`
 	SupportsParallelTools   bool `json:"supports_parallel_function_calling"`
 	// sudoapi: Model market.
-	SupportedModalities       []string `json:"supported_modalities,omitempty"`
-	SupportedOutputModalities []string `json:"supported_output_modalities,omitempty"`
-	SupportFlags              []string `json:"support_flags,omitempty"`
-	RawFields                 map[string]any
+	SupportedModalities       []string       `json:"supported_modalities,omitempty"`
+	SupportedOutputModalities []string       `json:"supported_output_modalities,omitempty"`
+	SupportFlags              []string       `json:"support_flags,omitempty"`
+	RawFields                 map[string]any `json:"-"`
+
+	// TokenPricingAbsent 表示源数据中 input/output token 价格均缺失（仅有图片价）。
+	// 此类条目只可用于图片计费，token 计费必须回退到 fallback 或 fail-closed，
+	// 否则 token 流量会被按 $0 计费。零值（false）表示条目具备 token 价格。
+	TokenPricingAbsent bool `json:"-"`
 }
 
 // PricingRemoteClient 远程价格数据获取接口
@@ -359,6 +364,7 @@ func (s *PricingService) downloadPricingData() error {
 	if err != nil {
 		return fmt.Errorf("parse pricing data: %w", err)
 	}
+	data = s.mergeFallbackPricingData(data)
 
 	// 保存到本地文件
 	pricingFile := s.getPricingFilePath()
@@ -388,6 +394,57 @@ func (s *PricingService) downloadPricingData() error {
 	return nil
 }
 
+func rawFieldsFromJSON(rawEntry json.RawMessage) map[string]any {
+	var fields map[string]any
+	if err := json.Unmarshal(rawEntry, &fields); err != nil {
+		return nil
+	}
+	return fields
+}
+
+func extractLiteLLMSupportFlags(rawEntry json.RawMessage) []string {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(rawEntry, &fields); err != nil {
+		return nil
+	}
+	flags := make([]string, 0)
+	for key, raw := range fields {
+		if !strings.HasPrefix(key, "supports_") {
+			continue
+		}
+		var enabled bool
+		if err := json.Unmarshal(raw, &enabled); err != nil || !enabled {
+			continue
+		}
+		flag := strings.TrimSpace(strings.TrimPrefix(key, "supports_"))
+		if flag != "" {
+			flags = append(flags, flag)
+		}
+	}
+	sort.Strings(flags)
+	return flags
+}
+
+func cleanLiteLLMStringList(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, v := range in {
+		v = strings.TrimSpace(strings.ToLower(v))
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out
+}
+
 // parsePricingData 解析价格数据（处理各种格式）
 func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModelPricing, error) {
 	// 首先解析为 map[string]json.RawMessage
@@ -411,13 +468,9 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			skipped++
 			continue
 		}
-		var rawFields map[string]any
-		if err := json.Unmarshal(rawEntry, &rawFields); err != nil {
-			rawFields = nil
-		}
 
 		// 只保留有有效价格的条目
-		if entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil {
+		if entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil && entry.OutputCostPerImage == nil && entry.OutputCostPerImageToken == nil {
 			continue
 		}
 
@@ -426,11 +479,12 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			Mode:                  entry.Mode,
 			SupportsPromptCaching: entry.SupportsPromptCaching,
 			SupportsServiceTier:   entry.SupportsServiceTier,
+			TokenPricingAbsent:    entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil,
 
 			SupportedModalities:       cleanLiteLLMStringList(entry.SupportedModalities),
 			SupportedOutputModalities: cleanLiteLLMStringList(entry.SupportedOutputModalities),
 			SupportFlags:              extractLiteLLMSupportFlags(rawEntry),
-			RawFields:                 rawFields,
+			RawFields:                 rawFieldsFromJSON(rawEntry),
 		}
 
 		if entry.InputCostPerToken != nil {
@@ -457,6 +511,12 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		if entry.CacheReadInputTokenCostPriority != nil {
 			pricing.CacheReadInputTokenCostPriority = *entry.CacheReadInputTokenCostPriority
 		}
+		if entry.OutputCostPerImage != nil {
+			pricing.OutputCostPerImage = *entry.OutputCostPerImage
+		}
+		if entry.OutputCostPerImageToken != nil {
+			pricing.OutputCostPerImageToken = *entry.OutputCostPerImageToken
+		}
 		if entry.LongContextInputTokenThreshold != nil {
 			pricing.LongContextInputTokenThreshold = *entry.LongContextInputTokenThreshold
 		}
@@ -466,15 +526,8 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		if entry.LongContextOutputCostMultiplier != nil {
 			pricing.LongContextOutputCostMultiplier = *entry.LongContextOutputCostMultiplier
 		}
-		if entry.OutputCostPerImage != nil {
-			pricing.OutputCostPerImage = *entry.OutputCostPerImage
-		}
-		if entry.OutputCostPerImageToken != nil {
-			pricing.OutputCostPerImageToken = *entry.OutputCostPerImageToken
-		}
 
 		// sudoapi: Model Square model catalog.
-		// Context window + capability metadata (Model Square display only).
 		if entry.MaxTokens != nil {
 			pricing.MaxTokens = *entry.MaxTokens
 		}
@@ -523,49 +576,6 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 	return result, nil
 }
 
-func extractLiteLLMSupportFlags(rawEntry json.RawMessage) []string {
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(rawEntry, &fields); err != nil {
-		return nil
-	}
-	flags := make([]string, 0)
-	for key, raw := range fields {
-		if !strings.HasPrefix(key, "supports_") {
-			continue
-		}
-		var enabled bool
-		if err := json.Unmarshal(raw, &enabled); err != nil || !enabled {
-			continue
-		}
-		flag := strings.TrimSpace(strings.TrimPrefix(key, "supports_"))
-		if flag != "" {
-			flags = append(flags, flag)
-		}
-	}
-	sort.Strings(flags)
-	return flags
-}
-
-func cleanLiteLLMStringList(in []string) []string {
-	if len(in) == 0 {
-		return nil
-	}
-	seen := make(map[string]struct{}, len(in))
-	out := make([]string, 0, len(in))
-	for _, v := range in {
-		v = strings.TrimSpace(strings.ToLower(v))
-		if v == "" {
-			continue
-		}
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
-	}
-	return out
-}
-
 // loadPricingData 从本地文件加载价格数据
 func (s *PricingService) loadPricingData(filePath string) error {
 	data, err := os.ReadFile(filePath)
@@ -578,6 +588,7 @@ func (s *PricingService) loadPricingData(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("parse pricing data: %w", err)
 	}
+	pricingData = s.mergeFallbackPricingData(pricingData)
 
 	// 计算哈希
 	hash := sha256.Sum256(data)
@@ -597,6 +608,37 @@ func (s *PricingService) loadPricingData(filePath string) error {
 
 	logger.LegacyPrintf("service.pricing", "[Pricing] Loaded %d models from %s", len(pricingData), filePath)
 	return nil
+}
+
+func (s *PricingService) mergeFallbackPricingData(data map[string]*LiteLLMModelPricing) map[string]*LiteLLMModelPricing {
+	if data == nil {
+		data = make(map[string]*LiteLLMModelPricing)
+	}
+	if s == nil || s.cfg == nil || strings.TrimSpace(s.cfg.Pricing.FallbackFile) == "" {
+		return data
+	}
+	fallbackBody, err := os.ReadFile(s.cfg.Pricing.FallbackFile)
+	if err != nil {
+		logger.LegacyPrintf("service.pricing", "[Pricing] Fallback merge skipped: %v", err)
+		return data
+	}
+	fallbackData, err := s.parsePricingData(fallbackBody)
+	if err != nil {
+		logger.LegacyPrintf("service.pricing", "[Pricing] Fallback merge parse skipped: %v", err)
+		return data
+	}
+	merged := 0
+	for modelName, pricing := range fallbackData {
+		if _, ok := data[modelName]; ok {
+			continue
+		}
+		data[modelName] = pricing
+		merged++
+	}
+	if merged > 0 {
+		logger.LegacyPrintf("service.pricing", "[Pricing] Merged %d fallback-only models", merged)
+	}
+	return data
 }
 
 // useFallbackPricing 使用回退价格文件

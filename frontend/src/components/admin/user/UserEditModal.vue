@@ -30,13 +30,16 @@
         <input v-model="form.username" type="text" class="input" />
       </div>
       <div>
+        <label class="input-label">{{ t('admin.users.form.roleLabel') }}</label>
+        <select v-model="form.role" class="input">
+          <option value="user">{{ t('admin.users.roles.user') }}</option>
+          <option value="admin">{{ t('admin.users.roles.admin') }}</option>
+          <option value="account_contributor">{{ t('admin.users.roles.account_contributor') }}</option>
+        </select>
+      </div>
+      <div>
         <label class="input-label">{{ t('admin.users.notes') }}</label>
         <textarea v-model="form.notes" rows="3" class="input"></textarea>
-      </div>
-      <!-- sudoapi: Account contributor review workflow. -->
-      <div>
-        <label class="input-label">{{ t('admin.users.form.roleLabel') }}</label>
-        <Select v-model="form.role" :options="roleOptions" />
       </div>
       <div>
         <label class="input-label">{{ t('admin.users.columns.concurrency') }}</label>
@@ -75,7 +78,6 @@ import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, UserAttributeValuesMap } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import Select from '@/components/common/Select.vue'
 import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
 import Icon from '@/components/icons/Icon.vue'
 
@@ -84,16 +86,11 @@ const emit = defineEmits(['close', 'success'])
 const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
 
 const submitting = ref(false); const passwordCopied = ref(false)
-// sudoapi: Account contributor review workflow.
-const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user' as 'user' | 'account_contributor', concurrency: 1, rpm_limit: 0, customAttributes: {} as UserAttributeValuesMap })
-const roleOptions = [
-  { value: 'user', label: t('admin.users.roles.user') },
-  { value: 'account_contributor', label: t('admin.users.roles.account_contributor') },
-]
+const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user' as 'user' | 'admin' | 'account_contributor', concurrency: 1, rpm_limit: 0, customAttributes: {} as UserAttributeValuesMap })
 
 watch(() => props.user, (u) => {
   if (u) {
-    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', role: u.role === 'account_contributor' ? 'account_contributor' : 'user', concurrency: u.concurrency, rpm_limit: u.rpm_limit ?? 0, customAttributes: {} })
+    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', role: u.role || 'user', concurrency: u.concurrency, rpm_limit: u.rpm_limit ?? 0, customAttributes: {} })
     passwordCopied.value = false
   }
 }, { immediate: true })

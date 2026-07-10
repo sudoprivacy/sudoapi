@@ -378,6 +378,7 @@ func (r *proxyRepository) ListAccountSummariesByProxyID(ctx context.Context, pro
 	return out, nil
 }
 
+// sudoapi: Contributor account self-service authorization.
 func (r *proxyRepository) ExpireContributorProxyReservations(ctx context.Context, now time.Time) error {
 	_, err := r.sql.ExecContext(ctx, `
 		UPDATE contributor_proxy_reservations
@@ -387,6 +388,7 @@ func (r *proxyRepository) ExpireContributorProxyReservations(ctx context.Context
 	return err
 }
 
+// sudoapi: Contributor account self-service authorization.
 func (r *proxyRepository) GetActiveContributorProxyReservation(ctx context.Context, ownerUserID int64, now, expiresAt time.Time) (*service.ContributorProxyReservation, error) {
 	reservation := &service.ContributorProxyReservation{}
 	err := scanSingleRow(ctx, r.sql, `
@@ -421,6 +423,7 @@ func (r *proxyRepository) GetActiveContributorProxyReservation(ctx context.Conte
 	return reservation, nil
 }
 
+// sudoapi: Contributor account self-service authorization.
 func (r *proxyRepository) ListActiveContributorProxyReservationProxyIDs(ctx context.Context, now time.Time) (map[int64]struct{}, error) {
 	rows, err := r.sql.QueryContext(ctx, `
 		SELECT proxy_id
@@ -446,6 +449,7 @@ func (r *proxyRepository) ListActiveContributorProxyReservationProxyIDs(ctx cont
 	return out, nil
 }
 
+// sudoapi: Contributor account self-service authorization.
 func (r *proxyRepository) CreateContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64, country string, expiresAt time.Time) (*service.ContributorProxyReservation, error) {
 	reservation := &service.ContributorProxyReservation{}
 	err := scanSingleRow(ctx, r.sql, `
@@ -472,6 +476,7 @@ func (r *proxyRepository) CreateContributorProxyReservation(ctx context.Context,
 	return reservation, nil
 }
 
+// sudoapi: Contributor account self-service authorization.
 func (r *proxyRepository) ConsumeContributorProxyReservation(ctx context.Context, ownerUserID, proxyID int64) error {
 	_, err := r.sql.ExecContext(ctx, `
 		UPDATE contributor_proxy_reservations
@@ -484,6 +489,7 @@ func (r *proxyRepository) ConsumeContributorProxyReservation(ctx context.Context
 	return err
 }
 
+// sudoapi: Contributor account self-service authorization.
 func (r *proxyRepository) ReleaseContributorProxyReservations(ctx context.Context, ownerUserID int64) error {
 	_, err := r.sql.ExecContext(ctx, `
 		UPDATE contributor_proxy_reservations

@@ -187,6 +187,7 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	return s.registerVerifiedOAuthEmailAccountWithRole(ctx, email, password, invitationCode, signupSource, RoleUser)
 }
 
+// sudoapi: Account contributor review workflow.
 func (s *AuthService) RegisterVerifiedOAuthEmailContributorAccount(
 	ctx context.Context,
 	email string,
@@ -197,6 +198,7 @@ func (s *AuthService) RegisterVerifiedOAuthEmailContributorAccount(
 	return s.registerVerifiedOAuthEmailAccountWithRole(ctx, email, password, invitationCode, signupSource, RoleAccountContributor)
 }
 
+// sudoapi: Account contributor review workflow.
 func (s *AuthService) registerVerifiedOAuthEmailAccountWithRole(
 	ctx context.Context,
 	email string,

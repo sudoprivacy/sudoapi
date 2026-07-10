@@ -64,6 +64,7 @@ type Handlers struct {
 	ModelSquare *ModelSquareHandler
 	// sudoapi: Account contributor review workflow.
 	ContributorAccount *ContributorAccountHandler
+	BatchImage         *BatchImageHandler
 }
 
 // BuildInfo contains build-time information

@@ -43,6 +43,7 @@ var (
 	ErrInvitationCodeRequired  = infraerrors.BadRequest("INVITATION_CODE_REQUIRED", "invitation code is required")
 	ErrInvitationCodeInvalid   = infraerrors.BadRequest("INVITATION_CODE_INVALID", "invalid or used invitation code")
 	ErrOAuthInvitationRequired = infraerrors.Forbidden("OAUTH_INVITATION_REQUIRED", "invitation code required to complete oauth registration")
+	// sudoapi: Account contributor review workflow.
 	ErrContributorRoleRequired = infraerrors.Forbidden("CONTRIBUTOR_ROLE_REQUIRED", "account contributor access required")
 )
 
@@ -469,6 +470,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	return token, user, nil
 }
 
+// sudoapi: Account contributor review workflow.
 // ContributorLoginOrRegister logs in an existing account contributor, or creates
 // one when the email has not been registered yet.
 func (s *AuthService) ContributorLoginOrRegister(ctx context.Context, email, password string) (string, *User, error) {

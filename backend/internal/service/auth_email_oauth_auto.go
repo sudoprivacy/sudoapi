@@ -238,6 +238,7 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	return user, nil
 }
 
+// sudoapi: Account contributor review workflow.
 func normalizeEmailOAuthAccountRole(role string) string {
 	if strings.TrimSpace(role) == RoleAccountContributor {
 		return RoleAccountContributor
