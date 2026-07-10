@@ -5,8 +5,10 @@ import channelMonitorV2 from './channelMonitorV2'
 import batchImage from './batchImage'
 import admin from './admin'
 import misc from './misc'
+import extension from './sudo.ts'
+import { mergeLocaleMessages } from '../merge'
 
-export default {
+const messages = {
   ...landing,
   ...common,
   ...dashboard,
@@ -15,3 +17,5 @@ export default {
   admin,
   ...misc,
 }
+
+export default mergeLocaleMessages(messages, extension)
