@@ -193,9 +193,6 @@ type LiteLLMRawEntry struct {
 	SupportsToolChoice      *bool `json:"supports_tool_choice"`
 	SupportsParallelTools   *bool `json:"supports_parallel_function_calling"`
 	// sudoapi: Model market.
-	LongContextInputTokenThreshold  *int     `json:"long_context_input_token_threshold"`
-	LongContextInputCostMultiplier  *float64 `json:"long_context_input_cost_multiplier"`
-	LongContextOutputCostMultiplier *float64 `json:"long_context_output_cost_multiplier"`
 	SupportedModalities             []string `json:"supported_modalities"`
 	SupportedOutputModalities       []string `json:"supported_output_modalities"`
 }
