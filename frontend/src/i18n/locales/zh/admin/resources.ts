@@ -73,10 +73,6 @@ export default {
       dataExportConfirm: '确认导出',
       dataExported: '数据导出成功',
       dataExportFailed: '数据导出失败',
-      copyContributorLoginLink: '贡献者链接',
-      copyContributorLoginLinkTitle: '复制贡献者授权链接',
-      contributorLoginLinkCopied: '贡献者链接已复制',
-      countryCodeRequiredForContributorLink: '请先检测国家代码',
       columns: {
         name: '名称',
         protocol: '协议',
