@@ -740,6 +740,9 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 				CacheCreationTokens: result.Usage.CacheCreationInputTokens,
 				CacheReadTokens:     result.Usage.CacheReadInputTokens,
 				ImageOutputTokens:   result.Usage.ImageOutputTokens,
+				// sudoapi: Channel TTL-specific cache creation pricing.
+				CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
+				CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
 			},
 			cost.TotalCost,
 		)
@@ -888,6 +891,11 @@ func (s *GatewayService) calculateImageCost(
 			InputTokens:       result.Usage.InputTokens,
 			OutputTokens:      result.Usage.OutputTokens,
 			ImageOutputTokens: result.Usage.ImageOutputTokens,
+			// sudoapi: Channel TTL-specific cache creation pricing.
+			CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
+			CacheReadTokens:       result.Usage.CacheReadInputTokens,
+			CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
+			CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
 		}
 		gid := apiKey.Group.ID
 		cost, err := s.billingService.CalculateCostUnified(CostInput{

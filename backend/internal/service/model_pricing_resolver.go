@@ -189,6 +189,23 @@ func (r *ModelPricingResolver) applyTokenOverrides(chPricing *ChannelModelPricin
 		resolved.BasePricing.CacheCreation5mPrice = *chPricing.CacheWritePrice
 		resolved.BasePricing.CacheCreation1hPrice = *chPricing.CacheWritePrice
 	}
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	if chPricing.CacheCreation5mPrice != nil {
+		resolved.BasePricing.CacheCreation5mPrice = *chPricing.CacheCreation5mPrice
+		resolved.SupportsCacheBreakdown = true
+		resolved.BasePricing.SupportsCacheBreakdown = true
+		resolved.BasePricing.CacheCreationPriceExplicit = true
+		if chPricing.CacheWritePrice == nil {
+			resolved.BasePricing.CacheCreationPricePerToken = resolved.BasePricing.CacheCreation5mPrice
+			resolved.BasePricing.CacheCreationPricePerTokenPriority = resolved.BasePricing.CacheCreation5mPrice
+		}
+	}
+	if chPricing.CacheCreation1hPrice != nil {
+		resolved.BasePricing.CacheCreation1hPrice = *chPricing.CacheCreation1hPrice
+		resolved.SupportsCacheBreakdown = true
+		resolved.BasePricing.SupportsCacheBreakdown = true
+		resolved.BasePricing.CacheCreationPriceExplicit = true
+	}
 	if chPricing.CacheReadPrice != nil {
 		resolved.BasePricing.CacheReadPricePerToken = *chPricing.CacheReadPrice
 		resolved.BasePricing.CacheReadPricePerTokenPriority = *chPricing.CacheReadPrice
@@ -231,6 +248,8 @@ func filterValidIntervals(intervals []PricingInterval) []PricingInterval {
 	for _, iv := range intervals {
 		if iv.InputPrice != nil || iv.OutputPrice != nil ||
 			iv.CacheWritePrice != nil || iv.CacheReadPrice != nil ||
+			// sudoapi: Channel TTL-specific cache creation pricing.
+			iv.CacheCreation5mPrice != nil || iv.CacheCreation1hPrice != nil ||
 			iv.PerRequestPrice != nil {
 			valid = append(valid, iv)
 		}
@@ -272,6 +291,21 @@ func intervalToModelPricing(iv *PricingInterval, supportsCacheBreakdown bool, ch
 		pricing.CacheCreationPriceExplicit = true
 		pricing.CacheCreation5mPrice = *iv.CacheWritePrice
 		pricing.CacheCreation1hPrice = *iv.CacheWritePrice
+	}
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	if iv.CacheCreation5mPrice != nil {
+		pricing.CacheCreation5mPrice = *iv.CacheCreation5mPrice
+		pricing.SupportsCacheBreakdown = true
+		pricing.CacheCreationPriceExplicit = true
+		if iv.CacheWritePrice == nil {
+			pricing.CacheCreationPricePerToken = pricing.CacheCreation5mPrice
+			pricing.CacheCreationPricePerTokenPriority = pricing.CacheCreation5mPrice
+		}
+	}
+	if iv.CacheCreation1hPrice != nil {
+		pricing.CacheCreation1hPrice = *iv.CacheCreation1hPrice
+		pricing.SupportsCacheBreakdown = true
+		pricing.CacheCreationPriceExplicit = true
 	}
 	if iv.CacheReadPrice != nil {
 		pricing.CacheReadPricePerToken = *iv.CacheReadPrice

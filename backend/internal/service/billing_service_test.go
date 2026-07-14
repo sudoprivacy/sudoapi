@@ -1157,6 +1157,23 @@ func TestGetModelPricing_GrokCatalogFallbacks(t *testing.T) {
 	}
 }
 
+// sudoapi: Channel TTL-specific cache creation pricing.
+func TestGetModelPricingWithChannel_CacheCreationTTLOverridesFallbackToCacheWrite(t *testing.T) {
+	svc := newTestBillingService()
+
+	chPricing := &ChannelModelPricing{
+		CacheWritePrice:      testPtrFloat64(7e-6),
+		CacheCreation1hPrice: testPtrFloat64(11e-6),
+	}
+	pricing, err := svc.GetModelPricingWithChannel("claude-sonnet-4", chPricing)
+	require.NoError(t, err)
+
+	require.True(t, pricing.SupportsCacheBreakdown)
+	require.InDelta(t, 7e-6, pricing.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, 7e-6, pricing.CacheCreation5mPrice, 1e-12)
+	require.InDelta(t, 11e-6, pricing.CacheCreation1hPrice, 1e-12)
+}
+
 func TestCalculateCost_SupportsCacheBreakdown(t *testing.T) {
 	svc := &BillingService{
 		cfg: &config.Config{},
