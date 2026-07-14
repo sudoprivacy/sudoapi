@@ -201,6 +201,9 @@ func calculateTokenStatsCost(pricing *ChannelModelPricing, tokens UsageTokens) *
 				CacheWritePrice: iv.CacheWritePrice,
 				CacheReadPrice:  iv.CacheReadPrice,
 				PerRequestPrice: iv.PerRequestPrice,
+				// sudoapi: Channel TTL-specific cache creation pricing.
+				CacheCreation5mPrice: iv.CacheCreation5mPrice,
+				CacheCreation1hPrice: iv.CacheCreation1hPrice,
 			}
 		}
 	}
@@ -210,9 +213,29 @@ func calculateTokenStatsCost(pricing *ChannelModelPricing, tokens UsageTokens) *
 		}
 		return *ptr
 	}
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	derefOr := func(ptr *float64, fallback float64) float64 {
+		if ptr == nil {
+			return fallback
+		}
+		return *ptr
+	}
+	var cacheCreationCost float64
+	cacheWritePrice := deref(p.CacheWritePrice)
+	if tokens.CacheCreation5mTokens > 0 || tokens.CacheCreation1hTokens > 0 {
+		// 配置了 5m/1h 价格, 且有对应 ttl 用量
+		cacheCreation5mCost := derefOr(p.CacheCreation5mPrice, cacheWritePrice) * float64(tokens.CacheCreation5mTokens)
+		cacheCreation1hCost := derefOr(p.CacheCreation1hPrice, cacheWritePrice) * float64(tokens.CacheCreation1hTokens)
+		cacheCreationCost = cacheCreation5mCost + cacheCreation1hCost
+	} else {
+		// 配置了 5m/1h 价格, 但没有对应 ttl 用量,
+		// 或者没有配置 5m/1h 价格
+		// 回退到 cacheWritePrice
+		cacheCreationCost = float64(tokens.CacheCreationTokens) * cacheWritePrice
+	}
 	cost := float64(tokens.InputTokens)*deref(p.InputPrice) +
 		float64(tokens.OutputTokens)*deref(p.OutputPrice) +
-		float64(tokens.CacheCreationTokens)*deref(p.CacheWritePrice) +
+		cacheCreationCost +
 		float64(tokens.CacheReadTokens)*deref(p.CacheReadPrice) +
 		float64(tokens.ImageOutputTokens)*deref(p.ImageOutputPrice)
 	if cost <= 0 {

@@ -12,6 +12,9 @@ export interface IntervalFormEntry {
   cache_read_price: number | string | null
   per_request_price: number | string | null
   sort_order: number
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: number | string | null
+  cache_creation_1h_price: number | string | null
 }
 
 export interface PricingFormEntry {
@@ -25,6 +28,9 @@ export interface PricingFormEntry {
   image_output_price: number | string | null
   per_request_price: number | string | null
   intervals: IntervalFormEntry[]
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: number | string | null
+  cache_creation_1h_price: number | string | null
 }
 
 // 价格转换：后端存 per-token，前端显示 per-MTok ($/1M tokens)
@@ -57,6 +63,9 @@ export function apiIntervalsToForm(intervals: PricingInterval[]): IntervalFormEn
     input_price: perTokenToMTok(iv.input_price),
     output_price: perTokenToMTok(iv.output_price),
     cache_write_price: perTokenToMTok(iv.cache_write_price),
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    cache_creation_5m_price: perTokenToMTok(iv.cache_creation_5m_price),
+    cache_creation_1h_price: perTokenToMTok(iv.cache_creation_1h_price),
     cache_read_price: perTokenToMTok(iv.cache_read_price),
     per_request_price: iv.per_request_price,
     sort_order: iv.sort_order
@@ -71,6 +80,9 @@ export function formIntervalsToAPI(intervals: IntervalFormEntry[]): PricingInter
     input_price: mTokToPerToken(iv.input_price),
     output_price: mTokToPerToken(iv.output_price),
     cache_write_price: mTokToPerToken(iv.cache_write_price),
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    cache_creation_5m_price: mTokToPerToken(iv.cache_creation_5m_price),
+    cache_creation_1h_price: mTokToPerToken(iv.cache_creation_1h_price),
     cache_read_price: mTokToPerToken(iv.cache_read_price),
     per_request_price: toNullableNumber(iv.per_request_price),
     sort_order: iv.sort_order
@@ -192,6 +204,9 @@ function validateIntervalPrices(iv: IntervalFormEntry, idx: number, t: Translate
     ['outputPrice', iv.output_price],
     ['cacheWritePrice', iv.cache_write_price],
     ['cacheReadPrice', iv.cache_read_price],
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    ['cacheCreation5mPrice', iv.cache_creation_5m_price],
+    ['cacheCreation1hPrice', iv.cache_creation_1h_price],
     ['perRequestPrice', iv.per_request_price],
   ]
   for (const [key, val] of prices) {

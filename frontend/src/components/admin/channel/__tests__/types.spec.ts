@@ -12,6 +12,9 @@ function makeInterval(over: Partial<IntervalFormEntry>): IntervalFormEntry {
     cache_read_price: null,
     per_request_price: null,
     sort_order: 0,
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    cache_creation_5m_price: null,
+    cache_creation_1h_price: null,
     ...over,
   }
 }
@@ -44,6 +47,14 @@ describe('validateIntervals', () => {
         makeInterval({ min_tokens: 200000, max_tokens: 500000, input_price: 2, output_price: 2 }),
       ]
       expect(validateIntervals(intervals, 'token', t)).toContain('overlap')
+    })
+
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    it('rejects negative ttl cache creation prices', () => {
+      const intervals: IntervalFormEntry[] = [
+        makeInterval({ min_tokens: 0, max_tokens: 100, cache_creation_5m_price: -1 }),
+      ]
+      expect(validateIntervals(intervals, 'token', t)).toContain('negativePrice')
     })
 
     it('rejects unbounded interval in token mode', () => {

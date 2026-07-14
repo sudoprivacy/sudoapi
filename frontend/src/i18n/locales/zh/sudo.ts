@@ -18,6 +18,21 @@ export default {
         fuiouGuideNote: '商户私钥需 PKCS8 + Base64 编码；富友公钥为对接方在富友后台下载的 PKIX + Base64 公钥；商户号 mchnt_cd 同时用于回调归属，请确保与富友合同/后台一致。',
       },
     },
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    channels: {
+      intervalValidation: {
+        price: {
+          cacheCreation5mPrice: '5分钟缓存创建价格',
+          cacheCreation1hPrice: '1小时缓存创建价格',
+        },
+      },
+      form: {
+        cacheCreation5mPrice: '缓存创建 5m',
+        cacheCreation1hPrice: '缓存创建 1h',
+        cacheCreation5mPriceShort: '5m',
+        cacheCreation1hPriceShort: '1h',
+      },
+    },
   },
   payment: {
     methods: {

@@ -851,6 +851,21 @@ func (s *BillingService) GetModelPricingWithChannel(model string, channelPricing
 		pricing.CacheCreation5mPrice = *channelPricing.CacheWritePrice
 		pricing.CacheCreation1hPrice = *channelPricing.CacheWritePrice
 	}
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	if channelPricing.CacheCreation5mPrice != nil {
+		pricing.CacheCreation5mPrice = *channelPricing.CacheCreation5mPrice
+		pricing.SupportsCacheBreakdown = true
+		pricing.CacheCreationPriceExplicit = true
+		if channelPricing.CacheWritePrice == nil {
+			pricing.CacheCreationPricePerToken = pricing.CacheCreation5mPrice
+			pricing.CacheCreationPricePerTokenPriority = pricing.CacheCreation5mPrice
+		}
+	}
+	if channelPricing.CacheCreation1hPrice != nil {
+		pricing.CacheCreation1hPrice = *channelPricing.CacheCreation1hPrice
+		pricing.SupportsCacheBreakdown = true
+		pricing.CacheCreationPriceExplicit = true
+	}
 	if channelPricing.CacheReadPrice != nil {
 		pricing.CacheReadPricePerToken = *channelPricing.CacheReadPrice
 		pricing.CacheReadPricePerTokenPriority = *channelPricing.CacheReadPrice
