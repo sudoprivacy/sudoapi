@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
 )
 
 // ---------------------------------------------------------------------------
@@ -244,6 +245,58 @@ func TestCalculateStatsCost_TokenBilling_WithCacheTTLPrices(t *testing.T) {
 	require.NotNil(t, result)
 	// 80*0.003 + 120*0.005 = 0.84
 	require.InDelta(t, 0.84, *result, 1e-12)
+}
+
+// sudoapi: Channel TTL-specific cache creation pricing.
+func TestCalculateStatsCost_TokenBilling_WithCacheCreationTTLBreakdown(t *testing.T) {
+	pricing := &ChannelModelPricing{
+		BillingMode:       BillingModeToken,
+		CacheWritePrice:   testPtrFloat64(0.004),
+		CacheWrite1hPrice: testPtrFloat64(0.006),
+	}
+	tokens := UsageTokens{
+		CacheCreationTokens:   300,
+		CacheCreation5mTokens: 100,
+		CacheCreation1hTokens: 200,
+	}
+	result := calculateStatsCost(pricing, tokens, 1)
+	require.NotNil(t, result)
+	// 100*0.004 + 200*0.006 = 1.6
+	require.InDelta(t, 1.6, *result, 1e-12)
+}
+
+// sudoapi: Channel TTL-specific cache creation pricing.
+func TestCalculateStatsCost_TokenBilling_WithCacheCreationTTLFallbackToCacheWrite(t *testing.T) {
+	pricing := &ChannelModelPricing{
+		BillingMode:       BillingModeToken,
+		CacheWritePrice:   testPtrFloat64(0.003),
+		CacheWrite1hPrice: testPtrFloat64(0.006),
+	}
+	tokens := UsageTokens{
+		CacheCreationTokens:   300,
+		CacheCreation5mTokens: 100,
+		CacheCreation1hTokens: 200,
+	}
+	result := calculateStatsCost(pricing, tokens, 1)
+	require.NotNil(t, result)
+	// 5m falls back to CacheWritePrice: 100*0.003 + 200*0.006 = 1.5
+	require.InDelta(t, 1.5, *result, 1e-12)
+}
+
+// sudoapi: Channel TTL-specific cache creation pricing.
+func TestCalculateStatsCost_TokenBilling_WithCacheCreationTTLNoUsageDetailsUsesCacheWrite(t *testing.T) {
+	pricing := &ChannelModelPricing{
+		BillingMode:       BillingModeToken,
+		CacheWritePrice:   testPtrFloat64(0.003),
+		CacheWrite1hPrice: testPtrFloat64(0.006),
+	}
+	tokens := UsageTokens{
+		CacheCreationTokens: 300,
+	}
+	result := calculateStatsCost(pricing, tokens, 1)
+	require.NotNil(t, result)
+	// 300*0.003 = 0.9
+	require.InDelta(t, 0.9, *result, 1e-12)
 }
 
 func TestCalculateStatsCost_TokenBilling_WithImageOutput(t *testing.T) {
