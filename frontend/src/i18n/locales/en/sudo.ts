@@ -18,6 +18,21 @@ export default {
         fuiouGuideNote: 'The merchant private key must be PKCS8 + Base64; the Fuiou public key is the PKIX + Base64 key downloaded from the Fuiou merchant portal. mchnt_cd is also used to route async callbacks, so it must match your Fuiou contract / portal value exactly.',
       },
     },
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    channels: {
+      intervalValidation: {
+        price: {
+          cacheCreation5mPrice: '5-minute cache creation price',
+          cacheCreation1hPrice: '1-hour cache creation price',
+        },
+      },
+      form: {
+        cacheCreation5mPrice: 'Cache Create 5m',
+        cacheCreation1hPrice: 'Cache Create 1h',
+        cacheCreation5mPriceShort: '5m',
+        cacheCreation1hPriceShort: '1h',
+      },
+    },
   },
   payment: {
     methods: {

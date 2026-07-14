@@ -4489,6 +4489,9 @@ const emptyGroupPricing = (): PricingFormEntry => ({
   image_output_price: null,
   per_request_price: null,
   intervals: [],
+  // sudoapi: Channel TTL-specific cache creation pricing.
+  cache_creation_5m_price: null,
+  cache_creation_1h_price: null,
 });
 
 const addGroupPricing = (entries: PricingFormEntry[]) =>
@@ -4508,6 +4511,9 @@ const groupPricingFromAPI = (
     image_output_price: perTokenToMTok(entry.image_output_price),
     per_request_price: entry.per_request_price,
     intervals: apiIntervalsToForm(entry.intervals || []),
+    // sudoapi: Channel TTL-specific cache creation pricing.
+    cache_creation_5m_price: entry.cache_creation_5m_price,
+    cache_creation_1h_price: entry.cache_creation_1h_price,
   }));
 
 const groupPricingToAPI = (
@@ -4531,6 +4537,9 @@ const groupPricingToAPI = (
         entry.billing_mode === "token"
           ? []
           : formIntervalsToAPI(entry.intervals || []),
+      // sudoapi: Channel TTL-specific cache creation pricing.
+      cache_creation_5m_price: mTokToPerToken(entry.cache_creation_5m_price),
+      cache_creation_1h_price: mTokToPerToken(entry.cache_creation_1h_price),
     }));
 
 const { t } = useI18n();

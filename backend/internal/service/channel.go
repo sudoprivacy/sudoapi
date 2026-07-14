@@ -102,6 +102,10 @@ type ChannelModelPricing struct {
 	Intervals        []PricingInterval `json:"intervals"`
 	CreatedAt        time.Time         `json:"created_at,omitempty"`
 	UpdatedAt        time.Time         `json:"updated_at,omitempty"`
+
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	CacheCreation5mPrice *float64 `json:"cache_creation_5m_price"` // 5分钟缓存创建价格
+	CacheCreation1hPrice *float64 `json:"cache_creation_1h_price"` // 1小时缓存创建价格
 }
 
 // PricingInterval 定价区间（token 区间 / 按次分层 / 图片分辨率分层）
@@ -119,6 +123,10 @@ type PricingInterval struct {
 	SortOrder       int       `json:"sort_order"`
 	CreatedAt       time.Time `json:"created_at,omitempty"`
 	UpdatedAt       time.Time `json:"updated_at,omitempty"`
+
+	// sudoapi: Channel TTL-specific cache creation pricing.
+	CacheCreation5mPrice *float64 `json:"cache_creation_5m_price"` // token 模式：5分钟缓存创建价
+	CacheCreation1hPrice *float64 `json:"cache_creation_1h_price"` // token 模式：1小时缓存创建价
 }
 
 // IsActive 判断渠道是否启用
@@ -349,6 +357,9 @@ func validateIntervalPrices(iv *PricingInterval, idx int) error {
 		{"cache_write_price", iv.CacheWritePrice},
 		{"cache_read_price", iv.CacheReadPrice},
 		{"per_request_price", iv.PerRequestPrice},
+		// sudoapi: Channel TTL-specific cache creation pricing.
+		{"cache_creation_5m_price", iv.CacheCreation5mPrice},
+		{"cache_creation_1h_price", iv.CacheCreation1hPrice},
 	}
 	for _, p := range prices {
 		if p.val != nil && *p.val < 0 {
