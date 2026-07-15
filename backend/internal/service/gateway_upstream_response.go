@@ -921,6 +921,22 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			}
 		}
 
+		// sudoapi: Deduct proxy-injected system prompt usage.
+		if systemTokens := c.GetInt(systemRewriteTokenKey); systemTokens > 0 {
+			if eventType == "message_start" {
+				if msg, ok := event["message"].(map[string]any); ok {
+					if u, ok := msg["usage"].(map[string]any); ok {
+						eventChanged = s.applySystemRewriteUsageMap(u, systemTokens) || eventChanged
+					}
+				}
+			}
+			if eventType == "message_delta" {
+				if u, ok := event["usage"].(map[string]any); ok {
+					eventChanged = s.applySystemRewriteUsageMap(u, systemTokens) || eventChanged
+				}
+			}
+		}
+
 		usagePatch := s.extractSSEUsagePatch(event)
 		if anthropicStreamEventIsTerminal(eventName, dataLine) {
 			sawTerminalEvent = true
@@ -1378,6 +1394,13 @@ func (s *GatewayService) handleNonStreamingResponse(ctx context.Context, resp *h
 			if newBody, err := sjson.SetBytes(body, "usage.cache_creation.ephemeral_1h_input_tokens", response.Usage.CacheCreation1hTokens); err == nil {
 				body = newBody
 			}
+		}
+	}
+
+	// sudoapi: Deduct proxy-injected system prompt usage.
+	if s.applySystemRewriteUsage(&response.Usage, c.GetInt(systemRewriteTokenKey)) {
+		if newBody, err := sjson.SetBytes(body, "usage.input_tokens", response.Usage.InputTokens); err == nil {
+			body = newBody
 		}
 	}
 

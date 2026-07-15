@@ -241,6 +241,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	// sudoapi: Inject instructions only for openai oauth account.
 	if account.Type == AccountTypeOAuth && instructionsEmpty && !compatMessagesBridge {
 		markPatchSet("instructions", defaultCodexSynthInstructions(reqModel))
+		// sudoapi: Deduct proxy-injected system prompt usage.
+		c.Set(systemRewriteTokenKey, s.systemRewriteTokens(reqModel))
 	}
 
 	billingModel := account.GetMappedModel(reqModel)
@@ -367,6 +369,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			markDecodedModified()
 		} else {
 			codexResult = applyCodexOAuthTransform(decoded, isCodexCLI, isCompactRequest)
+		}
+		// sudoapi: Deduct proxy-injected system prompt usage.
+		if codexResult.SystemRewrite && c != nil {
+			c.Set(systemRewriteTokenKey, s.systemRewriteTokens(upstreamModel))
 		}
 		if codexResult.Modified {
 			markDecodedModified()
