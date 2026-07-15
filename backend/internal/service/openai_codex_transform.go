@@ -79,6 +79,8 @@ type codexTransformResult struct {
 	PromptCacheKey  string
 	ToolNameReverse map[string]string
 	Error           error
+	// sudoapi: Deduct proxy-injected system prompt usage.
+	SystemRewrite bool
 }
 
 type codexOAuthTransformOptions struct {
@@ -297,6 +299,8 @@ func applyCodexOAuthTransformWithOptions(reqBody map[string]any, opts codexOAuth
 	// instructions 处理逻辑：根据是否是 Codex CLI 分别调用不同方法
 	if !opts.SkipDefaultInstructions && applyInstructions(reqBody, opts.IsCodexCLI) {
 		result.Modified = true
+		// sudoapi: Deduct proxy-injected system prompt usage.
+		result.SystemRewrite = true
 	}
 	if isCodexSparkModel(normalizedModel) && applyCodexSparkImageUnsupportedInstructions(reqBody) {
 		result.Modified = true

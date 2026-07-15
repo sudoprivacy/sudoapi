@@ -195,6 +195,9 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 
 	shouldMimicClaudeCode := account.IsOAuth() && !isClaudeCode
 
+	// sudoapi: Deduct proxy-injected system prompt usage.
+	systemRewritten := false
+
 	if shouldMimicClaudeCode {
 		// 与 Parrot 对齐：OAuth 账号无条件重写 system（即使客户端已发了 Claude Code
 		// 风格的 system prompt）。原因：第三方工具（opencode 等）会发 "You are Claude
@@ -207,6 +210,8 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			if err := replaceBody(rewriteSystemForNonClaudeCodeWithPromptBlocks(body, systemRaw, systemPrompt, systemPromptBlocks)); err != nil {
 				return nil, err
 			}
+			// sudoapi: Deduct proxy-injected system prompt usage.
+			systemRewritten = true
 		}
 
 		normalizeOpts := claudeOAuthNormalizeOptions{}
@@ -795,6 +800,11 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	// 触发上游接受回调（提前释放串行锁，不等流完成）
 	if parsed.OnUpstreamAccepted != nil {
 		parsed.OnUpstreamAccepted()
+	}
+
+	// sudoapi: Deduct proxy-injected system prompt usage.
+	if systemRewritten && c != nil {
+		c.Set(systemRewriteTokenKey, s.systemRewriteTokens(mappedModel))
 	}
 
 	var usage *ClaudeUsage
