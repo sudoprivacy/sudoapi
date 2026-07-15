@@ -667,6 +667,15 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 			if needModelReplace && mappedModel != "" && strings.Contains(line, mappedModel) {
 				line = s.replaceModelInSSELine(line, mappedModel, originalModel)
 			}
+			// sudoapi: Deduct proxy-injected system prompt usage.
+			if rewrittenData, rewritten := s.applySystemRewriteUsageJSON(dataBytes, c.GetInt(systemRewriteTokenKey)); rewritten {
+				dataBytes = rewrittenData
+				data = string(rewrittenData)
+				line = "data: " + data
+				if needModelReplace && mappedModel != "" && strings.Contains(line, mappedModel) {
+					line = s.replaceModelInSSELine(line, mappedModel, originalModel)
+				}
+			}
 			startsClientOutput := forceFlushFailedEvent || openAIStreamDataStartsClientOutput(data, eventType)
 			startsVisibleOutput := openAIStreamDataStartsVisibleOutput(data, eventType)
 			startsTTFTOutput := openAIStreamDataStartsTTFT(data, eventType, forceFlushFailedEvent, ttftMode)
@@ -1618,6 +1627,14 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, r
 	usage := &usageValue
 	logOpenAISuccessMissingUsage(ctx, c, account, resp, usage, "json", false)
 
+	// sudoapi: Deduct proxy-injected system prompt usage.
+	if newBody, ok := s.applySystemRewriteUsageJSON(body, c.GetInt(systemRewriteTokenKey)); ok {
+		body = newBody
+		if updatedUsage, parsed := extractOpenAIUsageFromJSONBytes(body); parsed {
+			*usage = updatedUsage
+		}
+	}
+
 	// Replace model in response if needed
 	if originalModel != mappedModel {
 		body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
@@ -1717,6 +1734,13 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 		}
 		finalResponse = supplementCompactionItemFromSSE(c, finalResponse, bodyText)
 		body = finalResponse
+		// sudoapi: Deduct proxy-injected system prompt usage.
+		if newBody, changed := s.applySystemRewriteUsageJSON(body, c.GetInt(systemRewriteTokenKey)); changed {
+			body = newBody
+			if updatedUsage, parsed := extractOpenAIUsageFromJSONBytes(body); parsed {
+				*usage = updatedUsage
+			}
+		}
 		if originalModel != mappedModel {
 			body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
 		}
@@ -1737,6 +1761,11 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 		restoredBody = restoreCodexToolNamesFromContext(c, restoredBody)
 		body = restoredBody
 	} else {
+		// sudoapi: Deduct proxy-injected system prompt usage.
+		if rewrittenBody, rewritten := s.rewriteSSEBodySystemRewriteUsage(bodyText, c.GetInt(systemRewriteTokenKey)); rewritten {
+			bodyText = rewrittenBody
+			usage = s.parseSSEUsageFromBody(bodyText)
+		}
 		if originalModel != mappedModel {
 			bodyText = s.replaceModelInSSEBody(bodyText, mappedModel, originalModel)
 		}

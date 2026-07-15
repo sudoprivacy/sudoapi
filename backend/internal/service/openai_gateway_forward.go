@@ -370,6 +370,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	instructionsEmpty := !instructions.Exists() || instructions.Type != gjson.String || strings.TrimSpace(instructions.String()) == ""
 	if instructionsEmpty && account.UsesOpenAICodexProtocol() && !compatMessagesBridge && !nativeCNResponses {
 		markPatchSet("instructions", defaultCodexSynthInstructions(upstreamModel))
+		// sudoapi: Deduct proxy-injected system prompt usage.
+		c.Set(systemRewriteTokenKey, s.systemRewriteTokens(reqModel))
 	}
 	if billingModel != requestedModel {
 		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", requestedModel, billingModel, account.Name, isCodexCLI)
@@ -511,6 +513,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			return nil, codexResult.Error
 		}
 		setCodexToolNameReverse(c, codexResult.ToolNameReverse)
+		// sudoapi: Deduct proxy-injected system prompt usage.
+		if codexResult.SystemRewrite && c != nil {
+			c.Set(systemRewriteTokenKey, s.systemRewriteTokens(upstreamModel))
+		}
 		if codexResult.Modified {
 			markDecodedModified()
 		}
