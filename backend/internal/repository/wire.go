@@ -161,6 +161,9 @@ var ProviderSet = wire.NewSet(
 	ProvideEnt,
 	ProvideSQLDB,
 	ProvideRedis,
+
+	// sudoapi: Model catalog.
+	NewModelCatalogMetadataRepository,
 )
 
 // ProvideEnt 为依赖注入提供 Ent 客户端。

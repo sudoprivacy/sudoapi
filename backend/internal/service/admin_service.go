@@ -618,10 +618,18 @@ type adminServiceImpl struct {
 	privacyClientFactory PrivacyClientFactory
 	runtimeBlocker       AccountRuntimeBlocker
 	affiliateService     adminRechargeAffiliateAccruer
+
+	// sudoapi: Model catalog.
+	modelCatalogCache ModelCatalogCacheInvalidator
 }
 
 type adminRechargeAffiliateAccruer interface {
 	AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error)
+}
+
+// sudoapi: Model catalog.
+type ModelCatalogCacheInvalidator interface {
+	InvalidateAll()
 }
 
 type userGroupRateBatchReader interface {
@@ -649,6 +657,8 @@ func NewAdminService(
 	privacyClientFactory PrivacyClientFactory,
 	runtimeBlocker AccountRuntimeBlocker,
 	affiliateService *AffiliateService,
+	// sudoapi: Model catalog.
+	modelCatalogCache ModelCatalogCacheInvalidator,
 ) AdminService {
 	return &adminServiceImpl{
 		userRepo:             userRepo,
@@ -672,5 +682,7 @@ func NewAdminService(
 		privacyClientFactory: privacyClientFactory,
 		runtimeBlocker:       runtimeBlocker,
 		affiliateService:     affiliateService,
+		// sudoapi: Model catalog.
+		modelCatalogCache: modelCatalogCache,
 	}
 }

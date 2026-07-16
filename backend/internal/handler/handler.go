@@ -41,6 +41,8 @@ type AdminHandlers struct {
 	Affiliate              *admin.AffiliateHandler
 	Compliance             *admin.ComplianceHandler
 	AuditLog               *admin.AuditLogHandler
+	// sudoapi: Model catalog.
+	ModelCatalog *admin.ModelCatalogHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -63,6 +65,8 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
+	// sudoapi: Model catalog.
+	ModelCatalog *ModelCatalogHandler
 }
 
 // BuildInfo contains build-time information
