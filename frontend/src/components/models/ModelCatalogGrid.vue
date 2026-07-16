@@ -1,0 +1,338 @@
+<!-- sudoapi: Model catalog. -->
+
+<template>
+  <div class="space-y-5">
+    <!-- 模型类型 tabs（仅 full 模式且数据已加载时显示，给用户一个不需展开完整 filter 的快捷入口） -->
+    <div
+      v-if="!compact && availableModelTypes.length > 1"
+      class="-mx-1 flex flex-wrap items-center gap-1 overflow-x-auto"
+    >
+      <button type="button" @click="setModelTypeTab('')" :class="modelTypeTabClass('')">
+        {{ t('modelCatalog.tabs.all') }}
+        <span class="ml-1 text-[10px] opacity-60">{{ allCards.length }}</span>
+      </button>
+      <button
+        v-for="type in availableModelTypes"
+        :key="type"
+        type="button"
+        @click="setModelTypeTab(type)"
+        :class="modelTypeTabClass(type)"
+      >
+        {{ t(`modelCatalog.modelTypes.${type}`, type) }}
+        <span class="ml-1 text-[10px] opacity-60">{{ countByModelType[type] ?? 0 }}</span>
+      </button>
+    </div>
+
+    <!-- Filter bar — compact 时只显示一个搜索框 -->
+    <ModelFilterBar
+      v-if="!compact"
+      v-model="filterState"
+      :available-categories="availableCategories"
+      :available-capabilities="availableCapabilities"
+    />
+    <div v-else class="relative w-full max-w-md">
+      <Icon name="search" size="md" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+      <input
+        v-model="filterState.search"
+        type="text"
+        :placeholder="t('modelCatalog.searchPlaceholder')"
+        class="input pl-10"
+      />
+    </div>
+
+    <!-- Result summary + sort + refresh -->
+    <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500 dark:text-dark-400">
+      <span>
+        {{ t('modelCatalog.resultCount', { count: visibleCards.length, total: allCards.length }) }}
+      </span>
+      <div class="flex items-center gap-2">
+        <label v-if="!compact" class="flex items-center gap-1.5">
+          <span class="text-nowrap">{{ t('modelCatalog.sort.label') }}</span>
+          <select v-model="sortKey" class="input h-7 py-0 pl-2 pr-7 text-xs">
+            <option value="featured">{{ t('modelCatalog.sort.featured') }}</option>
+            <option value="nameAsc">{{ t('modelCatalog.sort.nameAsc') }}</option>
+            <option value="nameDesc">{{ t('modelCatalog.sort.nameDesc') }}</option>
+            <option value="priceAsc">{{ t('modelCatalog.sort.priceAsc') }}</option>
+            <option value="priceDesc">{{ t('modelCatalog.sort.priceDesc') }}</option>
+            <option value="contextDesc">{{ t('modelCatalog.sort.contextDesc') }}</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          @click="reload"
+          :disabled="loading"
+          class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:hover:bg-dark-800 dark:hover:text-white"
+          :title="t('common.refresh', 'Refresh')"
+        >
+          <Icon name="refresh" size="sm" :class="loading ? 'animate-spin' : ''" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Error state with retry -->
+    <div
+      v-if="error && !loading"
+      class="flex flex-col items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/60 px-6 py-8 text-center text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-900/10 dark:text-rose-300"
+    >
+      <span>{{ t('modelCatalog.loadFailed', { msg: error }) }}</span>
+      <button type="button" @click="reload" class="btn btn-secondary h-7 px-3 text-xs">
+        {{ t('common.retry', 'Retry') }}
+      </button>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div v-else-if="loading && !allCards.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div
+        v-for="i in compact ? 4 : 8"
+        :key="i"
+        class="h-44 animate-pulse rounded-2xl bg-gray-100 dark:bg-dark-800"
+      ></div>
+    </div>
+
+    <!-- Empty state -->
+    <div
+      v-else-if="!visibleCards.length"
+      class="rounded-2xl border border-dashed border-gray-200 bg-white/40 px-6 py-12 text-center text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-800/40 dark:text-dark-400"
+    >
+      {{ t('modelCatalog.empty') }}
+    </div>
+
+    <!-- Cards grid -->
+    <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <ModelCard v-for="card in displayedCards" :key="card.name" :card="card" @open="openDetail" />
+    </div>
+
+    <!-- View all link (compact mode) -->
+    <div v-if="compact && visibleCards.length > maxItems" class="text-center">
+      <router-link
+        to="/models"
+        class="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:underline dark:text-primary-400"
+      >
+        {{ t('modelCatalog.viewAll') }}
+        <Icon name="arrowRight" size="sm" />
+      </router-link>
+    </div>
+
+    <!-- Detail drawer -->
+    <ModelDetailDrawer :open="detailOpen" :card="selectedCard" @close="closeDetail" />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import modelCatalogAPI, { type ModelCatalogCard } from '@/api/models'
+import Icon from '@/components/icons/Icon.vue'
+import { effectiveModelRateMultiplier } from '@/utils/modelRate'
+import ModelCard from './ModelCard.vue'
+import ModelFilterBar, { type ModelFilterState } from './ModelFilterBar.vue'
+import ModelDetailDrawer from './ModelDetailDrawer.vue'
+
+const props = withDefaults(
+  defineProps<{
+    /** compact 模式只显示前 maxItems 张卡片 + 查看全部链接，用于首页内嵌。 */
+    compact?: boolean
+    maxItems?: number
+  }>(),
+  { compact: false, maxItems: 12 }
+)
+
+const { t } = useI18n()
+
+const allCards = ref<ModelCatalogCard[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+let abortCtl: AbortController | null = null
+
+const filterState = ref<ModelFilterState>({
+  search: '',
+  categories: [],
+  capabilities: [],
+  priceRanges: [],
+  modelTypes: [],
+})
+
+/** 排序键：featured = 后端默认（featured → category → name）。 */
+const sortKey = ref<'featured' | 'nameAsc' | 'nameDesc' | 'priceAsc' | 'priceDesc' | 'contextDesc'>('featured')
+
+const detailOpen = ref(false)
+const selectedCard = ref<ModelCatalogCard | null>(null)
+
+async function reload() {
+  if (abortCtl) abortCtl.abort()
+  abortCtl = new AbortController()
+  loading.value = true
+  error.value = null
+  try {
+    const list = await modelCatalogAPI.listMyModels({ signal: abortCtl.signal })
+    allCards.value = list
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (!/aborted|canceled/i.test(msg)) {
+      error.value = msg
+      console.error('[ModelCatalog] load failed', e)
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(reload)
+
+// ── Filter / sort logic (pure client-side) ──────────────────────────
+
+const availableCategories = computed(() => {
+  const set = new Set<string>()
+  for (const c of allCards.value) set.add(c.category)
+  return Array.from(set).sort()
+})
+const availableCapabilities = computed(() => {
+  const set = new Set<string>()
+  for (const c of allCards.value) cardSupportFlags(c).forEach((cap) => set.add(cap))
+  return Array.from(set).sort()
+})
+
+const availableModelTypes = computed(() => {
+  const set = new Set<string>()
+  for (const c of allCards.value) {
+    if (c.model_type) set.add(c.model_type)
+  }
+  return Array.from(set).sort()
+})
+
+/** 按 model_type 统计计数，给分类 tab 显示数量。 */
+const countByModelType = computed(() => {
+  const m: Record<string, number> = {}
+  for (const c of allCards.value) {
+    if (c.model_type) {
+      m[c.model_type] = (m[c.model_type] ?? 0) + 1
+    }
+  }
+  return m
+})
+
+/**
+ * 取卡片最低 input_price（USD/MTok）作为排序锚，用于 priceAsc/priceDesc 和价格桶。
+ * 返回 Infinity 表示"无价 token 数据"，排序时沉到最后。
+ */
+function minInputPrice(card: ModelCatalogCard): number {
+  let min: number | null = null
+  for (const platform of card.platforms ?? []) {
+    for (const row of platform.group_prices ?? []) {
+      if (row.input_price_per_mtok_usd != null) {
+        const v = row.input_price_per_mtok_usd * effectiveModelRateMultiplier(row)
+        if (min == null || v < min) min = v
+      }
+      for (const iv of row.intervals ?? []) {
+        if (iv.input_price_per_mtok_usd != null) {
+          const v = iv.input_price_per_mtok_usd * effectiveModelRateMultiplier(row)
+          if (min == null || v < min) min = v
+        }
+      }
+    }
+  }
+  return min ?? Number.POSITIVE_INFINITY
+}
+
+function priceTier(card: ModelCatalogCard): string {
+  const min = minInputPrice(card)
+  if (!Number.isFinite(min)) return 'mid'
+  if (min === 0) return 'free'
+  if (min <= 1) return 'low'
+  if (min <= 5) return 'mid'
+  return 'high'
+}
+
+const filteredCards = computed(() => {
+  const q = filterState.value.search.trim().toLowerCase()
+  return allCards.value.filter((c) => {
+    if (q) {
+      const hay = [
+        c.name,
+        c.display_name,
+        c.description,
+        c.category,
+        c.model_type,
+        ...(c.input_modalities ?? []),
+        ...(c.output_modalities ?? []),
+        ...cardSupportFlags(c),
+        ...c.platforms.map((p) => p.platform),
+      ]
+        .join(' ')
+        .toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    if (filterState.value.categories.length && !filterState.value.categories.includes(c.category)) return false
+    if (filterState.value.modelTypes.length && (!c.model_type || !filterState.value.modelTypes.includes(c.model_type)))
+      return false
+    if (filterState.value.capabilities.length) {
+      const caps = new Set(cardSupportFlags(c))
+      if (!filterState.value.capabilities.every((cap) => caps.has(cap))) return false
+    }
+    if (filterState.value.priceRanges.length) {
+      if (!filterState.value.priceRanges.includes(priceTier(c))) return false
+    }
+    return true
+  })
+})
+
+const visibleCards = computed(() => {
+  const list = [...filteredCards.value]
+  switch (sortKey.value) {
+    case 'nameAsc':
+      list.sort((a, b) => a.name.localeCompare(b.name))
+      break
+    case 'nameDesc':
+      list.sort((a, b) => b.name.localeCompare(a.name))
+      break
+    case 'priceAsc':
+      list.sort((a, b) => minInputPrice(a) - minInputPrice(b))
+      break
+    case 'priceDesc':
+      list.sort((a, b) => minInputPrice(b) - minInputPrice(a))
+      break
+    case 'contextDesc':
+      list.sort((a, b) => (b.context_window || 0) - (a.context_window || 0))
+      break
+    case 'featured':
+    default:
+      // 后端已经按 featured → category → name 排序，保持原顺序。
+      break
+  }
+  return list
+})
+
+const displayedCards = computed(() =>
+  props.compact ? visibleCards.value.slice(0, props.maxItems) : visibleCards.value
+)
+
+// ── Model Type tabs (单选语义，复用 filterState.modelTypes) ────────────
+
+function setModelTypeTab(type: string) {
+  filterState.value = {
+    ...filterState.value,
+    modelTypes: type ? [type] : [],
+  }
+}
+
+function modelTypeTabClass(type: string): string {
+  const active =
+    (type === '' && filterState.value.modelTypes.length === 0) ||
+    (type !== '' && filterState.value.modelTypes.length === 1 && filterState.value.modelTypes[0] === type)
+  return active
+    ? 'rounded-full bg-primary-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm'
+    : 'rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-gray-300 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-300'
+}
+
+function openDetail(card: ModelCatalogCard) {
+  selectedCard.value = card
+  detailOpen.value = true
+}
+function closeDetail() {
+  detailOpen.value = false
+}
+
+function cardSupportFlags(card: ModelCatalogCard): string[] {
+  return card.support_flags?.length ? card.support_flags : (card.capabilities ?? [])
+}
+</script>

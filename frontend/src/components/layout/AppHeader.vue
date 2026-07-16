@@ -38,6 +38,15 @@
           <span class="hidden sm:inline">{{ t('nav.docs') }}</span>
         </a>
 
+        <!-- sudoapi: Model catalog. -->
+        <router-link
+          to="/models"
+          class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex dark:text-dark-200 dark:hover:bg-dark-800 dark:hover:text-white"
+        >
+          <Icon name="grid" size="sm" />
+          <span class="hidden sm:inline">{{ t('home.modelCatalog.menuEntry') }}</span>
+        </router-link>
+
         <!-- Language Switcher -->
         <LocaleSwitcher />
 

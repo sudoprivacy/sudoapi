@@ -18,11 +18,14 @@ type ChannelHandler struct {
 	channelService *service.ChannelService
 	billingService *service.BillingService
 	pricingService *service.PricingService
+
+	// sudoapi: Model catalog.
+	catalogCache service.ModelCatalogCacheInvalidator
 }
 
 // NewChannelHandler creates a new admin channel handler
-func NewChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService) *ChannelHandler {
-	return &ChannelHandler{channelService: channelService, billingService: billingService, pricingService: pricingService}
+func NewChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService, catalogCache service.ModelCatalogCacheInvalidator) *ChannelHandler {
+	return &ChannelHandler{channelService: channelService, billingService: billingService, pricingService: pricingService, catalogCache: catalogCache}
 }
 
 // --- Request / Response types ---
@@ -422,6 +425,11 @@ func (h *ChannelHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// sudoapi: Model catalog.
+	if h.catalogCache != nil {
+		h.catalogCache.InvalidateAll()
+	}
+
 	response.Success(c, channelToResponse(channel))
 }
 
@@ -487,6 +495,11 @@ func (h *ChannelHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// sudoapi: Model catalog.
+	if h.catalogCache != nil {
+		h.catalogCache.InvalidateAll()
+	}
+
 	response.Success(c, channelToResponse(channel))
 }
 
@@ -502,6 +515,11 @@ func (h *ChannelHandler) Delete(c *gin.Context) {
 	if err := h.channelService.Delete(c.Request.Context(), id); err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+
+	// sudoapi: Model catalog.
+	if h.catalogCache != nil {
+		h.catalogCache.InvalidateAll()
 	}
 
 	response.Success(c, gin.H{"message": "Channel deleted successfully"})

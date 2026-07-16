@@ -128,5 +128,8 @@ func RegisterUserRoutes(
 			monitors.GET("", h.ChannelMonitor.List)
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
 		}
+
+		// sudoapi: Model catalog.
+		authenticated.GET("/models", h.ModelCatalog.List)
 	}
 }

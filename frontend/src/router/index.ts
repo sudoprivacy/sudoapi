@@ -181,6 +181,17 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     redirect: '/home'
   },
+  // sudoapi: Model catalog.
+  {
+    path: '/models',
+    name: 'ModelCatalog',
+    component: () => import('@/views/user/ModelCatalogView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Models',
+      titleKey: 'modelCatalog.title',
+    }
+  },
   {
     path: '/dashboard',
     name: 'Dashboard',
@@ -479,6 +490,19 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.channelMonitor.description'
     }
   },
+  // sudoapi: Model catalog.
+  {
+    path: '/admin/model-catalog/metadata',
+    name: 'AdminModelCatalogMetadata',
+    component: () => import('@/views/admin/ModelCatalogMetadataView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Model Catalog Config',
+      titleKey: 'admin.modelCatalog.metadata.title',
+      descriptionKey: 'admin.modelCatalog.metadata.description',
+    },
+  },
   {
     path: '/monitor',
     name: 'ChannelStatus',
@@ -729,6 +753,10 @@ const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
 const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal']
+
+// sudoapi: Model catalog.
+BACKEND_MODE_ALLOWED_PATHS.push('/models')
+
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',

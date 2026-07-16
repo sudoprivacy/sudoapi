@@ -102,6 +102,9 @@ func RegisterAdminRoutes(
 		// 渠道管理
 		registerChannelRoutes(admin, h)
 
+		// sudoapi: Model catalog.
+		registerModelCatalogRoutes(admin, h)
+
 		// 渠道监控
 		registerChannelMonitorRoutes(admin, h)
 
@@ -750,5 +753,18 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUserSettings)
 			users.DELETE("/:user_id", h.Admin.Affiliate.ClearUserSettings)
 		}
+	}
+}
+
+// sudoapi: Model catalog.
+func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	// 模型目录管理
+	catalog := admin.Group("/model-catalog")
+	{
+		catalog.GET("/endpoint-config", h.Admin.ModelCatalog.GetEndpointConfig)
+		catalog.PUT("/endpoint-config", h.Admin.ModelCatalog.UpdateEndpointConfig)
+		catalog.GET("/metadata", h.Admin.ModelCatalog.ListMetadata)
+		catalog.POST("/metadata", h.Admin.ModelCatalog.UpsertMetadata)
+		catalog.DELETE("/metadata", h.Admin.ModelCatalog.DeleteMetadata)
 	}
 }

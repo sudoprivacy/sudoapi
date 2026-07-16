@@ -48,6 +48,16 @@
 
         <!-- Nav Actions -->
         <div class="flex items-center gap-3">
+
+          <!-- sudoapi: Model catalog. -->
+          <router-link
+            to="/models"
+            class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:inline-flex dark:text-dark-200 dark:hover:bg-dark-800 dark:hover:text-white"
+          >
+            <Icon name="grid" size="sm" />
+            {{ t('home.modelCatalog.menuEntry') }}
+          </router-link>
+
           <!-- Language Switcher -->
           <LocaleSwitcher />
 
@@ -368,6 +378,18 @@
               >{{ t('home.providers.soon') }}</span
             >
           </div>
+        </div>
+
+        <!-- sudoapi: Model catalog. -->
+        <div class="mb-16 text-center">
+          <router-link
+            to="/models"
+            class="inline-flex items-center gap-2 rounded-full border border-primary-500/30 bg-primary-500/5 px-5 py-2.5 text-sm font-medium text-primary-700 transition hover:bg-primary-500/10 dark:text-primary-300"
+          >
+            <Icon name="grid" size="sm" />
+            {{ t('home.modelCatalog.cta') }}
+            <Icon name="arrowRight" size="sm" />
+          </router-link>
         </div>
       </div>
     </main>

@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
@@ -127,6 +129,22 @@ type LiteLLMModelPricing struct {
 	OutputCostPerImageToken             float64 `json:"output_cost_per_image_token"` // 图片输出 token 价格
 	InputCostPerImageToken              float64 `json:"input_cost_per_image_token"`  // 图片输入 token 价格（如 gpt-image-2 图片编辑）
 
+	// sudoapi: Model catalog.
+	// 上下文与能力元数据（供模型目录展示，不参与计费决策）
+	MaxTokens                 int      `json:"max_tokens"`
+	MaxInputTokens            int      `json:"max_input_tokens"`
+	MaxOutputTokens           int      `json:"max_output_tokens"`
+	SupportsVision            bool     `json:"supports_vision"`
+	SupportsFunctionCalling   bool     `json:"supports_function_calling"`
+	SupportsReasoning         bool     `json:"supports_reasoning"`
+	SupportsAudioInput        bool     `json:"supports_audio_input"`
+	SupportsAudioOutput       bool     `json:"supports_audio_output"`
+	SupportsPDFInput          bool     `json:"supports_pdf_input"`
+	SupportsParallelTools     bool     `json:"supports_parallel_function_calling"`
+	SupportedModalities       []string `json:"supported_modalities,omitempty"`
+	SupportedOutputModalities []string `json:"supported_output_modalities,omitempty"`
+	SupportFlags              []string `json:"support_flags,omitempty"`
+
 	// TokenPricingAbsent 表示源数据中 input/output token 价格均缺失（仅有图片价）。
 	// 此类条目只可用于图片计费，token 计费必须回退到 fallback 或 fail-closed，
 	// 否则 token 流量会被按 $0 计费。零值（false）表示条目具备 token 价格。
@@ -160,6 +178,20 @@ type LiteLLMRawEntry struct {
 	OutputCostPerImage                  *float64 `json:"output_cost_per_image"`
 	OutputCostPerImageToken             *float64 `json:"output_cost_per_image_token"`
 	InputCostPerImageToken              *float64 `json:"input_cost_per_image_token"`
+
+	// sudoapi: Model catalog.
+	MaxTokens                 *int     `json:"max_tokens"`
+	MaxInputTokens            *int     `json:"max_input_tokens"`
+	MaxOutputTokens           *int     `json:"max_output_tokens"`
+	SupportsVision            *bool    `json:"supports_vision"`
+	SupportsFunctionCalling   *bool    `json:"supports_function_calling"`
+	SupportsReasoning         *bool    `json:"supports_reasoning"`
+	SupportsAudioInput        *bool    `json:"supports_audio_input"`
+	SupportsAudioOutput       *bool    `json:"supports_audio_output"`
+	SupportsPDFInput          *bool    `json:"supports_pdf_input"`
+	SupportsParallelTools     *bool    `json:"supports_parallel_function_calling"`
+	SupportedModalities       []string `json:"supported_modalities"`
+	SupportedOutputModalities []string `json:"supported_output_modalities"`
 }
 
 // PricingService 动态价格服务
@@ -447,6 +479,11 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 			SupportsPromptCaching: entry.SupportsPromptCaching,
 			SupportsServiceTier:   entry.SupportsServiceTier,
 			TokenPricingAbsent:    entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil,
+
+			// sudoapi: Model catalog.
+			SupportedModalities:       cleanLiteLLMMetadataList(entry.SupportedModalities),
+			SupportedOutputModalities: cleanLiteLLMMetadataList(entry.SupportedOutputModalities),
+			SupportFlags:              extractLiteLLMSupportFlags(rawEntry),
 		}
 
 		if entry.InputCostPerToken != nil {
@@ -493,6 +530,37 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.InputCostPerImageToken != nil {
 			pricing.InputCostPerImageToken = *entry.InputCostPerImageToken
+		}
+		// sudoapi: Model catalog.
+		if entry.MaxTokens != nil {
+			pricing.MaxTokens = *entry.MaxTokens
+		}
+		if entry.MaxInputTokens != nil {
+			pricing.MaxInputTokens = *entry.MaxInputTokens
+		}
+		if entry.MaxOutputTokens != nil {
+			pricing.MaxOutputTokens = *entry.MaxOutputTokens
+		}
+		if entry.SupportsVision != nil {
+			pricing.SupportsVision = *entry.SupportsVision
+		}
+		if entry.SupportsFunctionCalling != nil {
+			pricing.SupportsFunctionCalling = *entry.SupportsFunctionCalling
+		}
+		if entry.SupportsReasoning != nil {
+			pricing.SupportsReasoning = *entry.SupportsReasoning
+		}
+		if entry.SupportsAudioInput != nil {
+			pricing.SupportsAudioInput = *entry.SupportsAudioInput
+		}
+		if entry.SupportsAudioOutput != nil {
+			pricing.SupportsAudioOutput = *entry.SupportsAudioOutput
+		}
+		if entry.SupportsPDFInput != nil {
+			pricing.SupportsPDFInput = *entry.SupportsPDFInput
+		}
+		if entry.SupportsParallelTools != nil {
+			pricing.SupportsParallelTools = *entry.SupportsParallelTools
 		}
 
 		result[modelName] = pricing
@@ -1064,4 +1132,43 @@ func isNumeric(s string) bool {
 		}
 	}
 	return true
+}
+
+// sudoapi: Model catalog.
+func extractLiteLLMSupportFlags(rawEntry json.RawMessage) []string {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(rawEntry, &fields); err != nil {
+		return nil
+	}
+	flags := lo.FilterMapToSlice(fields, func(key string, raw json.RawMessage) (string, bool) {
+		if !strings.HasPrefix(key, "supports_") {
+			return "", false
+		}
+		var enabled bool
+		if err := json.Unmarshal(raw, &enabled); err != nil || !enabled {
+			return "", false
+		}
+		flag := strings.TrimSpace(strings.TrimPrefix(key, "supports_"))
+		return flag, flag != ""
+	})
+	sort.Strings(flags)
+	return flags
+}
+
+// sudoapi: Model catalog.
+func cleanLiteLLMMetadataList(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }

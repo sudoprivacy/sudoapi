@@ -337,6 +337,11 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		group.AccountCount = int64(len(accountIDsToCopy))
 	}
 
+	// sudoapi: Model catalog.
+	if s.modelCatalogCache != nil {
+		s.modelCatalogCache.InvalidateAll()
+	}
+
 	return group, nil
 }
 
@@ -696,6 +701,11 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 	}
 
+	// sudoapi: Model catalog.
+	if s.modelCatalogCache != nil {
+		s.modelCatalogCache.InvalidateAll()
+	}
+
 	return group, nil
 }
 
@@ -733,6 +743,11 @@ func (s *adminServiceImpl) DeleteGroup(ctx context.Context, id int64) error {
 		}
 	}
 
+	// sudoapi: Model catalog.
+	if s.modelCatalogCache != nil {
+		s.modelCatalogCache.InvalidateAll()
+	}
+
 	return nil
 }
 
@@ -756,7 +771,14 @@ func (s *adminServiceImpl) ClearGroupRateMultipliers(ctx context.Context, groupI
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
-	return s.userGroupRateRepo.DeleteByGroupID(ctx, groupID)
+	if err := s.userGroupRateRepo.DeleteByGroupID(ctx, groupID); err != nil {
+		return err
+	}
+	// sudoapi: Model catalog.
+	if s.modelCatalogCache != nil {
+		s.modelCatalogCache.InvalidateAll()
+	}
+	return nil
 }
 
 func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error {
@@ -768,7 +790,14 @@ func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, gro
 			return fmt.Errorf("rate_multiplier must be > 0 (user_id=%d)", e.UserID)
 		}
 	}
-	return s.userGroupRateRepo.SyncGroupRateMultipliers(ctx, groupID, entries)
+	if err := s.userGroupRateRepo.SyncGroupRateMultipliers(ctx, groupID, entries); err != nil {
+		return err
+	}
+	// sudoapi: Model catalog.
+	if s.modelCatalogCache != nil {
+		s.modelCatalogCache.InvalidateAll()
+	}
+	return nil
 }
 
 func (s *adminServiceImpl) ClearGroupRPMOverrides(ctx context.Context, groupID int64) error {
@@ -805,7 +834,14 @@ func (s *adminServiceImpl) BatchSetGroupRPMOverrides(ctx context.Context, groupI
 }
 
 func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error {
-	return s.groupRepo.UpdateSortOrders(ctx, updates)
+	if err := s.groupRepo.UpdateSortOrders(ctx, updates); err != nil {
+		return err
+	}
+	// sudoapi: Model catalog.
+	if s.modelCatalogCache != nil {
+		s.modelCatalogCache.InvalidateAll()
+	}
+	return nil
 }
 
 // AdminUpdateAPIKeyGroupID 管理员修改 API Key 分组绑定
@@ -997,6 +1033,10 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 				s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, k)
 			}
 		}
+	}
+	// sudoapi: Model catalog.
+	if s.modelCatalogCache != nil {
+		s.modelCatalogCache.InvalidateAll()
 	}
 
 	return &ReplaceUserGroupResult{MigratedKeys: migrated}, nil
