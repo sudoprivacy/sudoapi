@@ -34,6 +34,8 @@ import affiliatesAPI from './affiliates'
 import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
+// sudoapi: Model catalog.
+import modelCatalogAPI from './modelCatalog.ts'
 
 /**
  * Unified admin API object for convenient access
@@ -65,6 +67,8 @@ export const adminAPI = {
   channels: channelsAPI,
   channelMonitor: channelMonitorAPI,
   channelMonitorTemplate: channelMonitorTemplateAPI,
+  // sudoapi: Model catalog.
+  modelCatalog: modelCatalogAPI,
   payment: adminPaymentAPI,
   affiliates: affiliatesAPI,
   riskControl: riskControlAPI,
@@ -98,6 +102,8 @@ export {
   tlsFingerprintProfileAPI,
   channelsAPI,
   channelMonitorAPI,
+  // sudoapi: Model catalog.
+  modelCatalogAPI,
   channelMonitorTemplateAPI,
   adminPaymentAPI,
   affiliatesAPI,

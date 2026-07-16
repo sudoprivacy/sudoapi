@@ -635,10 +635,18 @@ type adminServiceImpl struct {
 	affiliateService     adminRechargeAffiliateAccruer
 	compositeRouteRepo   CompositeModelRouteRepository
 	compositeResolver    *CompositeRouteResolver
+
+	// sudoapi: Model catalog.
+	modelCatalogCache ModelCatalogCacheInvalidator
 }
 
 type adminRechargeAffiliateAccruer interface {
 	AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error)
+}
+
+// sudoapi: Model catalog.
+type ModelCatalogCacheInvalidator interface {
+	InvalidateAll()
 }
 
 type userGroupRateBatchReader interface {
@@ -668,6 +676,8 @@ func NewAdminService(
 	affiliateService *AffiliateService,
 	compositeRouteRepo CompositeModelRouteRepository,
 	compositeResolver *CompositeRouteResolver,
+	// sudoapi: Model catalog.
+	modelCatalogCache ModelCatalogCacheInvalidator,
 ) AdminService {
 	return &adminServiceImpl{
 		userRepo:             userRepo,
@@ -693,5 +703,7 @@ func NewAdminService(
 		affiliateService:     affiliateService,
 		compositeRouteRepo:   compositeRouteRepo,
 		compositeResolver:    compositeResolver,
+		// sudoapi: Model catalog.
+		modelCatalogCache: modelCatalogCache,
 	}
 }

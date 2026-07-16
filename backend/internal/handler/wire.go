@@ -47,6 +47,8 @@ func ProvideAdminHandlers(
 	auditLogHandler *admin.AuditLogHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
+	// sudoapi: Model catalog.
+	modelCatalogHandler *admin.ModelCatalogHandler,
 ) *AdminHandlers {
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
 	accountHandler.SetOllamaCloudUsageService(ollamaCloudUsage)
@@ -85,6 +87,8 @@ func ProvideAdminHandlers(
 		Affiliate:              affiliateHandler,
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
+		// sudoapi: Model catalog.
+		ModelCatalog: modelCatalogHandler,
 	}
 }
 
@@ -184,6 +188,8 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
+	// sudoapi: Model catalog.
+	modelCatalogHandler *ModelCatalogHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -206,6 +212,8 @@ func ProvideHandlers(
 		AvailableChannel: availableChannelHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
+		// sudoapi: Model catalog.
+		ModelCatalog: modelCatalogHandler,
 	}
 }
 
@@ -268,4 +276,8 @@ var ProviderSet = wire.NewSet(
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,
 	ProvideHandlers,
+
+	// sudoapi: Model catalog.
+	NewModelCatalogHandler,
+	admin.NewModelCatalogHandler,
 )

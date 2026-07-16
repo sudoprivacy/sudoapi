@@ -1,0 +1,223 @@
+<!-- sudoapi: Model catalog. -->
+
+<template>
+  <button
+    type="button"
+    @click="$emit('open', card)"
+    class="group flex h-full w-full flex-col rounded-2xl border border-gray-200/60 bg-white/80 p-4 text-left shadow-sm backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary-500/10 dark:border-dark-700/60 dark:bg-dark-800/60"
+    :class="{ 'ring-2 ring-primary-400/40': card.featured }"
+  >
+    <!-- Header: icon + name + featured badge -->
+    <div class="mb-3 flex items-start justify-between gap-2">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
+        <img v-if="card.icon_url" :src="card.icon_url" alt="" class="h-8 w-8 flex-shrink-0 rounded-lg object-contain" />
+        <div v-else class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg" :class="categoryGradient">
+          <ModelIcon :model="card.name" size="22px" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <div
+            class="truncate text-sm font-semibold text-gray-900 dark:text-white"
+            :title="card.display_name || card.name"
+          >
+            {{ card.display_name || card.name }}
+          </div>
+          <div class="truncate text-[11px] text-gray-500 dark:text-dark-400" :title="card.name">
+            {{ card.name }}
+          </div>
+        </div>
+      </div>
+      <span
+        v-if="card.featured"
+        class="flex-shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+      >
+        {{ t('modelCatalog.featured') }}
+      </span>
+    </div>
+
+    <!-- Description -->
+    <p v-if="card.description" class="mb-3 line-clamp-2 text-xs leading-relaxed text-gray-600 dark:text-dark-300">
+      {{ card.description }}
+    </p>
+
+    <!-- Capability tags -->
+    <div v-if="supportFlags.length" class="mb-3 flex flex-wrap gap-1">
+      <span
+        v-for="cap in displayedCapabilities"
+        :key="cap"
+        class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-dark-300"
+      >
+        {{ supportFlagLabel(cap) }}
+      </span>
+      <span
+        v-if="hiddenCapabilityCount > 0"
+        class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-dark-700 dark:text-dark-400"
+      >
+        +{{ hiddenCapabilityCount }}
+      </span>
+    </div>
+
+    <!-- Footer: model stats + min price -->
+    <div class="mt-auto flex items-end justify-between gap-3 border-t border-gray-100 pt-3 dark:border-dark-700/60">
+      <div class="flex min-w-0 flex-wrap gap-1.5">
+        <span
+          v-if="card.model_type"
+          class="max-w-[7rem] truncate rounded bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-dark-300"
+          :title="modelTypeLabel(card.model_type)"
+        >
+          {{ modelTypeLabel(card.model_type) }}
+        </span>
+        <span
+          v-if="card.context_window > 0"
+          class="rounded bg-gray-50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-dark-300"
+          :title="t('modelCatalog.detail.contextWindow')"
+        >
+          {{ formatTokens(card.context_window) }} ctx
+        </span>
+        <span
+          v-if="card.max_output > 0"
+          class="rounded bg-gray-50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-dark-300"
+          :title="t('modelCatalog.detail.maxOutput')"
+        >
+          {{ formatTokens(card.max_output) }} out
+        </span>
+      </div>
+      <div v-if="priceSummary.input || priceSummary.output" class="shrink-0 text-right">
+        <div class="text-[10px] text-gray-500 dark:text-dark-400">
+          {{ t('modelCatalog.fromPrice') }}
+        </div>
+        <div class="space-y-0.5">
+          <div
+            v-if="priceSummary.input"
+            class="grid grid-cols-[auto_auto] gap-x-1 whitespace-nowrap text-[11px] leading-tight"
+          >
+            <span class="text-gray-500 dark:text-dark-400">{{ t('modelCatalog.inputPriceShort') }}</span>
+            <span class="font-semibold text-primary-600 dark:text-primary-400">{{ priceSummary.input }}</span>
+          </div>
+          <div
+            v-if="priceSummary.output"
+            class="grid grid-cols-[auto_auto] gap-x-1 whitespace-nowrap text-[11px] leading-tight"
+          >
+            <span class="text-gray-500 dark:text-dark-400">{{ t('modelCatalog.outputPriceShort') }}</span>
+            <span class="font-semibold text-primary-600 dark:text-primary-400">{{ priceSummary.output }}</span>
+          </div>
+        </div>
+      </div>
+      <div v-else-if="priceSummary.perRequest" class="shrink-0 text-right">
+        <div class="text-[10px] text-gray-500 dark:text-dark-400">
+          {{ t('modelCatalog.fromPrice') }}
+        </div>
+        <div class="whitespace-nowrap text-xs font-semibold text-primary-600 dark:text-primary-400">
+          {{ priceSummary.perRequest }}
+        </div>
+      </div>
+    </div>
+  </button>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import type { ModelCatalogCard } from '@/api/models'
+import ModelIcon from '@/components/common/ModelIcon.vue'
+import { effectiveModelRateMultiplier } from '@/utils/modelRate'
+
+const props = defineProps<{ card: ModelCatalogCard }>()
+defineEmits<{ (e: 'open', card: ModelCatalogCard): void }>()
+
+const { t } = useI18n()
+
+const MAX_VISIBLE_TAGS = 4
+
+const supportFlags = computed(() =>
+  props.card.support_flags?.length ? props.card.support_flags : (props.card.capabilities ?? [])
+)
+const displayedCapabilities = computed(() => supportFlags.value.slice(0, MAX_VISIBLE_TAGS))
+const hiddenCapabilityCount = computed(() => Math.max(0, supportFlags.value.length - MAX_VISIBLE_TAGS))
+
+const CATEGORY_GRADIENTS: Record<string, string> = {
+  anthropic: 'bg-gradient-to-br from-orange-400 to-orange-500',
+  openai: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
+  antigravity: 'bg-gradient-to-br from-purple-500 to-purple-600',
+  claude: 'bg-gradient-to-br from-orange-400 to-orange-500',
+  gpt: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
+  gemini: 'bg-gradient-to-br from-blue-500 to-blue-600',
+  image: 'bg-gradient-to-br from-pink-500 to-rose-600',
+  embedding: 'bg-gradient-to-br from-teal-500 to-cyan-600',
+  audio: 'bg-gradient-to-br from-violet-500 to-purple-600',
+  other: 'bg-gradient-to-br from-slate-400 to-slate-500',
+}
+const categoryGradient = computed(
+  () => CATEGORY_GRADIENTS[props.card.category?.toLowerCase()] ?? CATEGORY_GRADIENTS.other
+)
+
+function humanizeKey(key: string): string {
+  return key
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function supportFlagLabel(key: string): string {
+  return t(`modelCatalog.capabilities.${key}`, humanizeKey(key))
+}
+
+function modelTypeLabel(key: string): string {
+  return t(`modelCatalog.modelTypes.${key}`, humanizeKey(key))
+}
+
+function formatTokens(n: number): string {
+  if (!n || n <= 0) return '-'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1000) return `${Math.round(n / 1000)}K`
+  return String(n)
+}
+
+const priceSummary = computed(() => {
+  let minToken: number | null = null
+  let minOutputToken: number | null = null
+  let minPerRequest: number | null = null
+  for (const platform of props.card.platforms ?? []) {
+    for (const row of platform.group_prices ?? []) {
+      const effective = effectiveModelRateMultiplier(row)
+      if (row.input_price_per_mtok_usd != null) {
+        const scaled = row.input_price_per_mtok_usd * effective
+        if (minToken == null || scaled < minToken) minToken = scaled
+      }
+      if (row.output_price_per_mtok_usd != null) {
+        const scaled = row.output_price_per_mtok_usd * effective
+        if (minOutputToken == null || scaled < minOutputToken) minOutputToken = scaled
+      }
+      if (row.per_request_price_usd != null) {
+        const scaled = row.per_request_price_usd * effective
+        if (minPerRequest == null || scaled < minPerRequest) minPerRequest = scaled
+      }
+      for (const iv of row.intervals ?? []) {
+        if (iv.input_price_per_mtok_usd != null) {
+          const scaled = iv.input_price_per_mtok_usd * effective
+          if (minToken == null || scaled < minToken) minToken = scaled
+        }
+        if (iv.output_price_per_mtok_usd != null) {
+          const scaled = iv.output_price_per_mtok_usd * effective
+          if (minOutputToken == null || scaled < minOutputToken) minOutputToken = scaled
+        }
+        if (iv.per_request_price_usd != null) {
+          const scaled = iv.per_request_price_usd * effective
+          if (minPerRequest == null || scaled < minPerRequest) minPerRequest = scaled
+        }
+      }
+    }
+  }
+
+  const input = minToken != null ? formatPrice(minToken, 'MTok') : ''
+  const output = minOutputToken != null ? formatPrice(minOutputToken, 'MTok') : ''
+  const perRequest = minPerRequest != null ? formatPrice(minPerRequest, 'call') : ''
+  return { input, output, perRequest }
+})
+
+function formatPrice(value: number, unit: 'MTok' | 'call'): string {
+  const decimals = unit === 'call' ? 4 : 2
+  const formatted = value >= 0.01 ? value.toFixed(decimals) : value.toFixed(6)
+  return `$${formatted} / ${unit}`
+}
+</script>
