@@ -73,14 +73,30 @@ const (
 )
 
 var (
+	// sudoapi: Deducting must not extend the balance entry's lease.
+	// The cached balance mirrors users.balance, which the billing transaction
+	// writes synchronously; the entry's TTL is what periodically re-validates the
+	// mirror against it (a miss re-reads the row and repopulates). SET clears the
+	// TTL, so the lease has to be re-applied — but re-applying a fresh one renews
+	// it on every deduction, and an entry belonging to an active user then never
+	// expires. Any drift it picks up, such as a top-up whose InvalidateUserBalance
+	// failed, becomes permanent instead of healing within billingCacheTTL, and the
+	// upper bound jitteredTTL exists to guarantee is broken. Carry the remaining
+	// lease across instead, and fall back to a fresh TTL only when the entry had
+	// none, so it can never become immortal.
 	deductBalanceScript = redis.NewScript(`
 		local current = redis.call('GET', KEYS[1])
 		if current == false then
 			return 0
 		end
+		local pttl = redis.call('PTTL', KEYS[1])
 		local newVal = tonumber(current) - tonumber(ARGV[1])
 		redis.call('SET', KEYS[1], newVal)
-		redis.call('EXPIRE', KEYS[1], ARGV[2])
+		if pttl > 0 then
+			redis.call('PEXPIRE', KEYS[1], pttl)
+		else
+			redis.call('EXPIRE', KEYS[1], ARGV[2])
+		end
 		return 1
 	`)
 
