@@ -193,8 +193,8 @@ type LiteLLMRawEntry struct {
 	SupportsToolChoice      *bool `json:"supports_tool_choice"`
 	SupportsParallelTools   *bool `json:"supports_parallel_function_calling"`
 	// sudoapi: Model market.
-	SupportedModalities             []string `json:"supported_modalities"`
-	SupportedOutputModalities       []string `json:"supported_output_modalities"`
+	SupportedModalities       []string `json:"supported_modalities"`
+	SupportedOutputModalities []string `json:"supported_output_modalities"`
 }
 
 // PricingService 动态价格服务
