@@ -208,7 +208,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		return nil, err
 	}
 	if len(accounts) == 0 {
-		return nil, ErrNoAvailableAccounts
+		// sudoapi: Record why the account pool came up empty.
+		return nil, noAccountsBecause(ctx, "group=%v platform=%s: no schedulable accounts in this group",
+			derefGroupID(groupID), platform)
 	}
 	ctx = s.withWindowCostPrefetch(ctx, accounts)
 	ctx = s.withRPMPrefetch(ctx, accounts)
@@ -648,7 +650,10 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	}
 
 	if len(candidates) == 0 {
-		return nil, ErrNoAvailableAccounts
+		// sudoapi: Record why the account pool came up empty.
+		return nil, noAccountsBecause(ctx,
+			"group=%v platform=%s model=%s: all %d schedulable accounts were filtered out (excluded / rate-limited / platform / model support / quota / window cost / rpm)",
+			derefGroupID(groupID), platform, requestedModel, len(accounts))
 	}
 
 	accountLoads := make([]AccountWithConcurrency, 0, len(candidates))
@@ -736,7 +741,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			MaxWaiting:     cfg.FallbackMaxWaiting,
 		})
 	}
-	return nil, ErrNoAvailableAccounts
+	// sudoapi: Record why the account pool came up empty.
+	return nil, noAccountsBecause(ctx, "group=%v platform=%s: all %d candidates are at their session limit",
+		derefGroupID(groupID), platform, len(candidates))
 }
 
 func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, preferOAuth bool) (*AccountSelectionResult, bool, error) {
